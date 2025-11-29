@@ -1,1 +1,1 @@
-# MyCircle-Calendar
+# Shareless: Everything Calendar
