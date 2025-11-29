@@ -129,13 +129,30 @@ enum EventVisibility {
 9. Surprise Birthday Party template (hidden event with decoy)
 10. Potluck/Friendsgiving template (dish signup coordination)
 
-### Explicitly NOT in MVP:
+### Explicitly NOT in MVP (Planned for Later Phases):
+
+**Year 1 (Post-MVP):**
 - Android app
 - Google Calendar / Outlook integration
 - Recurring availability patterns
-- Event templates beyond surprise party/potluck
-- Team/work features
+- Additional event templates
 - Calendar widgets
+
+**Year 2+ (Growth Phase - Public/Business Events):**
+- Public event discovery (concerts, shows, restaurants)
+- Business-posted events (venues can post events)
+- Event sharing to friend groups (vote on which public event to attend)
+- Ticketing integration
+- Advanced event discovery features
+
+**Why Friend Groups First:**
+- Simpler use case, faster validation
+- Network effects work better with private groups
+- Privacy controls are core differentiator
+- Less competition than public events space
+- Easier to build trust and community
+
+**Future Vision:** Validate product-market fit with friend coordination, then expand to let businesses post events that friends can discover and coordinate attendance on together.
 
 ## Development Timeline
 

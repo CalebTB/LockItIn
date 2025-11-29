@@ -71,27 +71,37 @@ The "30 messages to plan one event" nightmare in group chats. Current solutions 
 - ✅ ALWAYS follow Apple HIG
 - ✅ ALWAYS optimize for one-handed use
 
-### 4. Built for Friend Groups (Not Businesses)
-**Target User:** "Sarah the Organizer" - 24, young professional, plans monthly friend events, frustrated by group chat chaos.
+### 4. Friend Groups First, Business Events Later
+**Primary Target (MVP & Year 1):** "Sarah the Organizer" - 24, young professional, plans monthly friend events, frustrated by group chat chaos.
 
-**Use Cases:**
+**MVP Use Cases:**
 - Game night (8 people, casual)
 - Secret Santa planning (surprise mode!)
 - Friendsgiving potluck (dish coordination)
 - Weekend trip (multi-day)
 - Surprise birthday party (hidden from birthday person)
 
-**NOT For:**
-- Corporate meetings
-- Client scheduling
-- Public events
-- Conferences
+**Future Growth Opportunity (Year 2+):**
+Once product-market fit is achieved with friend groups, expand to:
+- 🎭 Public events (concerts, shows, community events)
+- 🏢 Business-posted events (restaurants, venues posting events)
+- 🎫 Event discovery (friends can share & vote on public events)
+- 📍 Local event coordination (group decides which show/restaurant to attend)
 
-**Red Lines:**
-- ❌ NEVER add "professional" features (meeting rooms, video calls, etc.)
-- ❌ NEVER use corporate language ("stakeholders", "attendees")
-- ✅ ALWAYS use friendly, casual tone
-- ✅ ALWAYS optimize for groups of 4-12 people
+**Why Friend Groups First:**
+- Simpler use case, faster to validate
+- Network effects work better (invite friends)
+- Less competition than business events space
+- Privacy controls are core differentiator
+- Easier to build trust and community
+
+**MVP Red Lines (Don't Add Yet):**
+- ❌ Corporate meeting features (until Year 2+)
+- ❌ Business calendar integrations (Outlook, etc.)
+- ❌ Public event discovery feeds
+- ❌ Ticketing or payment processing
+- ✅ ALWAYS use friendly, casual tone (even when adding business features later)
+- ✅ ALWAYS optimize for groups of 4-12 people (MVP focus)
 
 ## Feature Prioritization Framework
 
@@ -124,7 +134,7 @@ Examples:
 1. **Does this solve the core problem?** (group coordination chaos)
 2. **Does this strengthen our differentiation?** (vs. Doodle, Calendly, etc.)
 3. **Is the ROI worth the complexity?** (value vs. development time)
-4. **Does this align with "friend groups, not businesses"?**
+4. **Does this align with current phase focus?** (MVP: friend groups → Year 2: business/public events)
 5. **Can we build a simpler version first?** (progressive enhancement)
 
 ## UX Principles
@@ -258,23 +268,25 @@ Examples:
 6. **If 2 "yes":** Consider for later
 7. **If < 2 "yes":** Don't build
 
-### When to Say No:
-- Feature is for businesses, not friends
+### When to Say No (MVP Phase):
+- Feature is for businesses/public events (save for Year 2+)
 - Feature compromises privacy
 - Feature adds complexity without clear value
-- Feature distracts from core use case
+- Feature distracts from friend group core use case
 - Feature would take > 1 month to build
 
 ## Common Scenarios
 
 ### Scenario: "Can we add Zoom integration?"
-**Response:** No. This is for in-person friend gatherings, not business meetings. Zoom integration would confuse our positioning and dilute focus.
+**Response:** Not for MVP. Focus is in-person friend gatherings first. Virtual meeting features are potential Year 2+ expansion after validating core use case.
 
 ### Scenario: "Users want a web version"
-**Response:** Post-MVP. Mobile-first is correct for our use case (calendar is personal, notifications are critical). Web can come later if demand is strong.
+**Response:** Post-MVP (Year 1). Mobile-first is correct for our use case (calendar is personal, notifications are critical). Web can come later if demand is strong.
 
 ### Scenario: "Can we let people create public events?"
-**Response:** Post-MVP. Friend groups are private by default. Public events change the dynamic and add complexity (moderation, spam, etc.). Validate demand first.
+**Response:** Year 2+ feature. This is the growth opportunity - businesses posting events, friends voting on which to attend. But first we need product-market fit with private friend groups. Public events add complexity (moderation, discovery, spam) that would slow MVP. Validate core use case first, then expand.
+
+**Future Vision:** Restaurants/venues post events → Friends share in groups → Vote on which to attend → Privacy preserved (businesses don't see who voted)
 
 ### Scenario: "Should we support recurring availability patterns?"
 **Response:** Tier 2 feature (strong differentiator but medium complexity). Include if time permits, otherwise v1.1.
