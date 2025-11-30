@@ -146,6 +146,14 @@ What's gonna separate this app from others
 
 ---
 
+## 🔵 TIER 4: More Features to add possibly
+
+**Save these for V3 (first update after launch)**
+
+- ⏳ BeReal Like (Create memories from each Event)
+
+---
+
 # 📋 Recommended MVP Scope
 
 ## MUST SHIP (Core MVP):
