@@ -3,13 +3,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Specialized Agents Available
 
-This project uses **specialized Claude subagents** for different aspects of development. Each agent has deep expertise in their domain:
+This project uses **specialized Claude subagents** for different aspects of development. Each agent has deep expertise in their domain (9 agents total):
 
-- **🍎 iOS Developer** (`.claude/agents/ios-developer.md`) - Swift, SwiftUI, EventKit, MVVM
-- **🗄️ Supabase Database** (`.claude/agents/supabase-database.md`) - PostgreSQL, RLS, real-time
-- **⚙️ Systems Engineer** (`.claude/agents/systems-engineer.md`) - CI/CD, deployment, monitoring
-- **🎯 Product Vision** (`.claude/agents/product-vision.md`) - Strategy, UX, feature prioritization
-- **🤖 GitHub Automation** (`.claude/agents/github-automation.md`) - Sprint management, PR automation
+- **🍎 iOS SwiftUI Architect** (`.claude/agents/ios-swiftui-architect.md`) - Swift, SwiftUI, MVVM, EventKit, state management
+- **🎨 iOS UX Designer** (`.claude/agents/ios-ux-designer.md`) - iOS UI/UX design, Apple HIG, interaction patterns, visual design
+- **🔗 Supabase iOS Integration** (`.claude/agents/supabase-ios-integration.md`) - Supabase Swift SDK, auth, RLS, real-time
+- **🔄 Dev Sync Coordinator** (`.claude/agents/dev-sync-coordinator.md`) - iOS-Backend alignment verification
+- **💎 Feature Values Advisor** (`.claude/agents/feature-values-advisor.md`) - Privacy-first principles, value alignment
+- **📊 Feature Analyzer** (`.claude/agents/feature-analyzer.md`) - Feature analysis and market research
+- **🎯 Feature Orchestrator** (`.claude/agents/feature-orchestrator.md`) - Feature lifecycle, roadmap, market research
+- **🤖 GitHub Workflow Manager** (`.claude/agents/github-workflow-manager.md`) - Issues, PRs, sprint planning
 
 **See `.claude/agents/README.md` for detailed usage instructions.**
 
@@ -17,8 +20,8 @@ This project uses **specialized Claude subagents** for different aspects of deve
 
 **Shareless: Everything Calendar** is an iOS calendar app for group event planning with privacy-first availability sharing. The core innovation is a "Shadow Calendar" system that lets users share their availability (when they're busy/free) without revealing private event details, combined with real-time group voting on event proposals.
 
-**Target Launch:** April 30, 2025
-**Development Status:** Pre-development (planning phase until Dec 25, 2024)
+**Target Launch:** April 30, 2026
+**Development Status:** Pre-development (planning phase until Dec 25, 2025)
 **Platform:** iOS-first (Swift/SwiftUI), targeting iOS 17+
 
 ### Core Value Proposition
@@ -27,30 +30,38 @@ Solve the "30 messages to plan one event" problem by showing real availability f
 ## Documentation Structure
 This repository contains **planning documentation only** - no code yet. The actual iOS app will be developed in a separate repository starting December 25, 2025.
 
-### Key Documentation Files
+### Master Documentation Index
 
-**Product & Vision:**
-- `NotionMD/Project Overview.md` - Complete product vision, competitive analysis, business model
-- `NotionMD/SharelessFeatures/Core Features.md` - MVP feature prioritization (Tier 1/2/3)
-- `NotionMD/Monetization Strategy.md` - Freemium model ($4.99/mo premium)
+**START HERE:** Read `lockitin-documentation-index.md` for a complete navigation guide to all 13 lockitin files, 2 remaining NotionMD design resources, and how to find information by role or topic.
 
-**Technical Architecture:**
-- `NotionMD/Technical Documentation/Architecture Overview.md` - High-level system design
-- `NotionMD/Technical Documentation/Database Schema.md` - Complete PostgreSQL schema for Supabase
-- `NotionMD/Technical Documentation/API Endpoints.md` - Supabase REST API design
-- `NotionMD/Technical Documentation/EventKit Integration.md` - Apple Calendar sync approach
+### Core Documentation Files (13 Files)
 
-**Development Roadmap:**
-- `NotionMD/DETAILED DEVELOPMENT TIMELINE & ROADMAP.md` - 6-month timeline overview
-- `NotionMD/DETAILED DEVELOPMENT TIMELINE & ROADMAP/PHASE 1 MVP DEVELOPMENT.md` - Sprint-by-sprint breakdown
-- `NotionMD/DETAILED DEVELOPMENT TIMELINE & ROADMAP/PHASE 2 BETA TESTING.md` - Sprint-by-sprint breakdown
-- `NotionMD/DETAILED DEVELOPMENT TIMELINE & ROADMAP/PHASE 3 GROWTH & ITERATION.md` - Sprint-by-sprint breakdown
+**Product & Strategy (3 files):**
+- `lockitin-product-vision.md` - Complete product vision, target personas, competitive analysis, market positioning, long-term strategy
+- `lockitin-features.md` - Complete feature roadmap with Tier 1/2/3 prioritization and implementation details
+- `lockitin-business.md` - Freemium monetization model, B2B expansion, virality mechanics, growth metrics
 
-**UX Documentation:**
-- `NotionMD/Complete UI Flows/` - 10 complete user flows (onboarding → settings)
-- `NotionMD/Detailed Layouts/` - 10 screen-by-screen designs with interactions
-- `NotionMD/Edge Cases/` - 12 comprehensive edge case scenarios
-- `NotionMD/Design System.md` - Color palette, typography, component library
+**Technical Architecture (3 files):**
+- `lockitin-technical-architecture.md` - Backend & systems architecture, database schema (13 tables), API endpoints, EventKit integration, code examples
+- `lockitin-privacy-security.md` - Shadow Calendar system, RLS policies with SQL, authentication, user controls, compliance (GDPR/CCPA/COPPA)
+- `lockitin-notifications.md` - APNs integration, 12+ notification types, delivery strategy, inbox architecture, user preferences
+
+**Design & UX (5 files):**
+- `lockitin-designs.md` - Design system, principles, color palette, typography, spacing, animations, accessibility
+- `lockitin-ui-design.md` - Complete UI specifications, component library, dark mode, icons, animations
+- `lockitin-complete-user-flows.md` - 10 complete user journeys (onboarding → settings, voting, etc.) with step-by-step flows
+- `lockitin-onboarding.md` - Onboarding strategy, permission flows, tutorial, empty states, progressive disclosure
+- `lockitin-edge-cases.md` - 12 edge case categories, error scenarios, resolution strategies
+
+**Development Process (2 files):**
+- `lockitin-roadmap-development.md` - 6-month timeline with sprint breakdowns across all phases
+- `lockitin-beta-testing.md` - Testing phases, recruitment strategy, feedback collection, metrics, launch readiness
+
+### Reference Design Resources
+
+**Design-Specific Files (Retained in NotionMD):**
+- `NotionMD/Design System.md` - Component library specs, color hex codes, typography details, spacing system
+- `NotionMD/Detailed Layouts/` - 10 screen-by-screen detailed wireframes with annotations and state diagrams
 
 ## Architecture Overview
 
@@ -156,24 +167,24 @@ enum EventVisibility {
 
 ## Development Timeline
 
-**Phase 0: Pre-Mac Preparation (Dec 1-25, 2024)**
+**Phase 0: Pre-Mac Preparation (Dec 1-25, 2025)**
 - Learning Swift/SwiftUI (100 Days of SwiftUI course)
 - Finalizing designs in Figma
 - No coding until Mac Mini arrives Dec 25
 
-**Phase 1: MVP Development (Dec 26 - Feb 26, 2025) - 9 weeks**
+**Phase 1: MVP Development (Dec 26 - Feb 26, 2026) - 9 weeks**
 - Sprint 1: Authentication, project setup, calendar view skeleton
 - Sprint 2: Groups, friends, privacy settings
 - Sprint 3: Event proposals and voting core functionality
 - Sprint 4: Special templates (Surprise Party, Potluck) + travel features
 - Sprint 5: Polish, notifications, offline support
 
-**Phase 2: Beta Testing (Feb 27 - Apr 8, 2025) - 6 weeks**
+**Phase 2: Beta Testing (Feb 27 - Apr 8, 2026) - 6 weeks**
 - TestFlight with 100+ beta testers
 - Iteration based on feedback
 - Bug fixes and UX polish
 
-**Phase 3: Launch (Apr 9-30, 2025) - 4 weeks**
+**Phase 3: Launch (Apr 9-30, 2026) - 4 weeks**
 - App Store submission
 - Soft launch with marketing push
 - Target: 500+ downloads, 200+ active users in Month 1
@@ -231,7 +242,7 @@ enum EventVisibility {
 
 ## Future Context
 
-When the actual codebase is created (starting Dec 25, 2024):
+When the actual codebase is created (starting Dec 25, 2025):
 
 **Expected Project Structure (MVVM):**
 ```
@@ -253,7 +264,7 @@ CalendarApp/
 
 ## Important Notes
 
-- **No Code Yet**: This repository contains only planning/design docs. Code development starts Dec 25, 2024.
+- **No Code Yet**: This repository contains only planning/design docs. Code development starts Dec 25, 2025.
 - **Solo Developer**: Built by one person with learning curve factored in (3-4 hours/day pace)
 - **Documentation First**: All major decisions documented before coding begins
 - **Agile with Buffer**: 2-week sprints with built-in timeline buffer for unknowns
@@ -261,4 +272,4 @@ CalendarApp/
 
 ---
 
-*Last updated: November 29, 2024*
+*Last updated: December 2, 2025*

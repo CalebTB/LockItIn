@@ -19,6 +19,21 @@ This directory contains specialized Claude Code agents, each with expertise in a
 
 ---
 
+### 🎨 iOS UX Designer (`ios-ux-designer.md`)
+**Expertise:** iOS UI/UX design, Apple Human Interface Guidelines, interaction patterns, calendar app UX, visual design
+**Use for:**
+- Designing and reviewing screen layouts
+- Making UI component and navigation decisions
+- Evaluating iOS conventions vs. custom patterns
+- Calendar-specific design patterns (heatmaps, time visualization, event density)
+- Apple HIG compliance and accessibility
+- Optimizing UX for iOS contexts (gestures, small screens, thumb zones)
+- Design system guidance and consistency
+
+**Invoke when:** Designing screens, reviewing UX decisions, making UI component choices, ensuring Apple HIG compliance, resolving design conflicts
+
+---
+
 ### 🔗 Supabase iOS Integration (`supabase-ios-integration.md`)
 **Expertise:** Supabase Swift SDK, PostgreSQL, Row Level Security, real-time subscriptions, authentication
 **Use for:**
@@ -121,6 +136,8 @@ Feature Values Advisor → validates alignment with core values
     ↓
 Feature Orchestrator → breaks down into tasks, assigns to sprint
     ↓
+iOS UX Designer → designs screens and interactions
+    ↓
 iOS SwiftUI Architect → implements UI/logic
     ↓
 Supabase iOS Integration → creates backend support
@@ -136,6 +153,8 @@ Feature Values Advisor → evaluates fit with product values
     ↓ (if approved)
 Feature Orchestrator → conducts market research, estimates complexity
     ↓
+iOS UX Designer → provides UX feasibility assessment
+    ↓
 iOS SwiftUI Architect + Supabase iOS Integration → technical assessment
     ↓
 Feature Orchestrator → creates GitHub issues, assigns to sprint
@@ -149,12 +168,16 @@ GitHub Workflow Manager → creates sprint milestone, organizes issues
     ↓
 Developer starts sprint → GitHub Workflow Manager pulls next issue
     ↓
+iOS UX Designer → provides design guidance for the sprint
+    ↓
 Dev Sync Coordinator → periodic alignment checks throughout sprint
 ```
 
 ### Cross-Platform Feature Development
 ```
 GitHub Workflow Manager → pulls feature issue
+    ↓
+iOS UX Designer → provides design specifications and interaction patterns
     ↓
 iOS SwiftUI Architect → implements frontend
     ↓
@@ -176,6 +199,15 @@ GitHub Workflow Manager → creates comprehensive PR
 - Optimizing iOS performance
 - Designing MVVM architecture
 - Handling navigation and data flow
+
+**Use iOS UX Designer when:**
+- Designing or reviewing screen layouts
+- Making UI component or navigation decisions
+- Evaluating whether to follow iOS conventions or create custom solutions
+- Analyzing calendar-specific design patterns
+- Ensuring Apple HIG compliance
+- Optimizing UX for iOS contexts (gestures, accessibility, small screens)
+- Resolving design conflicts between innovation and platform conventions
 
 **Use Supabase iOS Integration when:**
 - Setting up Supabase authentication in iOS
@@ -238,9 +270,11 @@ Each agent can be customized for your workflow:
 └── agents/
     ├── README.md (this file)
     ├── ios-swiftui-architect.md
+    ├── ios-ux-designer.md
     ├── supabase-ios-integration.md
     ├── dev-sync-coordinator.md
     ├── feature-values-advisor.md
+    ├── feature-analyzer.md
     ├── feature-orchestrator.md
     └── github-workflow-manager.md
 ```
@@ -253,4 +287,4 @@ These agent files should be updated when:
 - New patterns emerge
 - Project requirements shift
 
-Last updated: November 29, 2024
+Last updated: December 2, 2025
