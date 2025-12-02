@@ -4,71 +4,88 @@ This directory contains specialized Claude Code agents, each with expertise in a
 
 ## Available Agents
 
-### 🍎 iOS Developer (`ios-developer.md`)
-**Expertise:** Swift, SwiftUI, EventKit, MVVM architecture
+### 🍎 iOS SwiftUI Architect (`ios-swiftui-architect.md`)
+**Expertise:** Swift, SwiftUI, EventKit, MVVM architecture, Combine, iOS best practices
 **Use for:**
-- Implementing iOS features
+- Implementing iOS features with SwiftUI
 - Writing ViewModels and Views
 - EventKit calendar integration
+- State management patterns (@State, @Binding, @ObservedObject, @StateObject)
 - UI/UX implementation
 - Performance optimization
+- Navigation and data flow
 
-**Invoke when:** Building iOS app features, debugging Swift code, implementing UI flows
-
----
-
-### 🗄️ Supabase Database (`supabase-database.md`)
-**Expertise:** PostgreSQL, Row Level Security, Supabase platform, real-time subscriptions
-**Use for:**
-- Database schema design
-- RLS policy creation
-- Query optimization
-- Database migrations
-- Supabase Edge Functions
-- Real-time WebSocket setup
-
-**Invoke when:** Working on backend, database changes, privacy enforcement, real-time features
+**Invoke when:** Building iOS app features, debugging Swift code, implementing UI flows, state management issues
 
 ---
 
-### ⚙️ Systems Engineer (`systems-engineer.md`)
-**Expertise:** CI/CD, DevOps, monitoring, deployment, infrastructure
+### 🔗 Supabase iOS Integration (`supabase-ios-integration.md`)
+**Expertise:** Supabase Swift SDK, PostgreSQL, Row Level Security, real-time subscriptions, authentication
 **Use for:**
-- GitHub Actions workflows
-- Fastlane automation
-- TestFlight deployment
-- Monitoring setup (Sentry, analytics)
-- Performance monitoring
-- Security hardening
+- Supabase project setup and configuration
+- Authentication flows (email/password, OAuth, magic links)
+- Database operations from Swift
+- RLS policy design and testing
+- Real-time subscriptions with Combine
+- Supabase Storage integration
+- Offline-first patterns
+- Query optimization and caching
 
-**Invoke when:** Setting up deployment pipelines, monitoring, infrastructure, or debugging production issues
+**Invoke when:** Integrating Supabase with iOS, working on authentication, database queries, real-time features, debugging connection issues
 
 ---
 
-### 🎯 Product Vision (`product-vision.md`)
-**Expertise:** Product strategy, UX principles, feature prioritization, competitive positioning
+### 🔄 Dev Sync Coordinator (`dev-sync-coordinator.md`)
+**Expertise:** Cross-platform coordination, iOS-Backend alignment, integration verification
 **Use for:**
-- Feature prioritization decisions
-- UX/UI design validation
-- Competitive analysis
-- User feedback evaluation
-- Messaging and tone
-- Ensuring alignment with core differentiators
+- Verifying iOS and Supabase implementations are aligned
+- Detecting potential misalignment between frontend and backend
+- Coordinating feature work across platforms
+- Sprint checkpoint reviews
+- Integration testing coordination
 
-**Invoke when:** Making product decisions, evaluating new features, reviewing UX, ensuring vision alignment
+**Invoke when:** After significant iOS or Supabase work, before starting cross-platform features, during sprint reviews, when detecting misalignment
 
 ---
 
-### 🤖 GitHub Automation (`github-automation.md`)
-**Expertise:** GitHub workflows, issue management, PR automation, sprint tracking
+### 💎 Feature Values Advisor (`feature-values-advisor.md`)
+**Expertise:** Product values, privacy-first principles, feature evaluation, UX principles
 **Use for:**
-- Auto-pulling next sprint issue
-- Creating pull requests
-- Sprint progress tracking
-- Automated testing workflows
-- Daily standup reports
+- Evaluating new feature proposals against core values
+- Ensuring privacy-first design
+- Assessing feature alignment with product mission
+- Reviewing UX decisions for value consistency
+- Preventing feature creep or value drift
 
-**Invoke when:** Managing sprints, automating GitHub workflows, tracking progress
+**Invoke when:** Designing new features, evaluating feature requests, making product decisions, reviewing UX flows
+
+---
+
+### 🎯 Feature Orchestrator (`feature-orchestrator.md`)
+**Expertise:** Feature lifecycle management, MVP planning, market research, roadmap coordination
+**Use for:**
+- Planning which features to build before launch
+- Tracking feature implementation status (Tier 1/2/3)
+- Conducting market research for new features
+- Breaking down approved features into GitHub issues
+- Sprint/milestone assignment
+- Feature prioritization and timeline planning
+
+**Invoke when:** Planning feature roadmap, evaluating new feature ideas, tracking MVP progress, creating development tasks from features
+
+---
+
+### 🤖 GitHub Workflow Manager (`github-workflow-manager.md`)
+**Expertise:** GitHub project management, issue creation, PR management, sprint planning, workflow automation
+**Use for:**
+- Creating well-structured issues with labels and milestones
+- Setting up sprints and project boards
+- Pulling issues to work on with context
+- Creating comprehensive pull requests
+- Managing branching strategies
+- Release cycles and version tagging
+
+**Invoke when:** Starting work on features, creating PRs, planning sprints, managing GitHub workflow, organizing releases
 
 ---
 
@@ -100,79 +117,111 @@ Combine multiple agents for complex tasks:
 
 ### Feature Implementation Workflow
 ```
-Product Vision → validates alignment
+Feature Values Advisor → validates alignment with core values
     ↓
-iOS Developer → implements UI/logic
+Feature Orchestrator → breaks down into tasks, assigns to sprint
     ↓
-Supabase Database → creates backend support
+iOS SwiftUI Architect → implements UI/logic
     ↓
-Systems Engineer → adds monitoring
+Supabase iOS Integration → creates backend support
     ↓
-GitHub Automation → creates PR
-```
-
-### Bug Fix Workflow
-```
-Systems Engineer → diagnoses via monitoring
+Dev Sync Coordinator → verifies iOS and Supabase are aligned
     ↓
-iOS Developer OR Supabase Database → implements fix
-    ↓
-GitHub Automation → creates PR with fix
-    ↓
-Systems Engineer → verifies fix in production
+GitHub Workflow Manager → creates PR
 ```
 
 ### New Feature Evaluation
 ```
-Product Vision → evaluates fit with strategy
+Feature Values Advisor → evaluates fit with product values
     ↓ (if approved)
-iOS Developer + Supabase Database → estimate complexity
+Feature Orchestrator → conducts market research, estimates complexity
     ↓
-Product Vision → final prioritization decision
+iOS SwiftUI Architect + Supabase iOS Integration → technical assessment
+    ↓
+Feature Orchestrator → creates GitHub issues, assigns to sprint
+```
+
+### Sprint Planning Workflow
+```
+Feature Orchestrator → identifies next features to build
+    ↓
+GitHub Workflow Manager → creates sprint milestone, organizes issues
+    ↓
+Developer starts sprint → GitHub Workflow Manager pulls next issue
+    ↓
+Dev Sync Coordinator → periodic alignment checks throughout sprint
+```
+
+### Cross-Platform Feature Development
+```
+GitHub Workflow Manager → pulls feature issue
+    ↓
+iOS SwiftUI Architect → implements frontend
+    ↓
+Supabase iOS Integration → implements backend integration
+    ↓
+Dev Sync Coordinator → verifies alignment (RLS policies, API contracts, data models)
+    ↓
+GitHub Workflow Manager → creates comprehensive PR
 ```
 
 ## Best Practices
 
 ### When to Use Which Agent
 
-**Use iOS Developer when:**
+**Use iOS SwiftUI Architect when:**
 - Writing Swift/SwiftUI code
-- Debugging UI issues
+- Debugging UI issues or state management problems
 - Implementing EventKit integration
-- Optimizing performance
+- Optimizing iOS performance
+- Designing MVVM architecture
+- Handling navigation and data flow
 
-**Use Supabase Database when:**
-- Designing database schema
-- Creating RLS policies
-- Optimizing queries
-- Setting up real-time features
+**Use Supabase iOS Integration when:**
+- Setting up Supabase authentication in iOS
+- Implementing database queries from Swift
+- Creating or testing RLS policies
+- Setting up real-time subscriptions with Combine
+- Debugging Supabase connection issues
+- Implementing offline-first patterns
 
-**Use Systems Engineer when:**
-- Setting up CI/CD
-- Deploying to TestFlight
-- Configuring monitoring
-- Investigating production issues
+**Use Dev Sync Coordinator when:**
+- After completing iOS or Supabase features
+- Before starting cross-platform work
+- During sprint checkpoints
+- When you suspect frontend/backend misalignment
+- Verifying integration contracts
 
-**Use Product Vision when:**
-- Evaluating new feature requests
-- Making prioritization decisions
-- Reviewing UX designs
-- Ensuring alignment with mission
+**Use Feature Values Advisor when:**
+- Proposing new features
+- Evaluating feature requests
+- Making UX/privacy decisions
+- Ensuring features align with core values
+- Reviewing product direction
 
-**Use GitHub Automation when:**
-- Managing sprint workflow
-- Automating repetitive tasks
-- Tracking progress
-- Creating standardized PRs
+**Use Feature Orchestrator when:**
+- Planning the feature roadmap
+- Tracking MVP progress
+- Conducting market research for features
+- Breaking features into development tasks
+- Prioritizing what to build next
+
+**Use GitHub Workflow Manager when:**
+- Starting work on a new feature
+- Creating pull requests
+- Planning sprints and milestones
+- Managing GitHub project boards
+- Organizing releases
 
 ### Agent Collaboration
 
 Agents are designed to work together. For complex tasks:
 
-1. **Start with Product Vision** to ensure alignment
-2. **Involve technical agents** (iOS, Database) for implementation
-3. **Use Systems Engineer** for deployment and monitoring
-4. **Let GitHub Automation** handle workflow
+1. **Start with Feature Values Advisor** to ensure alignment with core values
+2. **Use Feature Orchestrator** to plan and break down the work
+3. **Involve technical agents** (iOS SwiftUI Architect, Supabase iOS Integration) for implementation
+4. **Use Dev Sync Coordinator** to verify frontend/backend alignment
+5. **Let GitHub Workflow Manager** handle PRs and sprint workflow
 
 ### Customization
 
@@ -188,11 +237,12 @@ Each agent can be customized for your workflow:
 .claude/
 └── agents/
     ├── README.md (this file)
-    ├── ios-developer.md
-    ├── supabase-database.md
-    ├── systems-engineer.md
-    ├── product-vision.md
-    └── github-automation.md
+    ├── ios-swiftui-architect.md
+    ├── supabase-ios-integration.md
+    ├── dev-sync-coordinator.md
+    ├── feature-values-advisor.md
+    ├── feature-orchestrator.md
+    └── github-workflow-manager.md
 ```
 
 ## Maintenance
