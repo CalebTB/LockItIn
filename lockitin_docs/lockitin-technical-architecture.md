@@ -1,17 +1,17 @@
 # LockItIn: Complete Technical Architecture
 
-*Consolidated technical documentation for the group event planning calendar app. Last updated: December 1, 2025*
+*Consolidated technical documentation for the cross-platform group event planning calendar app. Last updated: December 6, 2025*
 
 ---
 
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
-2. [Frontend Architecture (iOS)](#frontend-architecture-ios)
+2. [Frontend Architecture (Flutter - iOS & Android)](#frontend-architecture-flutter)
 3. [Backend Architecture (Supabase)](#backend-architecture-supabase)
 4. [Complete Database Schema](#complete-database-schema)
 5. [API Endpoints Specification](#api-endpoints-specification)
-6. [EventKit Integration Strategy](#eventkit-integration-strategy)
+6. [Native Calendar Integration Strategy](#native-calendar-integration-strategy)
 7. [Third-Party Services Integration](#third-party-services-integration)
 8. [Code Snippets Library](#code-snippets-library)
 9. [Security & Privacy Architecture](#security--privacy-architecture)
@@ -25,60 +25,63 @@
 ### System Design Diagram
 
 ```
-┌──────────────────────────────────────────────────────┐
-│             iOS APP (SwiftUI - MVVM)                 │
-├──────────────────────────────────────────────────────┤
-│                                                       │
-│  ┌─────────────┐    ┌─────────────┐   ┌────────────┐ │
-│  │ UI Layer    │←→  │ ViewModels  │←→ │ Data Layer │ │
-│  │ (Views)     │    │ (Business   │   │ (Models)   │ │
-│  └─────────────┘    │  Logic)     │   └────────────┘ │
-│                     └─────────────┘                   │
-│  ┌────────────────────────────────────────────────┐   │
-│  │  EventKit (Apple Calendar Bidirectional Sync)  │   │
-│  └────────────────────────────────────────────────┘   │
-│                                                       │
-└──────────────────────────────────────────────────────┘
-                    ↕ REST API / WebSocket
-┌──────────────────────────────────────────────────────┐
-│          BACKEND (Supabase/PostgreSQL)               │
-├──────────────────────────────────────────────────────┤
-│                                                       │
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  │
-│  │ PostgreSQL   │  │ Auth         │  │ Storage    │  │
-│  │ Database     │  │ (JWT)        │  │ (Images)   │  │
-│  │ (13 tables)  │  └──────────────┘  └────────────┘  │
-│  └──────────────┘                                    │
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  │
-│  │ Realtime     │  │ Edge         │  │ Push       │  │
-│  │ Subscriptions│  │ Functions    │  │ Notifs     │  │
-│  │ (WebSocket)  │  └──────────────┘  └────────────┘  │
-│  └──────────────┘                                    │
-│                                                       │
-└──────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│   FLUTTER APP (iOS & Android - Clean Architecture)              │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  ┌──────────────┐    ┌────────────┐    ┌──────────────┐         │
+│  │ Presentation │←→  │  Domain    │←→  │     Data     │         │
+│  │   (Widgets)  │    │ (Use Cases)│    │(Repositories)│         │
+│  │  + Providers │    │            │    │              │         │
+│  └──────────────┘    └────────────┘    └──────────────┘         │
+│                                                                   │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  Platform Channels (Native Calendar Bidirectional Sync)  │   │
+│  │  • iOS: EventKit  • Android: CalendarContract            │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                   │
+└──────────────────────────────────────────────────────────────────┘
+                    ↕ REST API / WebSocket (Supabase SDK)
+┌──────────────────────────────────────────────────────────────────┐
+│          BACKEND (Supabase/PostgreSQL)                           │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────┐             │
+│  │ PostgreSQL   │  │ Auth         │  │ Storage    │             │
+│  │ Database     │  │ (JWT)        │  │ (Images)   │             │
+│  │ (13 tables)  │  └──────────────┘  └────────────┘             │
+│  └──────────────┘                                                │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────┐             │
+│  │ Realtime     │  │ Edge         │  │ Push       │             │
+│  │ Subscriptions│  │ Functions    │  │ Notifs     │             │
+│  │ (WebSocket)  │  └──────────────┘  └────────────┘             │
+│  └──────────────┘                                                │
+│                                                                   │
+└──────────────────────────────────────────────────────────────────┘
                     ↕ API Calls
-┌──────────────────────────────────────────────────────┐
-│         THIRD-PARTY SERVICES                         │
-├──────────────────────────────────────────────────────┤
-│  • APNs (Apple Push Notification Service)            │
-│  • MapKit (Location & Travel Time)                   │
-│  • Stripe (Payment Processing)                       │
-│  • Analytics (PostHog or Mixpanel)                   │
-└──────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│         THIRD-PARTY SERVICES                                     │
+├──────────────────────────────────────────────────────────────────┤
+│  • FCM (Firebase Cloud Messaging - Android)                      │
+│  • APNs (Apple Push Notification Service - iOS)                  │
+│  • Google Maps / Apple Maps (Location & Travel Time)             │
+│  • Stripe (Payment Processing)                                   │
+│  • Analytics (PostHog or Mixpanel)                               │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Technology Stack Justification
 
 | Component | Technology | Why |
 |-----------|-----------|-----|
-| **Frontend** | Swift 5.9+ & SwiftUI | Native iOS, best performance, Apple HIG compliance |
-| **State Mgmt** | MVVM + Combine | Reactive programming, clean architecture, testable |
+| **Frontend** | Flutter 3.16+ & Dart 3.0+ | Cross-platform (iOS & Android), fast development, excellent UI toolkit |
+| **State Mgmt** | Clean Architecture + Provider/Riverpod | Separation of concerns, testable, reactive state management |
 | **Backend DB** | PostgreSQL 15 | Powerful relational model, RLS for privacy, mature |
 | **Backend Auth** | Supabase Auth (JWT) | Managed auth, fast deployment, SOC 2 certified |
 | **Real-time** | Supabase Realtime (WebSocket) | Live updates without polling, integrated with DB |
 | **Serverless** | Supabase Edge Functions | Custom business logic without managing servers |
-| **Calendar Sync** | EventKit | Only way to access Apple Calendar on iOS |
-| **Push Notifs** | APNs | Required for iOS notifications, free tier |
+| **Calendar Sync** | Platform Channels (EventKit for iOS, CalendarContract for Android) | Native calendar integration on both platforms |
+| **Push Notifs** | FCM (Android) + APNs (iOS) | Cross-platform push notification support |
 | **Payments** | Stripe | Industry standard, reliable, developer-friendly |
 
 ### High-Level Data Flow
@@ -86,195 +89,278 @@
 **Scenario: User votes on event proposal**
 
 1. User taps "Available" on time option in proposal screen
-2. SwiftUI View updates optimistically (immediate visual feedback)
-3. ViewModel sends `voteOnProposal()` to APIClient via async/await
-4. APIClient calls Supabase REST API: `POST /rest/v1/proposal_votes`
+2. Flutter Widget updates optimistically (immediate visual feedback)
+3. Provider notifies listeners and sends `voteOnProposal()` to Supabase client via async/await
+4. Supabase client calls REST API: `POST /rest/v1/proposal_votes`
 5. Backend executes trigger `check_proposal_after_vote()` to check if proposal should auto-confirm
 6. WebSocket subscription on `proposal_votes` table fires, all group members see vote count update in real-time
 7. If auto-confirm conditions met, `event_proposals` status changes to "confirmed"
 8. Final event created in `events` table
 9. Notifications generated for all group members
-10. Push notifications sent via APNs to all devices
+10. Push notifications sent via FCM (Android) and APNs (iOS) to all devices
 
 ---
 
-## Frontend Architecture (iOS)
+## Frontend Architecture (Flutter - iOS & Android)
 
-### Swift & SwiftUI Standards
+### Flutter & Dart Standards
 
 **Minimum Requirements:**
-- Swift 5.9+
-- SwiftUI (iOS 17+)
-- Xcode 15.0+
+- Dart 3.0+
+- Flutter 3.16+
+- Android Studio / VS Code + Flutter extension
+- Xcode 15+ (for iOS builds)
 
 **Core Frameworks:**
-- Combine (reactive programming)
-- AsyncAwait (concurrency)
-- EventKit (calendar integration)
-- UserNotifications (push handling)
+- Provider or Riverpod (state management)
+- Dart Streams (reactive programming)
+- Platform Channels (native calendar integration)
+- firebase_messaging + APNs (push notifications)
 
-### MVVM Architecture Pattern
+### Clean Architecture Pattern
 
 ```
-Views (SwiftUI)
+Presentation Layer (Widgets + Providers)
     ↓
-ViewModels (Business Logic + State Management)
+Domain Layer (Use Cases + Entities)
     ↓
-Models (Data Objects)
-    ↓
-Services (API, EventKit, Notifications)
+Data Layer (Repositories + Data Sources)
 ```
 
 **Layer Responsibilities:**
 
 | Layer | Responsibility | Examples |
 |-------|---|---|
-| **View** | UI presentation only | CalendarView, ProposalCard, VoteButton |
-| **ViewModel** | State management + business logic | CalendarViewModel, ProposalViewModel |
-| **Model** | Data structures | User, Event, EventProposal, Vote |
-| **Service** | External integrations | APIClient, CalendarManager, PushNotificationManager |
+| **Presentation** | UI + state management | CalendarScreen, ProposalCard, VoteButton, CalendarProvider |
+| **Domain** | Business logic + entities | CreateProposalUseCase, VoteOnProposalUseCase, Event entity |
+| **Data** | Data access + API integration | EventRepository, SupabaseRemoteDataSource, LocalDataSource |
+| **Platform** | Native integrations | CalendarChannel (iOS/Android), PushNotificationChannel |
 
 ### Expected Project Structure
 
 ```
-CalendarApp/
-├── App/
-│   ├── CalendarAppApp.swift          # Entry point
-│   └── AppDelegate.swift             # Lifecycle management
+lockitin_app/
+├── lib/
+│   ├── main.dart
+│   │
+│   ├── core/
+│   │   ├── network/
+│   │   │   ├── supabase_client.dart
+│   │   │   └── websocket_manager.dart
+│   │   │
+│   │   ├── calendar/
+│   │   │   ├── calendar_service_ios.dart      # Platform channel
+│   │   │   └── calendar_service_android.dart  # Platform channel
+│   │   │
+│   │   ├── notifications/
+│   │   │   └── push_notification_manager.dart
+│   │   │
+│   │   ├── storage/
+│   │   │   └── secure_storage.dart
+│   │   │
+│   │   └── utils/
+│   │       ├── constants.dart
+│   │       ├── logger.dart
+│   │       └── extensions.dart
+│   │
+│   ├── data/
+│   │   ├── models/
+│   │   │   ├── user.dart
+│   │   │   ├── group.dart
+│   │   │   ├── event.dart
+│   │   │   ├── event_proposal.dart
+│   │   │   ├── vote.dart
+│   │   │   └── notification.dart
+│   │   │
+│   │   ├── repositories/
+│   │   │   ├── auth_repository.dart
+│   │   │   ├── event_repository.dart
+│   │   │   ├── group_repository.dart
+│   │   │   ├── proposal_repository.dart
+│   │   │   └── notification_repository.dart
+│   │   │
+│   │   └── data_sources/
+│   │       ├── remote_data_source.dart        # Supabase API
+│   │       └── local_data_source.dart         # Local cache
+│   │
+│   ├── domain/
+│   │   ├── entities/
+│   │   │   ├── user_entity.dart
+│   │   │   ├── event_entity.dart
+│   │   │   └── proposal_entity.dart
+│   │   │
+│   │   ├── use_cases/
+│   │   │   ├── create_proposal_use_case.dart
+│   │   │   ├── vote_on_proposal_use_case.dart
+│   │   │   ├── sync_calendar_use_case.dart
+│   │   │   └── get_availability_use_case.dart
+│   │   │
+│   │   └── repositories/
+│   │       └── repository_interfaces.dart     # Abstract classes
+│   │
+│   ├── presentation/
+│   │   ├── providers/
+│   │   │   ├── auth_provider.dart
+│   │   │   ├── calendar_provider.dart
+│   │   │   ├── groups_provider.dart
+│   │   │   ├── proposal_provider.dart
+│   │   │   ├── inbox_provider.dart
+│   │   │   └── profile_provider.dart
+│   │   │
+│   │   ├── screens/
+│   │   │   ├── auth/
+│   │   │   │   ├── login_screen.dart
+│   │   │   │   └── signup_screen.dart
+│   │   │   │
+│   │   │   ├── calendar/
+│   │   │   │   ├── calendar_screen.dart
+│   │   │   │   ├── day_detail_screen.dart
+│   │   │   │   └── event_detail_screen.dart
+│   │   │   │
+│   │   │   ├── groups/
+│   │   │   │   ├── groups_screen.dart
+│   │   │   │   ├── group_detail_screen.dart
+│   │   │   │   └── create_group_screen.dart
+│   │   │   │
+│   │   │   ├── proposals/
+│   │   │   │   ├── proposal_screen.dart
+│   │   │   │   ├── create_proposal_screen.dart
+│   │   │   │   └── voting_screen.dart
+│   │   │   │
+│   │   │   ├── inbox/
+│   │   │   │   └── inbox_screen.dart
+│   │   │   │
+│   │   │   └── profile/
+│   │   │       ├── profile_screen.dart
+│   │   │       └── settings_screen.dart
+│   │   │
+│   │   └── widgets/
+│   │       ├── availability_heatmap.dart
+│   │       ├── proposal_card.dart
+│   │       ├── vote_button.dart
+│   │       └── loading_view.dart
+│   │
+│   └── utils/
+│       ├── date_extensions.dart
+│       ├── color_extensions.dart
+│       └── widget_extensions.dart
 │
-├── Core/
-│   ├── Network/
-│   │   ├── APIClient.swift           # Supabase REST API wrapper
-│   │   └── WebSocketManager.swift    # Real-time subscriptions
-│   │
-│   ├── Calendar/
-│   │   ├── CalendarManager.swift     # EventKit integration
-│   │   └── CalendarSync.swift        # Bidirectional sync logic
-│   │
-│   ├── Notifications/
-│   │   └── PushNotificationManager.swift
-│   │
-│   ├── Storage/
-│   │   └── CacheManager.swift        # Local caching & offline queue
-│   │
-│   └── Analytics/
-│       └── Analytics.swift            # Event tracking
+├── ios/
+│   └── Runner/
+│       ├── AppDelegate.swift
+│       └── CalendarChannel.swift              # EventKit integration
 │
-├── Models/
-│   ├── User.swift
-│   ├── Group.swift
-│   ├── Event.swift
-│   ├── EventProposal.swift
-│   ├── Vote.swift
-│   └── Notification.swift
+├── android/
+│   └── app/src/main/kotlin/
+│       └── com/lockitin/app/
+│           ├── MainActivity.kt
+│           └── CalendarChannel.kt             # CalendarContract integration
 │
-├── ViewModels/
-│   ├── AuthViewModel.swift
-│   ├── CalendarViewModel.swift
-│   ├── GroupsViewModel.swift
-│   ├── ProposalViewModel.swift
-│   ├── InboxViewModel.swift
-│   └── ProfileViewModel.swift
+├── assets/
+│   ├── images/
+│   └── fonts/
 │
-├── Views/
-│   ├── Auth/
-│   │   ├── LoginView.swift
-│   │   └── SignUpView.swift
+├── test/
+│   ├── unit/
+│   │   ├── calendar_repository_test.dart
+│   │   └── proposal_provider_test.dart
 │   │
-│   ├── Calendar/
-│   │   ├── CalendarView.swift
-│   │   ├── DayDetailView.swift
-│   │   └── EventDetailView.swift
-│   │
-│   ├── Groups/
-│   │   ├── GroupsView.swift
-│   │   ├── GroupDetailView.swift
-│   │   └── CreateGroupView.swift
-│   │
-│   ├── Proposals/
-│   │   ├── ProposalView.swift
-│   │   ├── CreateProposalView.swift
-│   │   └── VotingView.swift
-│   │
-│   ├── Components/
-│   │   ├── AvailabilityHeatmap.swift
-│   │   ├── ProposalCard.swift
-│   │   ├── VoteButton.swift
-│   │   └── LoadingView.swift
-│   │
-│   └── Profile/
-│       ├── ProfileView.swift
-│       └── SettingsView.swift
+│   └── integration/
+│       └── proposal_flow_test.dart
 │
-├── Utilities/
-│   ├── Extensions/
-│   │   ├── Date+Extensions.swift
-│   │   ├── Color+Extensions.swift
-│   │   └── View+Extensions.swift
-│   │
-│   ├── Constants.swift
-│   ├── Logger.swift
-│   └── Helpers.swift
-│
-├── Resources/
-│   ├── Assets.xcassets
-│   ├── Localizable.strings
-│   └── Preview Content/
-│
-└── Tests/
-    ├── Unit/
-    │   ├── CalendarManagerTests.swift
-    │   └── ProposalViewModelTests.swift
-    │
-    └── Integration/
-        └── ProposalFlowTests.swift
+└── pubspec.yaml
 ```
 
-### State Management with MVVM + Combine
+### State Management with Provider
 
-**ViewModel Pattern:**
+**Provider Pattern:**
 
-```swift
-class ProposalViewModel: ObservableObject {
-    @Published var proposal: EventProposal?
-    @Published var votes: [Vote] = []
-    @Published var isLoading = false
-    @Published var error: Error?
-    @Published var userVote: Vote?
+```dart
+class ProposalProvider extends ChangeNotifier {
+  EventProposal? _proposal;
+  List<Vote> _votes = [];
+  bool _isLoading = false;
+  String? _error;
+  Vote? _userVote;
 
-    private var subscriptions = Set<AnyCancellable>()
+  EventProposal? get proposal => _proposal;
+  List<Vote> get votes => _votes;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  Vote? get userVote => _userVote;
 
-    func loadProposal(id: String) {
-        // Load from API
-        // Subscribe to real-time updates
-        // Update @Published properties to trigger View re-renders
+  final ProposalRepository _repository;
+  StreamSubscription? _voteSubscription;
+
+  ProposalProvider(this._repository);
+
+  Future<void> loadProposal(String id) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      _proposal = await _repository.getProposal(id);
+      _votes = await _repository.getVotes(id);
+      _subscribeToVotes(id);
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
     }
+  }
+
+  void _subscribeToVotes(String proposalId) {
+    _voteSubscription = _repository.watchVotes(proposalId).listen((votes) {
+      _votes = votes;
+      notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _voteSubscription?.cancel();
+    super.dispose();
+  }
 }
 ```
 
-**View Pattern:**
+**Widget Pattern:**
 
-```swift
-struct ProposalView: View {
-    @StateObject var viewModel = ProposalViewModel()
+```dart
+class ProposalScreen extends StatelessWidget {
+  final String proposalId;
 
-    var body: some View {
-        if viewModel.isLoading {
-            ProgressView()
-        } else if let proposal = viewModel.proposal {
-            // Render proposal with @Published properties
-            // Changes trigger automatic re-renders
-        }
-    }
+  const ProposalScreen({required this.proposalId});
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => ProposalProvider(context.read<ProposalRepository>())
+        ..loadProposal(proposalId),
+      child: Consumer<ProposalProvider>(
+        builder: (context, provider, child) {
+          if (provider.isLoading) {
+            return const CircularProgressIndicator();
+          } else if (provider.proposal != null) {
+            return ProposalContent(proposal: provider.proposal!);
+          } else {
+            return const Text('Error loading proposal');
+          }
+        },
+      ),
+    );
+  }
 }
 ```
 
 ### Navigation Architecture
 
-- Use SwiftUI `NavigationStack` for programmatic navigation
-- Implement coordinator pattern for complex flows
-- Store navigation state in ViewModels, not Views
-- Example: `@State var selectedGroup: Group?` in GroupsViewModel
+- Use Flutter Navigator 2.0 (GoRouter) for declarative navigation
+- Implement route guards for authentication
+- Deep linking support for notification taps
+- Example: Navigate to proposal from push notification
 
 ### Caching & Offline Strategy
 
@@ -1805,28 +1891,44 @@ channel.subscribe()
 
 ---
 
-## EventKit Integration Strategy
+## Native Calendar Integration Strategy
 
 ### Overview
 
-EventKit provides the only way to access and sync with the native Apple Calendar on iOS. The strategy is **bidirectional synchronization**: changes in the app sync to Apple Calendar, and changes in Apple Calendar sync back to the app.
+Native calendar integration uses platform channels to communicate with iOS EventKit and Android CalendarContract APIs. The strategy is **bidirectional synchronization**: changes in the app sync to native calendars, and changes in native calendars sync back to the app.
 
 ### Permission Handling
 
 **Request at the right time:**
 
-```swift
+```dart
 // DON'T request on app launch
 // DO request during onboarding with clear explanation of value
 
-func requestCalendarAccess() async throws -> Bool {
-    let eventStore = EKEventStore()
-    let granted = try await eventStore.requestAccess(to: .event)
+class CalendarPermissionManager {
+  static const platform = MethodChannel('com.lockitin/calendar');
 
-    // Only returns true if user explicitly grants permission
-    // Returns false if denied or if already denied previously
+  Future<bool> requestCalendarAccess() async {
+    try {
+      final bool granted = await platform.invokeMethod('requestCalendarPermission');
+      // Only returns true if user explicitly grants permission
+      // Returns false if denied or if already denied previously
+      return granted;
+    } on PlatformException catch (e) {
+      print("Failed to request calendar permission: ${e.message}");
+      return false;
+    }
+  }
 
-    return granted
+  Future<bool> hasCalendarPermission() async {
+    try {
+      final bool hasPermission = await platform.invokeMethod('hasCalendarPermission');
+      return hasPermission;
+    } on PlatformException catch (e) {
+      print("Failed to check calendar permission: ${e.message}");
+      return false;
+    }
+  }
 }
 ```
 
@@ -1865,318 +1967,573 @@ Conflict Resolution (Last Write Wins):
 
 ### Implementation Details
 
-**EventKit Integration Code:**
+**Flutter Platform Channel Implementation:**
 
-```swift
-import EventKit
-import Combine
+```dart
+// lib/core/calendar/calendar_service.dart
+import 'package:flutter/services.dart';
 
-class CalendarManager: ObservableObject {
-    static let shared = CalendarManager()
+class CalendarService {
+  static const platform = MethodChannel('com.lockitin/calendar');
 
-    private let eventStore = EKEventStore()
-    @Published var authorizationStatus: EKAuthorizationStatus = .notDetermined
+  // MARK: - Fetch Events
 
-    // MARK: - Authorization
+  Future<List<Map<String, dynamic>>> fetchEvents({
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    try {
+      final List<dynamic> events = await platform.invokeMethod('fetchEvents', {
+        'startDate': startDate.millisecondsSinceEpoch,
+        'endDate': endDate.millisecondsSinceEpoch,
+      });
 
-    func requestAccess() async throws -> Bool {
-        let granted = try await eventStore.requestAccess(to: .event)
-        await MainActor.run {
-            self.authorizationStatus = EKEventStore.authorizationStatus(for: .event)
-        }
-        return granted
+      return events.cast<Map<String, dynamic>>();
+    } on PlatformException catch (e) {
+      print("Failed to fetch events: ${e.message}");
+      return [];
     }
+  }
 
-    // MARK: - Fetch Events
+  // MARK: - Create Event in Native Calendar
 
-    func fetchEvents(from startDate: Date, to endDate: Date) -> [EKEvent] {
-        guard authorizationStatus == .authorized else { return [] }
+  Future<String?> createEvent({
+    required String title,
+    required DateTime startDate,
+    required DateTime endDate,
+    String? notes,
+    String? location,
+  }) async {
+    try {
+      final String eventId = await platform.invokeMethod('createEvent', {
+        'title': title,
+        'startDate': startDate.millisecondsSinceEpoch,
+        'endDate': endDate.millisecondsSinceEpoch,
+        'notes': notes,
+        'location': location,
+      });
 
-        let calendars = eventStore.calendars(for: .event)
-        let predicate = eventStore.predicateForEvents(
-            withStart: startDate,
-            end: endDate,
-            calendars: calendars
-        )
-
-        return eventStore.events(matching: predicate)
+      return eventId;
+    } on PlatformException catch (e) {
+      print("Failed to create event: ${e.message}");
+      return null;
     }
+  }
 
-    // MARK: - Create Event in Apple Calendar
+  // MARK: - Update Event in Native Calendar
 
-    func createEvent(
-        title: String,
-        startDate: Date,
-        endDate: Date,
-        notes: String? = nil,
-        location: String? = nil
-    ) throws -> String {
-        guard authorizationStatus == .authorized else {
-            throw CalendarError.notAuthorized
-        }
+  Future<bool> updateEvent({
+    required String eventId,
+    String? title,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? location,
+  }) async {
+    try {
+      final bool success = await platform.invokeMethod('updateEvent', {
+        'eventId': eventId,
+        'title': title,
+        'startDate': startDate?.millisecondsSinceEpoch,
+        'endDate': endDate?.millisecondsSinceEpoch,
+        'location': location,
+      });
 
-        let event = EKEvent(eventStore: eventStore)
-        event.title = title
-        event.startDate = startDate
-        event.endDate = endDate
-        event.notes = notes
-        event.location = location
-        event.calendar = eventStore.defaultCalendarForNewEvents
-
-        try eventStore.save(event, span: .thisEvent)
-        return event.eventIdentifier
+      return success;
+    } on PlatformException catch (e) {
+      print("Failed to update event: ${e.message}");
+      return false;
     }
+  }
 
-    // MARK: - Update Event in Apple Calendar
+  // MARK: - Delete Event from Native Calendar
 
-    func updateEvent(
-        identifier: String,
-        title: String?,
-        startDate: Date?,
-        endDate: Date?
-    ) throws {
-        guard let event = eventStore.event(withIdentifier: identifier) else {
-            throw CalendarError.eventNotFound
-        }
+  Future<bool> deleteEvent(String eventId) async {
+    try {
+      final bool success = await platform.invokeMethod('deleteEvent', {
+        'eventId': eventId,
+      });
 
-        if let title = title { event.title = title }
-        if let startDate = startDate { event.startDate = startDate }
-        if let endDate = endDate { event.endDate = endDate }
-
-        try eventStore.save(event, span: .thisEvent)
+      return success;
+    } on PlatformException catch (e) {
+      print("Failed to delete event: ${e.message}");
+      return false;
     }
+  }
 
-    // MARK: - Delete Event from Apple Calendar
+  // MARK: - Get Availability Heatmap
 
-    func deleteEvent(identifier: String) throws {
-        guard let event = eventStore.event(withIdentifier: identifier) else {
-            throw CalendarError.eventNotFound
-        }
+  Future<List<AvailabilitySlot>> getAvailability(DateTime date) async {
+    try {
+      final List<dynamic> slots = await platform.invokeMethod('getAvailability', {
+        'date': date.millisecondsSinceEpoch,
+      });
 
-        try eventStore.remove(event, span: .thisEvent)
+      return slots.map((slot) => AvailabilitySlot.fromMap(slot)).toList();
+    } on PlatformException catch (e) {
+      print("Failed to get availability: ${e.message}");
+      return [];
     }
-
-    // MARK: - Get Availability Heatmap
-
-    func getAvailability(for date: Date) -> [AvailabilitySlot] {
-        let calendar = Calendar.current
-        let startOfDay = calendar.startOfDay(for: date)
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
-
-        let events = fetchEvents(from: startOfDay, to: endOfDay)
-
-        // Generate 30-minute slots for the day
-        var slots: [AvailabilitySlot] = []
-        var currentTime = startOfDay
-
-        while currentTime < endOfDay {
-            let slotEnd = calendar.date(byAdding: .minute, value: 30, to: currentTime)!
-
-            // Check if any event overlaps this slot
-            let isBusy = events.contains { event in
-                event.startDate < slotEnd && event.endDate > currentTime
-            }
-
-            slots.append(AvailabilitySlot(
-                start: currentTime,
-                end: slotEnd,
-                status: isBusy ? .busy : .available
-            ))
-
-            currentTime = slotEnd
-        }
-
-        return slots
-    }
+  }
 }
 
 // MARK: - Models
 
-struct AvailabilitySlot {
-    let start: Date
-    let end: Date
-    let status: AvailabilityStatus
+class AvailabilitySlot {
+  final DateTime start;
+  final DateTime end;
+  final AvailabilityStatus status;
+
+  AvailabilitySlot({
+    required this.start,
+    required this.end,
+    required this.status,
+  });
+
+  factory AvailabilitySlot.fromMap(Map<String, dynamic> map) {
+    return AvailabilitySlot(
+      start: DateTime.fromMillisecondsSinceEpoch(map['start']),
+      end: DateTime.fromMillisecondsSinceEpoch(map['end']),
+      status: AvailabilityStatus.values.firstWhere(
+        (e) => e.toString() == 'AvailabilityStatus.${map['status']}',
+      ),
+    );
+  }
 }
 
 enum AvailabilityStatus {
-    case available
-    case busy
-    case unknown
+  available,
+  busy,
+  unknown,
 }
 
-enum CalendarError: Error {
-    case notAuthorized
-    case eventNotFound
-    case saveFailed
+enum CalendarError {
+  notAuthorized,
+  eventNotFound,
+  saveFailed,
 }
 ```
 
-### Event Mapping (EventKit ↔ App)
+**iOS Platform Channel (Swift):**
 
-| Field | EventKit | App Database |
-|-------|----------|--------------|
-| **Title** | `EKEvent.title` | `events.title` |
-| **Start Time** | `EKEvent.startDate` | `events.start_time` |
-| **End Time** | `EKEvent.endDate` | `events.end_time` |
-| **Location** | `EKEvent.location` | `events.location` |
-| **Notes** | `EKEvent.notes` | `events.description` |
-| **All Day** | `EKEvent.isAllDay` | `events.all_day` |
-| **Identifier** | `EKEvent.eventIdentifier` | `events.apple_calendar_id` |
-| **Last Modified** | `EKEvent.lastModifiedDate` | `events.last_synced_at` |
+```swift
+// ios/Runner/CalendarChannel.swift
+import Flutter
+import EventKit
+
+class CalendarChannel {
+    private let eventStore = EKEventStore()
+
+    func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        switch call.method {
+        case "requestCalendarPermission":
+            requestPermission(result: result)
+        case "hasCalendarPermission":
+            hasPermission(result: result)
+        case "fetchEvents":
+            fetchEvents(call: call, result: result)
+        case "createEvent":
+            createEvent(call: call, result: result)
+        case "updateEvent":
+            updateEvent(call: call, result: result)
+        case "deleteEvent":
+            deleteEvent(call: call, result: result)
+        case "getAvailability":
+            getAvailability(call: call, result: result)
+        default:
+            result(FlutterMethodNotImplemented)
+        }
+    }
+
+    private func requestPermission(result: @escaping FlutterResult) {
+        Task {
+            do {
+                let granted = try await eventStore.requestAccess(to: .event)
+                result(granted)
+            } catch {
+                result(FlutterError(code: "PERMISSION_ERROR",
+                                   message: error.localizedDescription,
+                                   details: nil))
+            }
+        }
+    }
+
+    private func fetchEvents(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let startTimestamp = args["startDate"] as? Int64,
+              let endTimestamp = args["endDate"] as? Int64 else {
+            result(FlutterError(code: "INVALID_ARGS", message: "Invalid arguments", details: nil))
+            return
+        }
+
+        let startDate = Date(timeIntervalSince1970: TimeInterval(startTimestamp) / 1000)
+        let endDate = Date(timeIntervalSince1970: TimeInterval(endTimestamp) / 1000)
+
+        let calendars = eventStore.calendars(for: .event)
+        let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: calendars)
+        let events = eventStore.events(matching: predicate)
+
+        let eventMaps = events.map { event in
+            [
+                "id": event.eventIdentifier ?? "",
+                "title": event.title ?? "",
+                "startDate": Int64(event.startDate.timeIntervalSince1970 * 1000),
+                "endDate": Int64(event.endDate.timeIntervalSince1970 * 1000),
+                "location": event.location ?? "",
+                "notes": event.notes ?? ""
+            ]
+        }
+
+        result(eventMaps)
+    }
+
+    private func createEvent(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let title = args["title"] as? String,
+              let startTimestamp = args["startDate"] as? Int64,
+              let endTimestamp = args["endDate"] as? Int64 else {
+            result(FlutterError(code: "INVALID_ARGS", message: "Invalid arguments", details: nil))
+            return
+        }
+
+        let event = EKEvent(eventStore: eventStore)
+        event.title = title
+        event.startDate = Date(timeIntervalSince1970: TimeInterval(startTimestamp) / 1000)
+        event.endDate = Date(timeIntervalSince1970: TimeInterval(endTimestamp) / 1000)
+        event.notes = args["notes"] as? String
+        event.location = args["location"] as? String
+        event.calendar = eventStore.defaultCalendarForNewEvents
+
+        do {
+            try eventStore.save(event, span: .thisEvent)
+            result(event.eventIdentifier)
+        } catch {
+            result(FlutterError(code: "CREATE_FAILED",
+                               message: error.localizedDescription,
+                               details: nil))
+        }
+    }
+}
+```
+
+**Android Platform Channel (Kotlin):**
+
+```kotlin
+// android/app/src/main/kotlin/com/lockitin/app/CalendarChannel.kt
+package com.lockitin.app
+
+import android.Manifest
+import android.content.ContentResolver
+import android.content.ContentValues
+import android.content.pm.PackageManager
+import android.provider.CalendarContract
+import androidx.core.content.ContextCompat
+import io.flutter.plugin.common.MethodCall
+import io.flutter.plugin.common.MethodChannel
+
+class CalendarChannel(private val activity: MainActivity) {
+
+    fun handle(call: MethodCall, result: MethodChannel.Result) {
+        when (call.method) {
+            "requestCalendarPermission" -> requestPermission(result)
+            "hasCalendarPermission" -> hasPermission(result)
+            "fetchEvents" -> fetchEvents(call, result)
+            "createEvent" -> createEvent(call, result)
+            "updateEvent" -> updateEvent(call, result)
+            "deleteEvent" -> deleteEvent(call, result)
+            else -> result.notImplemented()
+        }
+    }
+
+    private fun hasPermission(result: MethodChannel.Result) {
+        val granted = ContextCompat.checkSelfPermission(
+            activity,
+            Manifest.permission.READ_CALENDAR
+        ) == PackageManager.PERMISSION_GRANTED
+        result.success(granted)
+    }
+
+    private fun fetchEvents(call: MethodCall, result: MethodChannel.Result) {
+        val startDate = call.argument<Long>("startDate") ?: return result.error("INVALID_ARGS", "Missing startDate", null)
+        val endDate = call.argument<Long>("endDate") ?: return result.error("INVALID_ARGS", "Missing endDate", null)
+
+        val contentResolver: ContentResolver = activity.contentResolver
+        val projection = arrayOf(
+            CalendarContract.Events._ID,
+            CalendarContract.Events.TITLE,
+            CalendarContract.Events.DTSTART,
+            CalendarContract.Events.DTEND,
+            CalendarContract.Events.EVENT_LOCATION,
+            CalendarContract.Events.DESCRIPTION
+        )
+
+        val selection = "${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTEND} <= ?"
+        val selectionArgs = arrayOf(startDate.toString(), endDate.toString())
+
+        val cursor = contentResolver.query(
+            CalendarContract.Events.CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            null
+        )
+
+        val events = mutableListOf<Map<String, Any>>()
+        cursor?.use {
+            while (it.moveToNext()) {
+                events.add(mapOf(
+                    "id" to it.getString(0),
+                    "title" to (it.getString(1) ?: ""),
+                    "startDate" to it.getLong(2),
+                    "endDate" to it.getLong(3),
+                    "location" to (it.getString(4) ?: ""),
+                    "notes" to (it.getString(5) ?: "")
+                ))
+            }
+        }
+
+        result.success(events)
+    }
+
+    private fun createEvent(call: MethodCall, result: MethodChannel.Result) {
+        val title = call.argument<String>("title") ?: return result.error("INVALID_ARGS", "Missing title", null)
+        val startDate = call.argument<Long>("startDate") ?: return result.error("INVALID_ARGS", "Missing startDate", null)
+        val endDate = call.argument<Long>("endDate") ?: return result.error("INVALID_ARGS", "Missing endDate", null)
+
+        val values = ContentValues().apply {
+            put(CalendarContract.Events.TITLE, title)
+            put(CalendarContract.Events.DTSTART, startDate)
+            put(CalendarContract.Events.DTEND, endDate)
+            put(CalendarContract.Events.EVENT_LOCATION, call.argument<String>("location"))
+            put(CalendarContract.Events.DESCRIPTION, call.argument<String>("notes"))
+            put(CalendarContract.Events.CALENDAR_ID, 1) // Default calendar
+            put(CalendarContract.Events.EVENT_TIMEZONE, "UTC")
+        }
+
+        val uri = activity.contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
+        result.success(uri?.lastPathSegment)
+    }
+}
+```
+
+### Event Mapping (Native Calendar ↔ App)
+
+| Field | iOS (EventKit) | Android (CalendarContract) | App Database |
+|-------|----------------|---------------------------|--------------|
+| **Title** | `EKEvent.title` | `CalendarContract.Events.TITLE` | `events.title` |
+| **Start Time** | `EKEvent.startDate` | `CalendarContract.Events.DTSTART` | `events.start_time` |
+| **End Time** | `EKEvent.endDate` | `CalendarContract.Events.DTEND` | `events.end_time` |
+| **Location** | `EKEvent.location` | `CalendarContract.Events.EVENT_LOCATION` | `events.location` |
+| **Notes** | `EKEvent.notes` | `CalendarContract.Events.DESCRIPTION` | `events.description` |
+| **All Day** | `EKEvent.isAllDay` | `CalendarContract.Events.ALL_DAY` | `events.all_day` |
+| **Identifier** | `EKEvent.eventIdentifier` | `CalendarContract.Events._ID` | `events.apple_calendar_id` |
 
 ### Offline Queue for Sync
 
 When user is offline and creates/modifies an event:
 
-```swift
+```dart
 // 1. Create event locally
-let offlineAction = OfflineAction(
-    type: .createEvent,
-    payload: eventData,
-    timestamp: Date()
-)
+final offlineAction = OfflineAction(
+  type: OfflineActionType.createEvent,
+  payload: eventData,
+  timestamp: DateTime.now(),
+);
 
 // 2. Save to offline queue
-CacheManager.shared.queueOfflineAction(offlineAction)
+await CacheManager().queueOfflineAction(offlineAction);
 
-// 3. Add to Apple Calendar immediately (optimistic)
-try calendarManager.createEvent(...)
+// 3. Add to native calendar immediately (optimistic)
+await calendarService.createEvent(
+  title: event.title,
+  startDate: event.startTime,
+  endDate: event.endTime,
+);
 
 // 4. When online again, sync queue
-for action in CacheManager.shared.getOfflineQueue() {
-    try await APIClient.shared.syncOfflineAction(action)
+final queue = await CacheManager().getOfflineQueue();
+for (final action in queue) {
+  await ApiClient().syncOfflineAction(action);
 }
-CacheManager.shared.clearOfflineQueue()
+await CacheManager().clearOfflineQueue();
 ```
 
 ---
 
 ## Third-Party Services Integration
 
-### Apple Push Notification Service (APNs)
+### Push Notifications (FCM + APNs)
 
 **Purpose:** Send notifications when proposals created, votes cast, or events confirmed
 
 **Setup:**
 
-1. Obtain APNs certificate from Apple Developer account
-2. Configure in Supabase project settings
-3. Save push device tokens to database
+1. Configure Firebase Cloud Messaging (FCM) for Android
+2. Configure APNs certificate for iOS
+3. Integrate firebase_messaging plugin in Flutter
+4. Save push device tokens to database
 
-**iOS Implementation:**
+**Flutter Implementation:**
 
-```swift
-import UserNotifications
+```dart
+// lib/core/notifications/push_notification_manager.dart
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-class PushNotificationManager: NSObject, ObservableObject {
-    static let shared = PushNotificationManager()
+class PushNotificationManager {
+  static final PushNotificationManager _instance = PushNotificationManager._internal();
+  factory PushNotificationManager() => _instance;
+  PushNotificationManager._internal();
 
-    @Published var authorizationStatus: UNAuthorizationStatus = .notDetermined
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
 
-    private let center = UNUserNotificationCenter.current()
+  // MARK: - Request Authorization
 
-    override init() {
-        super.init()
-        center.delegate = self
+  Future<bool> requestPermission() async {
+    final settings = await _firebaseMessaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      await _initializeNotifications();
+      return true;
     }
 
-    // MARK: - Request Authorization
+    return false;
+  }
 
-    func requestAuthorization() async throws -> Bool {
-        let options: UNAuthorizationOptions = [.alert, .sound, .badge]
-        let granted = try await center.requestAuthorization(options: options)
+  Future<void> _initializeNotifications() async {
+    // Initialize local notifications
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
 
-        if granted {
-            await registerForRemoteNotifications()
-        }
+    const initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
 
-        return granted
+    await _localNotifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: _onNotificationTap,
+    );
+
+    // Get FCM token
+    final token = await _firebaseMessaging.getToken();
+    if (token != null) {
+      await _savePushToken(token);
     }
 
-    @MainActor
-    private func registerForRemoteNotifications() {
-        UIApplication.shared.registerForRemoteNotifications()
+    // Listen for token refresh
+    _firebaseMessaging.onTokenRefresh.listen(_savePushToken);
+
+    // Handle foreground messages
+    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+
+    // Handle background messages
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+  }
+
+  // MARK: - Handle Device Token
+
+  Future<void> _savePushToken(String token) async {
+    // Save to backend
+    try {
+      await ApiClient().savePushToken(token);
+    } catch (e) {
+      print("Failed to save push token: $e");
     }
+  }
 
-    // MARK: - Handle Device Token
+  // MARK: - Handle Messages
 
-    func didRegisterForRemoteNotifications(deviceToken: Data) {
-        let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+  Future<void> _handleForegroundMessage(RemoteMessage message) async {
+    final notification = message.notification;
+    if (notification == null) return;
 
-        // Save to backend
-        Task {
-            try? await APIClient.shared.savePushToken(token)
-        }
+    // Show local notification when app is in foreground
+    await _localNotifications.show(
+      notification.hashCode,
+      notification.title,
+      notification.body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'high_importance_channel',
+          'High Importance Notifications',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+      payload: message.data['proposal_id'],
+    );
+  }
+
+  void _handleNotificationTap(RemoteMessage message) {
+    final proposalId = message.data['proposal_id'];
+    if (proposalId != null) {
+      // Navigate to proposal screen
+      // Use your navigation system here (e.g., GoRouter)
+      navigateToProposal(proposalId);
     }
+  }
 
-    // MARK: - Local Notifications (fallback)
-
-    func scheduleProposalDeadlineReminder(
-        for proposal: EventProposal,
-        hoursBeforeDeadline: Int
-    ) async throws {
-        guard let deadline = proposal.votingDeadline else { return }
-
-        let reminderDate = Calendar.current.date(
-            byAdding: .hour,
-            value: -hoursBeforeDeadline,
-            to: deadline
-        )!
-
-        let content = UNMutableNotificationContent()
-        content.title = "Voting Deadline Soon"
-        content.body = "\(proposal.title) voting ends in \(hoursBeforeDeadline) hours"
-        content.sound = .default
-        content.badge = 1
-        content.userInfo = ["proposal_id": proposal.id.uuidString]
-
-        let triggerDate = Calendar.current.dateComponents(
-            [.year, .month, .day, .hour, .minute],
-            from: reminderDate
-        )
-        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerDate, repeats: false)
-
-        let request = UNNotificationRequest(
-            identifier: "proposal_\(proposal.id.uuidString)_reminder",
-            content: content,
-            trigger: trigger
-        )
-
-        try await center.add(request)
+  void _onNotificationTap(NotificationResponse response) {
+    final proposalId = response.payload;
+    if (proposalId != null) {
+      navigateToProposal(proposalId);
     }
+  }
+
+  // MARK: - Local Notifications (scheduled reminders)
+
+  Future<void> scheduleProposalDeadlineReminder({
+    required EventProposal proposal,
+    required int hoursBeforeDeadline,
+  }) async {
+    if (proposal.votingDeadline == null) return;
+
+    final reminderTime = proposal.votingDeadline!.subtract(
+      Duration(hours: hoursBeforeDeadline),
+    );
+
+    await _localNotifications.zonedSchedule(
+      proposal.id.hashCode,
+      'Voting Deadline Soon',
+      '${proposal.title} voting ends in $hoursBeforeDeadline hours',
+      tz.TZDateTime.from(reminderTime, tz.local),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'deadline_reminders',
+          'Deadline Reminders',
+          importance: Importance.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      payload: proposal.id,
+    );
+  }
+
+  void navigateToProposal(String proposalId) {
+    // Implement navigation to proposal screen
+    // This depends on your navigation setup
+  }
 }
 
-// MARK: - Notification Delegate
+// MARK: - Background Message Handler (top-level function required)
 
-extension PushNotificationManager: UNUserNotificationCenterDelegate {
-    // Handle notification when app is in foreground
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
-    ) {
-        completionHandler([.banner, .sound, .badge])
-    }
-
-    // Handle notification tap
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse,
-        withCompletionHandler completionHandler: @escaping () -> Void
-    ) {
-        let userInfo = response.notification.request.content.userInfo
-
-        if let proposalId = userInfo["proposal_id"] as? String {
-            // Navigate to proposal screen
-            NotificationCenter.default.post(
-                name: .didTapProposalNotification,
-                object: nil,
-                userInfo: ["proposal_id": proposalId]
-            )
-        }
-
-        completionHandler()
-    }
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  print("Handling background message: ${message.messageId}");
+  // Handle background notification here if needed
 }
 ```
 
@@ -2291,215 +2648,384 @@ class Analytics {
 
 ### Authentication Pattern
 
-```swift
-class AuthViewModel: ObservableObject {
-    @Published var isAuthenticated = false
-    @Published var currentUser: User?
-    @Published var isLoading = false
-    @Published var error: Error?
+```dart
+// lib/presentation/providers/auth_provider.dart
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-    func signUp(email: String, password: String, fullName: String) async {
-        isLoading = true
-        do {
-            let user = try await APIClient.shared.signUp(
-                email: email,
-                password: password,
-                fullName: fullName
-            )
+class AuthProvider extends ChangeNotifier {
+  bool _isAuthenticated = false;
+  User? _currentUser;
+  bool _isLoading = false;
+  String? _error;
 
-            await MainActor.run {
-                self.currentUser = user
-                self.isAuthenticated = true
-                self.isLoading = false
-            }
-        } catch {
-            await MainActor.run {
-                self.error = error
-                self.isLoading = false
-            }
-        }
+  bool get isAuthenticated => _isAuthenticated;
+  User? get currentUser => _currentUser;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+
+  final SupabaseClient _supabase = Supabase.instance.client;
+
+  Future<void> signUp({
+    required String email,
+    required String password,
+    required String fullName,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {'full_name': fullName},
+      );
+
+      if (response.user != null) {
+        _currentUser = response.user;
+        _isAuthenticated = true;
+      }
+    } on AuthException catch (e) {
+      _error = e.message;
+    } catch (e) {
+      _error = 'An unexpected error occurred';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
+  }
 
-    func signIn(email: String, password: String) async {
-        isLoading = true
-        do {
-            let user = try await APIClient.shared.signIn(
-                email: email,
-                password: password
-            )
+  Future<void> signIn({
+    required String email,
+    required String password,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
 
-            await MainActor.run {
-                self.currentUser = user
-                self.isAuthenticated = true
-                self.isLoading = false
-            }
-        } catch {
-            await MainActor.run {
-                self.error = error
-                self.isLoading = false
-            }
-        }
+    try {
+      final response = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      if (response.user != null) {
+        _currentUser = response.user;
+        _isAuthenticated = true;
+      }
+    } on AuthException catch (e) {
+      _error = e.message;
+    } catch (e) {
+      _error = 'An unexpected error occurred';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
+  }
+
+  Future<void> signOut() async {
+    await _supabase.auth.signOut();
+    _currentUser = null;
+    _isAuthenticated = false;
+    notifyListeners();
+  }
 }
 ```
 
 ### Real-time Vote Updates
 
-```swift
-class ProposalViewModel: ObservableObject {
-    @Published var proposal: EventProposal?
-    @Published var votes: [Vote] = []
+```dart
+// lib/presentation/providers/proposal_provider.dart
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-    private var voteSubscription: RealtimeChannel?
-    private var cancellables = Set<AnyCancellable>()
+class ProposalProvider extends ChangeNotifier {
+  EventProposal? _proposal;
+  List<Vote> _votes = [];
+  bool _isLoading = false;
+  String? _error;
 
-    func subscribeToVotes(proposalId: String) {
-        voteSubscription = WebSocketManager.shared.subscribeToProposal(
-            proposalId,
-            onUpdate: { [weak self] update in
-                switch update {
-                case .newVote(let vote):
-                    DispatchQueue.main.async {
-                        if !self?.votes.contains(where: { $0.id == vote.id }) ?? false {
-                            self?.votes.append(vote)
-                        }
-                    }
-                case .statusChanged(let proposal):
-                    DispatchQueue.main.async {
-                        self?.proposal = proposal
-                    }
-                }
-            }
-        )
+  EventProposal? get proposal => _proposal;
+  List<Vote> get votes => _votes;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+
+  final SupabaseClient _supabase = Supabase.instance.client;
+  RealtimeChannel? _voteChannel;
+  StreamSubscription? _voteSubscription;
+
+  Future<void> subscribeToVotes(String proposalId) async {
+    // Load initial data
+    await loadProposal(proposalId);
+
+    // Subscribe to real-time updates
+    _voteChannel = _supabase.channel('proposal:$proposalId')
+      ..on(
+        RealtimeListenTypes.postgresChanges,
+        ChannelFilter(
+          event: 'INSERT',
+          schema: 'public',
+          table: 'proposal_votes',
+          filter: 'proposal_id=eq.$proposalId',
+        ),
+        (payload, [ref]) {
+          final newVote = Vote.fromJson(payload['new'] as Map<String, dynamic>);
+          if (!_votes.any((v) => v.id == newVote.id)) {
+            _votes.add(newVote);
+            notifyListeners();
+          }
+        },
+      )
+      ..on(
+        RealtimeListenTypes.postgresChanges,
+        ChannelFilter(
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'event_proposals',
+          filter: 'id=eq.$proposalId',
+        ),
+        (payload, [ref]) {
+          final updatedProposal = EventProposal.fromJson(
+            payload['new'] as Map<String, dynamic>,
+          );
+          _proposal = updatedProposal;
+          notifyListeners();
+        },
+      )
+      ..subscribe();
+  }
+
+  Future<void> loadProposal(String proposalId) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final proposalData = await _supabase
+          .from('event_proposals')
+          .select()
+          .eq('id', proposalId)
+          .single();
+
+      final votesData = await _supabase
+          .from('proposal_votes')
+          .select()
+          .eq('proposal_id', proposalId);
+
+      _proposal = EventProposal.fromJson(proposalData);
+      _votes = (votesData as List)
+          .map((v) => Vote.fromJson(v as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
+  }
 
-    func castVote(
-        proposalId: String,
-        timeOptionId: String,
-        response: VoteResponse
-    ) async {
-        do {
-            try await APIClient.shared.voteOnProposal(
-                proposalId: proposalId,
-                timeOptionId: timeOptionId,
-                userId: currentUserId,
-                response: response
-            )
-        } catch {
-            // Handle error
-        }
+  Future<void> castVote({
+    required String proposalId,
+    required String timeOptionId,
+    required String userId,
+    required VoteResponse response,
+  }) async {
+    try {
+      await _supabase.from('proposal_votes').insert({
+        'proposal_id': proposalId,
+        'time_option_id': timeOptionId,
+        'user_id': userId,
+        'response': response.name,
+      });
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
     }
+  }
 
-    deinit {
-        if let subscription = voteSubscription {
-            WebSocketManager.shared.unsubscribeFromProposal(subscription.topic)
-        }
-    }
+  @override
+  void dispose() {
+    _voteChannel?.unsubscribe();
+    _voteSubscription?.cancel();
+    super.dispose();
+  }
 }
 ```
 
 ### Caching Pattern
 
-```swift
+```dart
+// lib/core/storage/cache_manager.dart
+import 'dart:convert';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+
 class CacheManager {
-    static let shared = CacheManager()
+  static final CacheManager _instance = CacheManager._internal();
+  factory CacheManager() => _instance;
+  CacheManager._internal();
 
-    private let fileManager = FileManager.default
-    private let cacheDirectory: URL
-
-    init() {
-        let paths = fileManager.urls(for: .cachesDirectory, in: .userDomainMask)
-        cacheDirectory = paths[0].appendingPathComponent("CalendarCache")
-        try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+  Future<Directory> get _cacheDirectory async {
+    final appDir = await getApplicationDocumentsDirectory();
+    final cacheDir = Directory('${appDir.path}/calendar_cache');
+    if (!await cacheDir.exists()) {
+      await cacheDir.create(recursive: true);
     }
+    return cacheDir;
+  }
 
-    // MARK: - Cache Events
+  // MARK: - Cache Events
 
-    func cacheEvents(_ events: [Event], for date: Date) {
-        let key = cacheKey(for: date)
-        let encoder = JSONEncoder()
+  Future<void> cacheEvents(List<Event> events, DateTime date) async {
+    final key = _cacheKey(date);
+    final dir = await _cacheDirectory;
+    final file = File('${dir.path}/$key');
 
-        if let data = try? encoder.encode(events) {
-            let fileURL = cacheDirectory.appendingPathComponent(key)
-            try? data.write(to: fileURL)
-        }
+    final jsonData = jsonEncode(events.map((e) => e.toJson()).toList());
+    await file.writeAsString(jsonData);
+  }
+
+  Future<List<Event>?> getCachedEvents(DateTime date) async {
+    try {
+      final key = _cacheKey(date);
+      final dir = await _cacheDirectory;
+      final file = File('${dir.path}/$key');
+
+      if (!await file.exists()) return null;
+
+      final jsonData = await file.readAsString();
+      final List<dynamic> decoded = jsonDecode(jsonData);
+
+      return decoded.map((e) => Event.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (e) {
+      print('Error reading cached events: $e');
+      return null;
     }
+  }
 
-    func getCachedEvents(for date: Date) -> [Event]? {
-        let key = cacheKey(for: date)
-        let fileURL = cacheDirectory.appendingPathComponent(key)
+  // MARK: - Offline Queue
 
-        guard let data = try? Data(contentsOf: fileURL) else { return nil }
+  Future<void> queueOfflineAction(OfflineAction action) async {
+    final queue = await getOfflineQueue();
+    queue.add(action);
+    await _saveOfflineQueue(queue);
+  }
 
-        let decoder = JSONDecoder()
-        return try? decoder.decode([Event].self, from: data)
+  Future<List<OfflineAction>> getOfflineQueue() async {
+    try {
+      final dir = await _cacheDirectory;
+      final file = File('${dir.path}/offline_queue.json');
+
+      if (!await file.exists()) return [];
+
+      final jsonData = await file.readAsString();
+      final List<dynamic> decoded = jsonDecode(jsonData);
+
+      return decoded.map((e) => OfflineAction.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (e) {
+      print('Error reading offline queue: $e');
+      return [];
     }
+  }
 
-    // MARK: - Offline Queue
+  Future<void> _saveOfflineQueue(List<OfflineAction> queue) async {
+    final dir = await _cacheDirectory;
+    final file = File('${dir.path}/offline_queue.json');
 
-    func queueOfflineAction(_ action: OfflineAction) {
-        var queue = getOfflineQueue()
-        queue.append(action)
-        saveOfflineQueue(queue)
+    final jsonData = jsonEncode(queue.map((a) => a.toJson()).toList());
+    await file.writeAsString(jsonData);
+  }
+
+  Future<void> clearOfflineQueue() async {
+    final dir = await _cacheDirectory;
+    final file = File('${dir.path}/offline_queue.json');
+
+    if (await file.exists()) {
+      await file.delete();
     }
+  }
 
-    func getOfflineQueue() -> [OfflineAction] {
-        let fileURL = cacheDirectory.appendingPathComponent("offline_queue.json")
-        guard let data = try? Data(contentsOf: fileURL) else { return [] }
-
-        let decoder = JSONDecoder()
-        return (try? decoder.decode([OfflineAction].self, from: data)) ?? []
-    }
-
-    private func cacheKey(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return "events_\(formatter.string(from: date)).json"
-    }
+  String _cacheKey(DateTime date) {
+    final formatter = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    return 'events_$formatter.json';
+  }
 }
 ```
 
 ### Testing Patterns
 
-```swift
-import XCTest
-@testable import CalendarApp
+```dart
+// test/integration/proposal_flow_test.dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:lockitin_app/data/models/event_proposal.dart';
+import 'package:lockitin_app/data/repositories/proposal_repository.dart';
+import 'package:mockito/mockito.dart';
 
-class ProposalFlowTests: XCTestCase {
-    func testCreateAndVoteOnProposal() async throws {
-        // Given
-        let testGroup = try await createTestGroup()
-        let timeOptions = [
-            ProposalTimeOption(
-                startTime: Date(),
-                endTime: Date().addingTimeInterval(3600)
-            )
-        ]
+void main() {
+  group('Proposal Flow Tests', () {
+    late ProposalRepository repository;
 
-        // When - Create proposal
-        let proposal = try await APIClient.shared.createProposal(
-            title: "Test Event",
-            groupId: testGroup.id.uuidString,
-            createdBy: testUserId,
-            timeOptions: timeOptions
-        )
+    setUp(() {
+      repository = MockProposalRepository();
+    });
 
-        // Then
-        XCTAssertEqual(proposal.status, .voting)
+    test('Create and vote on proposal', () async {
+      // Given
+      final testGroup = await createTestGroup();
+      final timeOptions = [
+        ProposalTimeOption(
+          startTime: DateTime.now(),
+          endTime: DateTime.now().add(const Duration(hours: 1)),
+          optionOrder: 0,
+        ),
+      ];
 
-        // When - Vote on proposal
-        try await APIClient.shared.voteOnProposal(
-            proposalId: proposal.id.uuidString,
-            timeOptionId: timeOptions[0].id.uuidString,
-            userId: testUserId,
-            response: .available
-        )
+      // When - Create proposal
+      final proposal = await repository.createProposal(
+        title: 'Test Event',
+        groupId: testGroup.id,
+        createdBy: testUserId,
+        timeOptions: timeOptions,
+      );
 
-        // Then - Verify vote recorded
-        let votes = try await APIClient.shared.fetchVotes(for: proposal.id.uuidString)
-        XCTAssertEqual(votes.count, 1)
-        XCTAssertEqual(votes.first?.response, .available)
-    }
+      // Then
+      expect(proposal.status, ProposalStatus.voting);
+
+      // When - Vote on proposal
+      await repository.voteOnProposal(
+        proposalId: proposal.id,
+        timeOptionId: timeOptions[0].id,
+        userId: testUserId,
+        response: VoteResponse.available,
+      );
+
+      // Then - Verify vote recorded
+      final votes = await repository.fetchVotes(proposal.id);
+      expect(votes.length, 1);
+      expect(votes.first.response, VoteResponse.available);
+    });
+
+    test('Real-time vote updates notify listeners', () async {
+      // Given
+      final provider = ProposalProvider(repository);
+      var notifiedCount = 0;
+      provider.addListener(() => notifiedCount++);
+
+      // When
+      await provider.subscribeToVotes(testProposalId);
+      await provider.castVote(
+        proposalId: testProposalId,
+        timeOptionId: testTimeOptionId,
+        userId: testUserId,
+        response: VoteResponse.available,
+      );
+
+      // Then
+      expect(notifiedCount, greaterThan(0));
+      expect(provider.votes.isNotEmpty, true);
+    });
+  });
 }
 ```
 
@@ -2509,11 +3035,11 @@ class ProposalFlowTests: XCTestCase {
 
 ### Privacy-First Event Model
 
-```swift
+```dart
 enum EventVisibility {
-    case `private`             // Hidden from all groups
-    case sharedWithName        // Groups see event title & time
-    case busyOnly             // Groups see "busy" block without details
+  private,           // Hidden from all groups
+  sharedWithName,    // Groups see event title & time
+  busyOnly,          // Groups see "busy" block without details
 }
 ```
 
@@ -2551,30 +3077,70 @@ Privacy enforced at database level—iOS app can't circumvent it.
 
 ### JWT Token Management
 
-**On iOS (Keychain):**
+**Secure Storage with flutter_secure_storage:**
 
-```swift
-// Save tokens securely
-let query: [String: Any] = [
-    kSecClass as String: kSecClassGenericPassword,
-    kSecAttrAccount as String: "access_token",
-    kSecValueData as String: token.data(using: .utf8)!
-]
-SecItemAdd(query as CFDictionary, nil)
+```dart
+// lib/core/storage/secure_storage.dart
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-// Retrieve token
-let query: [String: Any] = [
-    kSecClass as String: kSecClassGenericPassword,
-    kSecAttrAccount as String: "access_token",
-    kSecReturnData as String: true
-]
-var result: AnyObject?
-SecItemCopyMatching(query as CFDictionary, &result)
-let token = String(data: result as! Data, encoding: .utf8)
+class SecureStorage {
+  static final SecureStorage _instance = SecureStorage._internal();
+  factory SecureStorage() => _instance;
+  SecureStorage._internal();
 
-// Send in all API requests
-var request = URLRequest(url: endpoint)
-request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+  final _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock,
+    ),
+  );
+
+  // Save access token securely
+  Future<void> saveAccessToken(String token) async {
+    await _storage.write(key: 'access_token', value: token);
+  }
+
+  // Retrieve access token
+  Future<String?> getAccessToken() async {
+    return await _storage.read(key: 'access_token');
+  }
+
+  // Save refresh token
+  Future<void> saveRefreshToken(String token) async {
+    await _storage.write(key: 'refresh_token', value: token);
+  }
+
+  // Retrieve refresh token
+  Future<String?> getRefreshToken() async {
+    return await _storage.read(key: 'refresh_token');
+  }
+
+  // Clear all tokens
+  Future<void> clearTokens() async {
+    await _storage.delete(key: 'access_token');
+    await _storage.delete(key: 'refresh_token');
+  }
+}
+
+// Using token in API requests with Supabase
+class SupabaseClientSetup {
+  static Future<SupabaseClient> initialize() async {
+    final storage = SecureStorage();
+    final token = await storage.getAccessToken();
+
+    return SupabaseClient(
+      'YOUR_SUPABASE_URL',
+      'YOUR_SUPABASE_ANON_KEY',
+      authOptions: AuthClientOptions(
+        persistSession: true,
+        autoRefreshToken: true,
+      ),
+      headers: token != null ? {'Authorization': 'Bearer $token'} : null,
+    );
+  }
+}
 ```
 
 ### API Authentication Flow
@@ -2586,7 +3152,7 @@ request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
    ↓
 3. Returns JWT token + refresh token
    ↓
-4. iOS saves JWT to Keychain, refresh token in UserDefaults
+4. Flutter saves JWT to FlutterSecureStorage (Keychain on iOS, EncryptedSharedPreferences on Android)
    ↓
 5. All API requests include: Authorization: Bearer <JWT>
    ↓
@@ -2643,53 +3209,111 @@ request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
 ### Lazy Loading Pattern
 
-```swift
+```dart
+// lib/presentation/providers/groups_provider.dart
 // Load groups only when accessed
-class GroupsViewModel: ObservableObject {
-    @Published var groups: [Group] = []
-    @Published var isLoading = false
+class GroupsProvider extends ChangeNotifier {
+  List<Group> _groups = [];
+  bool _isLoading = false;
 
-    var visibleGroups: [Group] {
-        groups.prefix(20)  // Load first 20
-    }
+  List<Group> get groups => _groups;
+  bool get isLoading => _isLoading;
 
-    func loadMore() async {
-        // Load next batch
-        let newGroups = try await APIClient.shared.fetchGroups(
-            limit: 20,
-            offset: groups.count
-        )
-        self.groups.append(contentsOf: newGroups)
+  List<Group> get visibleGroups => _groups.take(20).toList(); // Load first 20
+
+  Future<void> loadMore() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final newGroups = await GroupRepository().fetchGroups(
+        limit: 20,
+        offset: _groups.length,
+      );
+
+      _groups.addAll(newGroups);
+    } catch (e) {
+      print('Error loading more groups: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
+  }
 }
 ```
 
 ### Background Sync Optimization
 
-```swift
+```dart
+// lib/core/sync/calendar_sync.dart
 // Sync only when:
 // 1. App enters foreground
 // 2. Every 15 minutes in background
 // 3. Manual pull-to-refresh
 
-class CalendarSync {
-    func setupBackgroundSync() {
-        NotificationCenter.default.addObserver(
-            forName: UIApplication.willEnterForegroundNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.sync()
-        }
-    }
+import 'package:flutter/widgets.dart';
+import 'package:workmanager/workmanager.dart';
 
-    func syncInBackground() {
-        BGTaskScheduler.shared.submitTaskRequest(
-            BGAppRefreshTaskRequest(identifier: "com.calendar.sync")
-        ) { error in
-            if error != nil { print("Failed to schedule sync") }
-        }
+class CalendarSync {
+  static const String syncTaskName = 'calendarSync';
+
+  void setupBackgroundSync() {
+    // Initialize WorkManager for background tasks
+    Workmanager().initialize(
+      callbackDispatcher,
+      isInDebugMode: false,
+    );
+
+    // Schedule periodic sync every 15 minutes
+    Workmanager().registerPeriodicTask(
+      '1',
+      syncTaskName,
+      frequency: const Duration(minutes: 15),
+      constraints: Constraints(
+        networkType: NetworkType.connected,
+      ),
+    );
+
+    // Sync when app enters foreground
+    WidgetsBinding.instance.addObserver(
+      LifecycleEventHandler(
+        resumeCallBack: () async => await sync(),
+      ),
+    );
+  }
+
+  Future<void> sync() async {
+    // Perform calendar sync
+    print('Syncing calendar data...');
+    // Implementation here
+  }
+}
+
+// Background task callback
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    switch (task) {
+      case CalendarSync.syncTaskName:
+        await CalendarSync().sync();
+        break;
     }
+    return Future.value(true);
+  });
+}
+
+// Lifecycle observer for foreground detection
+class LifecycleEventHandler extends WidgetsBindingObserver {
+  final Future<void> Function() resumeCallBack;
+
+  LifecycleEventHandler({required this.resumeCallBack});
+
+  @override
+  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
+    if (state == AppLifecycleState.resumed) {
+      await resumeCallBack();
+    }
+  }
 }
 ```
 
@@ -2716,36 +3340,52 @@ CREATE INDEX idx_notifications_user_unread
 
 ### Real-time Connection Management
 
-```swift
-class WebSocketManager: ObservableObject {
-    private var channels: [String: RealtimeChannel] = [:]
+```dart
+// lib/core/network/websocket_manager.dart
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-    // Only subscribe to active proposals
-    func subscribeToProposal(_ proposalId: String) {
-        let channelId = "proposal:\(proposalId)"
+class WebSocketManager {
+  static final WebSocketManager _instance = WebSocketManager._internal();
+  factory WebSocketManager() => _instance;
+  WebSocketManager._internal();
 
-        // Check if already subscribed
-        if channels[channelId] != nil { return }
+  final Map<String, RealtimeChannel> _channels = {};
+  final SupabaseClient _supabase = Supabase.instance.client;
 
-        let channel = supabase.realtime.channel(channelId)
-        // Subscribe to updates...
-        channels[channelId] = channel
+  // Only subscribe to active proposals
+  RealtimeChannel subscribeToProposal(String proposalId) {
+    final channelId = 'proposal:$proposalId';
+
+    // Check if already subscribed
+    if (_channels.containsKey(channelId)) {
+      return _channels[channelId]!;
     }
 
-    // Unsubscribe when proposal screen dismissed
-    func unsubscribeFromProposal(_ proposalId: String) {
-        let channelId = "proposal:\(proposalId)"
-        channels[channelId]?.unsubscribe()
-        channels.removeValue(forKey: channelId)
-    }
+    final channel = _supabase.channel(channelId);
+    // Subscribe to updates...
+    _channels[channelId] = channel;
 
-    // Clean up all connections
-    func disconnectAll() {
-        for (_, channel) in channels {
-            channel.unsubscribe()
-        }
-        channels.removeAll()
+    return channel;
+  }
+
+  // Unsubscribe when proposal screen dismissed
+  Future<void> unsubscribeFromProposal(String proposalId) async {
+    final channelId = 'proposal:$proposalId';
+    final channel = _channels[channelId];
+
+    if (channel != null) {
+      await _supabase.removeChannel(channel);
+      _channels.remove(channelId);
     }
+  }
+
+  // Clean up all connections
+  Future<void> disconnectAll() async {
+    for (final channel in _channels.values) {
+      await _supabase.removeChannel(channel);
+    }
+    _channels.clear();
+  }
 }
 ```
 
@@ -2755,11 +3395,14 @@ class WebSocketManager: ObservableObject {
 
 ### Required Tools
 
-- **Xcode 15.0+** (with iOS 17 SDK)
-- **Swift 5.9+**
-- **Supabase CLI** (`brew install supabase`)
+- **Flutter SDK 3.16+**
+- **Dart SDK 3.0+**
+- **Android Studio** (for Android development + emulator)
+- **Xcode 15.0+** (for iOS development, macOS only)
+- **VS Code or Android Studio** (with Flutter extension)
+- **Supabase CLI** (`brew install supabase` on macOS, or npm install for other platforms)
 - **Git** (for version control)
-- **Fastlane** (for CI/CD) - `sudo gem install fastlane`
+- **Firebase CLI** (for FCM push notifications setup)
 
 ### Local Supabase Setup
 
@@ -2783,38 +3426,106 @@ supabase db push --local
 psql "postgresql://postgres:postgres@localhost:5432/postgres"
 ```
 
-### Xcode Project Configuration
+### Flutter Project Configuration
 
-**1. Add Supabase SDK:**
+**1. Install Flutter and dependencies:**
 
-```swift
-// In Package.swift or via Xcode:
-.package(
-    url: "https://github.com/supabase-community/supabase-swift.git",
-    from: "0.2.0"
-)
+```bash
+# Install Flutter (follow official guide for your OS)
+# https://docs.flutter.dev/get-started/install
+
+# Verify installation
+flutter doctor
+
+# Install dependencies
+flutter pub get
 ```
 
-**2. Configure Info.plist:**
+**2. Add required packages to `pubspec.yaml`:**
+
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  provider: ^6.1.0
+  # Or use riverpod: ^2.4.0
+
+  # Supabase
+  supabase_flutter: ^2.0.0
+
+  # Push notifications
+  firebase_messaging: ^14.7.0
+  flutter_local_notifications: ^16.0.0
+
+  # Secure storage
+  flutter_secure_storage: ^9.0.0
+
+  # Background tasks
+  workmanager: ^0.5.1
+
+  # Platform channels
+  flutter/services.dart
+
+  # Utilities
+  path_provider: ^2.1.0
+  timezone: ^0.9.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  mockito: ^5.4.0
+  build_runner: ^2.4.0
+```
+
+**3. Configure Android permissions (`android/app/src/main/AndroidManifest.xml`):**
+
+```xml
+<uses-permission android:name="android.permission.INTERNET"/>
+<uses-permission android:name="android.permission.READ_CALENDAR"/>
+<uses-permission android:name="android.permission.WRITE_CALENDAR"/>
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+```
+
+**4. Configure iOS permissions (`ios/Runner/Info.plist`):**
 
 ```xml
 <key>NSCalendarsUsageDescription</key>
 <string>We use your calendar to show availability for group events</string>
 
-<key>NSCameraUsageDescription</key>
-<string>We use your camera for video calls (future feature)</string>
-
 <key>NSLocationWhenInUseUsageDescription</key>
 <string>We use your location to calculate travel time</string>
+
+<key>NSCameraUsageDescription</key>
+<string>We use your camera for video calls (future feature)</string>
 ```
 
-**3. Environment Configuration:**
+**5. Environment Configuration:**
 
-```swift
-// Config.swift
-struct Config {
-    static let supabaseURL = URL(string: "https://your-project.supabase.co")!
-    static let supabaseKey = "your-anon-key"
+```dart
+// lib/core/config/config.dart
+class Config {
+  static const String supabaseUrl = 'https://your-project.supabase.co';
+  static const String supabaseAnonKey = 'your-anon-key';
+  static const String firebaseProjectId = 'your-firebase-project';
+}
+
+// lib/main.dart
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Supabase
+  await Supabase.initialize(
+    url: Config.supabaseUrl,
+    anonKey: Config.supabaseAnonKey,
+  );
+
+  // Initialize Firebase (for FCM)
+  await Firebase.initializeApp();
+
+  runApp(const LockItInApp());
 }
 ```
 
@@ -2822,57 +3533,105 @@ struct Config {
 
 ```bash
 # Run all unit tests
-xcodebuild test -scheme CalendarApp
+flutter test
 
-# Run specific test class
-xcodebuild test -scheme CalendarApp -testClassPattern "ProposalFlowTests"
+# Run specific test file
+flutter test test/unit/calendar_repository_test.dart
 
 # Run with coverage
-xcodebuild test -scheme CalendarApp -coverage
+flutter test --coverage
 
-# Integration tests (requires backend)
-xcodebuild test -scheme CalendarApp -testClassPattern "*Integration*"
+# Run integration tests
+flutter test integration_test/
+
+# View coverage report
+genhtml coverage/lcov.info -o coverage/html
+open coverage/html/index.html
 ```
 
-### CI/CD with Fastlane
-
-```ruby
-# fastlane/Fastfile
-default_platform(:ios)
-
-platform :ios do
-  desc "Run tests"
-  lane :test do
-    run_tests(scheme: "CalendarApp")
-  end
-
-  desc "Build and upload to TestFlight"
-  lane :beta do
-    increment_build_number(xcodeproj: "CalendarApp.xcodeproj")
-    build_app(scheme: "CalendarApp")
-    upload_to_testflight
-
-    slack(
-      message: "New beta build uploaded!",
-      channel: "#ios-releases"
-    )
-  end
-
-  desc "Release to App Store"
-  lane :release do
-    increment_version_number(version_number: "1.0.0")
-    build_app(scheme: "CalendarApp")
-    upload_to_app_store
-  end
-end
-```
-
-**Run Fastlane lanes:**
+### Building and Running the App
 
 ```bash
-fastlane ios test
-fastlane ios beta
-fastlane ios release
+# Run on iOS simulator
+flutter run -d ios
+
+# Run on Android emulator
+flutter run -d android
+
+# Run on physical device
+flutter devices  # List connected devices
+flutter run -d <device-id>
+
+# Build APK (Android)
+flutter build apk --release
+
+# Build iOS (requires Mac + Xcode)
+flutter build ios --release
+
+# Build App Bundle (for Google Play)
+flutter build appbundle
+```
+
+### CI/CD Setup
+
+**GitHub Actions Workflow (`.github/workflows/flutter-ci.yml`):**
+
+```yaml
+name: Flutter CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test --coverage
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+
+  build-android:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: app-release.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  build-ios:
+    runs-on: macos-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+
+      - name: Build iOS
+        run: flutter build ios --release --no-codesign
 ```
 
 ---
@@ -2881,20 +3640,22 @@ fastlane ios release
 
 This consolidated technical architecture document covers every aspect of LockItIn's backend and frontend systems:
 
-- **Frontend:** Swift/SwiftUI MVVM architecture with Combine reactive programming
+- **Frontend:** Flutter/Dart Clean Architecture with Provider for state management
+- **Platform Support:** Cross-platform (iOS & Android) with single codebase
 - **Backend:** Supabase PostgreSQL with Row Level Security enforcing privacy at database level
-- **Sync:** EventKit bidirectional calendar synchronization every 15 minutes
+- **Sync:** Native calendar integration via Platform Channels (EventKit for iOS, CalendarContract for Android) with bidirectional synchronization every 15 minutes
 - **Real-time:** WebSocket subscriptions for live vote count updates without polling
-- **Notifications:** APNs integration with fallback local notifications
+- **Notifications:** Firebase Cloud Messaging (FCM) for Android, APNs for iOS, with local notifications fallback
 - **Caching:** 3-layer caching (memory, disk, network) for offline support
-- **Security:** JWT token management, RLS policies, encryption in transit
-- **Scalability:** Lazy loading, background sync optimization, indexed queries
-- **Testing:** Unit, integration, and UI test patterns with full code examples
+- **Security:** JWT token management with FlutterSecureStorage, RLS policies, encryption in transit
+- **Scalability:** Lazy loading, background sync optimization with WorkManager, indexed queries
+- **Testing:** Unit, integration, and widget test patterns with full code examples
 
-All code snippets are production-ready and follow best practices for iOS development in 2025.
+All code snippets are production-ready and follow best practices for cross-platform Flutter development in 2025.
 
 ---
 
-*Last Updated: December 1, 2025*
+*Last Updated: December 6, 2025*
 *Project Status: Pre-development (Planning Phase)*
 *Target Launch: April 30, 2026*
+*Platform: Flutter (iOS & Android)*

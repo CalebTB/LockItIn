@@ -1,8 +1,8 @@
 # LockItIn UI Design System
 
-**Comprehensive design system, visual language, and component specifications for the LockItIn iOS calendar app.**
+**Comprehensive design system, visual language, and component specifications for the LockItIn cross-platform mobile app (iOS & Android).**
 
-*Last Updated: December 2, 2025*
+*Last Updated: December 6, 2025*
 
 ---
 
@@ -30,7 +30,7 @@
 
 ### Purpose
 
-The LockItIn design system ensures visual consistency, usability, and accessibility across the iOS app. It provides clear guidelines for developers and designers to build a cohesive product experience that feels native to iOS while maintaining our unique brand identity.
+The LockItIn design system ensures visual consistency, usability, and accessibility across both iOS and Android platforms. It provides clear guidelines for developers and designers to build a cohesive product experience that feels native to each platform (iOS following HIG, Android following Material Design) while maintaining our unique brand identity.
 
 ### Design Ethos: "Calm, Not Chaotic"
 
@@ -38,12 +38,12 @@ Every design decision reduces anxiety, not creates it. LockItIn helps coordinate
 
 ### Five Core Design Principles
 
-**1. Native Feel**
-- Follows Apple's Human Interface Guidelines (HIG)
-- Uses system fonts (SF Pro), colors, and components
-- Feels like it was built by Apple
-- Native iOS affordances and interactions
-- Respects system-level behaviors (safe areas, gestures)
+**1. Platform-Native Feel**
+- **iOS**: Follows Apple's Human Interface Guidelines (HIG) with SF Pro font, Cupertino widgets
+- **Android**: Follows Material Design 3 guidelines with Roboto font, Material components
+- Uses platform-appropriate system colors and components
+- Feels native to each platform while maintaining brand consistency
+- Respects system-level behaviors (safe areas on iOS, navigation patterns on Android)
 
 **2. Minimal & Focused**
 - Every screen has one primary action
@@ -162,11 +162,17 @@ All color combinations meet **WCAG AA** contrast requirements (4.5:1 for text):
 
 ### Font Family
 
-**System Font:** SF Pro (iOS default)
+**iOS - SF Pro (System Default)**
 - Preloaded on all iOS devices
 - Automatically adjusts for Dynamic Type
 - Supports all weights needed
 - Respects system accessibility settings
+
+**Android - Roboto (System Default)**
+- Native Android font family
+- Supports font scaling via system settings
+- Material Design standard
+- Consistent across all Android versions 5.0+
 
 ### Type Scale
 
@@ -181,19 +187,32 @@ All color combinations meet **WCAG AA** contrast requirements (4.5:1 for text):
 | Footnote | 13pt | Regular (400) | 18pt | Secondary text, captions |
 | Caption | 12pt | Regular (400) | 16pt | Smallest text, timestamps |
 
-### Text Styles (iOS Names)
+### Text Styles (Platform-Specific)
 
+**iOS (SwiftUI/Cupertino):**
 ```swift
-// Recommended mapping for SwiftUI
-.title1         // Title 1
-.title2         // Title 2
-.title3         // Title 3
-.headline       // Headline
-.body           // Body
-.callout        // Callout
-.footnote       // Footnote
-.caption1       // Caption
-.caption2       // Smaller captions (if needed)
+.title1         // Title 1 (34pt bold)
+.title2         // Title 2 (28pt bold)
+.title3         // Title 3 (22pt semibold)
+.headline       // Headline (17pt semibold)
+.body           // Body (17pt regular)
+.callout        // Callout (16pt regular)
+.footnote       // Footnote (13pt regular)
+.caption1       // Caption (12pt regular)
+```
+
+**Android (Flutter/Material):**
+```dart
+TextStyle(                    // Material Design 3
+  fontSize: 34,               // displayLarge (Title 1 equivalent)
+  fontWeight: FontWeight.bold,
+  fontFamily: 'Roboto',
+)
+Theme.of(context).textTheme.headlineMedium  // Title 2
+Theme.of(context).textTheme.titleLarge      // Title 3
+Theme.of(context).textTheme.bodyLarge       // Body
+Theme.of(context).textTheme.bodyMedium      // Callout
+Theme.of(context).textTheme.bodySmall       // Footnote
 ```
 
 ### Dynamic Type Support
@@ -207,7 +226,10 @@ All text must support Dynamic Type (7 accessibility sizes):
 - **Extra Extra Large:** +3 sizes from default
 - **Extra Extra Extra Large:** +4 sizes from default
 
-**Implementation:** Use `.font(.body)` with `.dynamicTypeSize()` modifiers in SwiftUI.
+**Implementation:**
+- **iOS**: Use `.font(.body)` with `.dynamicTypeSize()` modifiers in SwiftUI
+- **Android**: Respect `fontScale` from MediaQuery and use `Theme.of(context).textTheme` styles
+- **Flutter**: Use `MediaQuery.of(context).textScaleFactor` for adaptive sizing
 
 ### Letter Spacing
 
@@ -409,13 +431,23 @@ All spacing uses an 8pt grid for consistency and alignment.
 
 ### Navigation Components
 
-#### Tab Bar (Bottom)
+#### Bottom Navigation
+
+**iOS - Tab Bar:**
 - **Height:** 50pt + safe area bottom
 - **Background:** Secondary background color
 - **Items:** 4 tabs (Calendar, Groups, Inbox, Profile)
 - **Active Indicator:** Tinted blue icon + label
 - **Inactive:** Gray icon + label
 - **Badge:** Red circle with count for unread
+
+**Android - Bottom Navigation Bar (Material):**
+- **Height:** 56dp
+- **Background:** Surface color (elevated)
+- **Items:** 4 destinations (same as iOS)
+- **Active Indicator:** Filled icon + primary color label
+- **Inactive:** Outlined icon + gray label
+- **Badge:** Red dot or count badge
 
 #### Navigation Bar (Top)
 - **Height:** 44pt + safe area top
@@ -558,9 +590,10 @@ All spacing uses an 8pt grid for consistency and alignment.
 
 ## 6. Icon System
 
-### SF Symbols Usage
+### Icon Systems
 
-Using Apple's native SF Symbols for consistency:
+**iOS - SF Symbols:**
+Using Apple's native SF Symbols for consistency on iOS:
 
 | Component | Icon | Weight | Color |
 |-----------|------|--------|-------|
@@ -608,18 +641,46 @@ Used on event badges to indicate visibility:
 - **👥 Shared with name** - person.2 or person.3.fill
 - **👁️ Busy only** - eye.fill (custom or SF symbol)
 
+**Android - Material Icons:**
+Using Material Icons for Android consistency:
+
+| Component | Icon | Color |
+|-----------|------|-------|
+| Calendar | event | Primary |
+| Groups | people | Primary |
+| Proposals/Voting | check_circle | Success green |
+| Profile | account_circle | Primary |
+| Settings | settings | Primary |
+| Privacy/Lock | lock | Primary |
+| Share | share | Primary |
+| Plus/Create | add_circle | Primary |
+| Menu | more_vert | Primary |
+| Bell/Notifications | notifications | Primary |
+
+**Cross-Platform Approach:**
+- Use platform-appropriate icon sets (SF Symbols vs Material Icons)
+- Maintain visual consistency through similar icon styles
+- Same conceptual meaning across platforms (lock = privacy on both)
+
 ### Accessibility for Icons
 
-**Every icon must have:**
-- Text label or descriptive accessibilityLabel
-- accessibilityHint for complex icons
-- Alternative text if icon-only button
-
-Example:
+**iOS Example:**
 ```swift
 Image(systemName: "lock.fill")
     .accessibilityLabel("Private event")
     .accessibilityHint("This event is only visible to you")
+```
+
+**Android/Flutter Example:**
+```dart
+Icon(Icons.lock,
+  semanticLabel: "Private event",
+)
+Semantics(
+  label: 'Private event',
+  hint: 'This event is only visible to you',
+  child: Icon(Icons.lock),
+)
 ```
 
 ---
@@ -836,10 +897,9 @@ Image(systemName: "lock.fill")
 
 ## 9. Accessibility
 
-### VoiceOver Support
+### Screen Reader Support (VoiceOver & TalkBack)
 
-**Required for All Interactive Elements:**
-
+**iOS - VoiceOver:**
 ```swift
 // Button
 Button(action: { }) {
@@ -856,11 +916,32 @@ Button(action: { }) {
 .accessibilityAddTraits(.isButton)
 ```
 
-**Important Patterns:**
+**Android - TalkBack (Flutter):**
+```dart
+// Button
+Semantics(
+  label: 'Create event',
+  hint: 'Opens new event form',
+  button: true,
+  child: IconButton(
+    icon: Icon(Icons.add_circle),
+    onPressed: () {},
+  ),
+)
+
+// Custom elements
+Semantics(
+  label: 'Sarah voted Available',
+  child: CustomWidget(),
+)
+```
+
+**Important Patterns (Both Platforms):**
 - Every button/link must have a label
-- Use `.combine` for grouped labels
+- Group related elements with appropriate semantics
 - Provide hints for complex interactions
 - Read order should match visual order
+- Test with both VoiceOver (iOS) and TalkBack (Android)
 
 ### Dynamic Type Support
 
@@ -896,21 +977,28 @@ Button(action: { }) {
 
 ### Touch Target Sizes
 
-**Minimum Sizes:**
-- **Buttons/Interactive:** 44pt x 44pt
+**Platform-Specific Minimums:**
+
+**iOS (Apple HIG):**
+- **Buttons/Interactive:** 44pt x 44pt minimum
 - **Form fields:** 44pt height
 - **List cells:** 44pt height
 - **Icon buttons:** 44pt x 44pt with padding
 
-**Spacing:**
-- Minimum 8pt between touch targets
-- Don't make targets too large (harder to tap accurately)
-- 48pt x 48pt is optimal
+**Android (Material Design):**
+- **Buttons/Interactive:** 48dp x 48dp minimum
+- **Form fields:** 48dp height
+- **List items:** 48dp height minimum
+- **Icon buttons:** 48dp x 48dp with padding
+
+**Cross-Platform Standard:**
+- Use 48pt/dp for both platforms (exceeds both minimums)
+- Minimum 8pt/dp between touch targets
+- Optimal size: 48-56pt/dp for primary actions
 
 ### Reduced Motion Support
 
-**Respect User Preference:**
-
+**iOS:**
 ```swift
 @Environment(\.accessibilityReduceMotion) var reduceMotion
 
@@ -921,11 +1009,23 @@ if reduceMotion {
 }
 ```
 
-**Apply to:**
+**Android/Flutter:**
+```dart
+MediaQuery.of(context).disableAnimations
+
+if (MediaQuery.of(context).disableAnimations) {
+  // Simple transitions
+} else {
+  // Full animations
+}
+```
+
+**Apply to (Both Platforms):**
 - Confetti animations
 - Spring physics animations
 - Parallax effects
 - Automatic scrolling
+- Complex transitions
 
 ### Screen Reader Labels
 
@@ -1042,7 +1142,7 @@ if reduceMotion {
 
 ### Dark Mode Implementation
 
-**SwiftUI:**
+**iOS (SwiftUI):**
 ```swift
 @Environment(\.colorScheme) var colorScheme
 
@@ -1053,10 +1153,23 @@ if colorScheme == .dark {
 }
 ```
 
-**Auto-apply:**
-- Use semantic colors (`.background`, `.foreground`)
-- System automatically handles inversion
-- Avoid hardcoding colors
+**Android/Flutter (Material):**
+```dart
+Theme.of(context).brightness == Brightness.dark
+
+// Or use ThemeData with dark theme
+MaterialApp(
+  theme: lightTheme,
+  darkTheme: darkTheme,
+  themeMode: ThemeMode.system, // Follows system setting
+)
+```
+
+**Auto-apply (Cross-Platform):**
+- **iOS**: Use semantic colors (`.background`, `.foreground`)
+- **Android**: Use `Theme.of(context).colorScheme.surface`, `.primary`, etc.
+- System automatically handles mode switching
+- Avoid hardcoding colors on both platforms
 
 ### Testing Dark Mode
 
@@ -1476,16 +1589,21 @@ Custom icons (if needed in future):
 
 ## Document Information
 
-**Version:** 1.0
-**Last Updated:** December 2, 2025
-**Status:** Complete - Ready for Implementation
+**Version:** 2.0 (Cross-Platform Update)
+**Last Updated:** December 6, 2025
+**Status:** Complete - Ready for Flutter Implementation (iOS & Android)
 **Maintained By:** LockItIn Design Team
+
+**Platform Support:**
+- iOS 13+ (Cupertino widgets, SF Pro font, Apple HIG)
+- Android 8.0+ (Material Design 3, Roboto font, Material guidelines)
+- Flutter 3.16+ (Cross-platform implementation)
 
 **Related Documents:**
 - `lockitin-designs.md` - Design philosophy and UX logic
 - `lockitin-complete-user-flows.md` - Detailed user journey flows
-- `lockitin-technical-architecture.md` - Backend and system design
-- Figma design file - Interactive component library
+- `lockitin-technical-architecture.md` - Backend and system design (Flutter)
+- Figma design file - Interactive component library (iOS & Android variants)
 
 ---
 

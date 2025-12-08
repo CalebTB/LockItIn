@@ -1,0 +1,39 @@
+Date,Description,Category,Amount,Type,Tax_Deductible,Receipt,Notes
+2025-12-01,Mac Mini M2 purchase,Equipment,-699.00,Expense,Yes,Yes,Depreciate $233/year for 3 years
+2025-12-15,Apple Developer Account,Software,-99.00,Expense,Yes,Yes,Annual renewal Dec 2026
+2025-12-20,Domain lockitin.app,Hosting,-14.99,Expense,Yes,Yes,Annual renewal Dec 2026
+2026-01-05,Figma Pro (optional),Software,-12.00,Expense,Yes,Yes,Cancel if not needed
+2026-04-01,App revenue Month 1,Revenue,17.46,Income,No,Yes,5 premium subscribers
+2026-04-01,Stripe fees Month 1,Payment Processing,-0.25,Expense,Yes,Yes,Included in revenue tracking
+2026-04-15,Q1 Estimated Tax,Tax Payment,0.00,Tax,No,Yes,No payment due (pre-revenue)
+2026-05-01,App revenue Month 2,Revenue,52.39,Income,No,Yes,15 premium subscribers
+2026-05-01,Stripe fees Month 2,Payment Processing,-0.73,Expense,Yes,Yes,
+2026-06-01,App revenue Month 3,Revenue,174.65,Income,No,Yes,50 premium subscribers
+2026-06-01,Stripe fees Month 3,Payment Processing,-2.49,Expense,Yes,Yes,
+2026-06-15,Q2 Estimated Tax,Tax Payment,-51.66,Tax,No,Yes,Based on Apr-May profit
+2026-07-01,App revenue Month 4,Revenue,419.16,Income,No,Yes,120 premium subscribers
+2026-07-01,Supabase Pro upgrade,Hosting,-25.00,Expense,Yes,Yes,Monthly subscription
+2026-07-01,Stripe fees Month 4,Payment Processing,-5.99,Expense,Yes,Yes,
+2026-08-01,App revenue Month 5,Revenue,733.53,Income,No,Yes,210 premium subscribers
+2026-08-01,Supabase Pro,Hosting,-25.00,Expense,Yes,Yes,
+2026-08-01,Mailchimp email service,Marketing,-20.00,Expense,Yes,Yes,Started email campaigns
+2026-08-01,Stripe fees Month 5,Payment Processing,-10.48,Expense,Yes,Yes,
+2026-09-01,App revenue Month 6,Revenue,1397.20,Income,No,Yes,400 premium subscribers
+2026-09-01,Supabase Pro,Hosting,-50.00,Expense,Yes,Yes,Upgraded tier
+2026-09-01,Mailchimp,Marketing,-20.00,Expense,Yes,Yes,
+2026-09-15,Q3 Estimated Tax,Tax Payment,-400.00,Tax,No,Yes,Based on growing profitability
+2026-10-01,App revenue Month 7,Revenue,2043.40,Income,No,Yes,585 premium subscribers
+2026-10-01,Supabase Pro,Hosting,-50.00,Expense,Yes,Yes,
+2026-10-01,PostHog analytics,Analytics,-20.00,Expense,Yes,Yes,Started tracking analytics
+2026-10-01,Mailchimp,Marketing,-30.00,Expense,Yes,Yes,
+2026-11-01,App revenue Month 8,Revenue,2794.40,Income,No,Yes,800 premium subscribers
+2026-11-01,Supabase Pro,Hosting,-75.00,Expense,Yes,Yes,
+2026-11-01,PostHog,Analytics,-20.00,Expense,Yes,Yes,
+2026-11-01,Mailchimp,Marketing,-30.00,Expense,Yes,Yes,
+2026-12-01,App revenue Month 9,Revenue,3842.30,Income,No,Yes,1100 premium subscribers
+2026-12-01,Supabase Pro,Hosting,-75.00,Expense,Yes,Yes,
+2026-12-01,PostHog,Analytics,-30.00,Expense,Yes,Yes,
+2026-12-01,Mailchimp,Marketing,-40.00,Expense,Yes,Yes,
+2026-12-20,Apple Developer renewal,Software,-99.00,Expense,Yes,Yes,Year 2 renewal
+2027-01-01,App revenue Month 10,Revenue,4821.74,Income,No,Yes,1380 premium subscribers
+2027-01-15,Q4 2026 Estimated Tax,Tax Payment,-1100.00,Tax,No,Yes,Final 2026 quarterly payment

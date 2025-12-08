@@ -1,57 +1,59 @@
-# Claude Subagents for Shareless Calendar
+# Claude Subagents for LockItIn (Shareless Calendar)
 
-This directory contains specialized Claude Code agents, each with expertise in a specific domain of the Shareless Calendar project.
+This directory contains specialized Claude Code agents, each with expertise in a specific domain of the LockItIn cross-platform mobile app project.
 
 ## Available Agents
 
-### 🍎 iOS SwiftUI Architect (`ios-swiftui-architect.md`)
-**Expertise:** Swift, SwiftUI, EventKit, MVVM architecture, Combine, iOS best practices
+### 📱 Flutter Architect (`flutter-architect.md`)
+**Expertise:** Flutter, Dart, cross-platform mobile (iOS & Android), state management, native platform integration, clean architecture
 **Use for:**
-- Implementing iOS features with SwiftUI
-- Writing ViewModels and Views
-- EventKit calendar integration
-- State management patterns (@State, @Binding, @ObservedObject, @StateObject)
-- UI/UX implementation
+- Implementing cross-platform features with Flutter
+- Writing Providers and Widgets
+- Platform channels for native calendar access (EventKit on iOS, CalendarContract on Android)
+- State management patterns (Provider, Riverpod, BLoC)
+- UI/UX implementation for both platforms
 - Performance optimization
 - Navigation and data flow
+- Material (Android) and Cupertino (iOS) widgets
 
-**Invoke when:** Building iOS app features, debugging Swift code, implementing UI flows, state management issues
+**Invoke when:** Building mobile app features, debugging Dart code, implementing UI flows, state management issues, platform-specific integration
 
 ---
 
-### 🎨 iOS UX Designer (`ios-ux-designer.md`)
-**Expertise:** iOS UI/UX design, Apple Human Interface Guidelines, interaction patterns, calendar app UX, visual design
+### 🎨 Mobile UX Designer (`mobile-ux-designer.md`)
+**Expertise:** Cross-platform mobile UI/UX design, Apple Human Interface Guidelines, Material Design, adaptive design patterns, calendar app UX, visual design
 **Use for:**
-- Designing and reviewing screen layouts
-- Making UI component and navigation decisions
-- Evaluating iOS conventions vs. custom patterns
+- Designing and reviewing screen layouts for both iOS and Android
+- Making UI component and navigation decisions (platform-specific vs. unified)
+- Evaluating iOS HIG vs. Material Design conventions
 - Calendar-specific design patterns (heatmaps, time visualization, event density)
-- Apple HIG compliance and accessibility
-- Optimizing UX for iOS contexts (gestures, small screens, thumb zones)
-- Design system guidance and consistency
+- Apple HIG and Material Design compliance
+- Optimizing UX for mobile contexts (gestures, small screens, thumb zones, platform differences)
+- Design system guidance and cross-platform consistency
 
-**Invoke when:** Designing screens, reviewing UX decisions, making UI component choices, ensuring Apple HIG compliance, resolving design conflicts
+**Invoke when:** Designing screens, reviewing UX decisions, making UI component choices, ensuring platform guideline compliance, balancing iOS and Android patterns
 
 ---
 
-### 🔗 Supabase iOS Integration (`supabase-ios-integration.md`)
-**Expertise:** Supabase Swift SDK, PostgreSQL, Row Level Security, real-time subscriptions, authentication
+### 🔗 Supabase Mobile Integration (`supabase-mobile-integration.md`)
+**Expertise:** Supabase Flutter SDK, PostgreSQL, Row Level Security, real-time subscriptions, authentication for mobile (iOS & Android)
 **Use for:**
-- Supabase project setup and configuration
-- Authentication flows (email/password, OAuth, magic links)
-- Database operations from Swift
+- Supabase project setup and Flutter configuration
+- Authentication flows (email/password, OAuth, magic links) on mobile
+- Database operations from Flutter/Dart
 - RLS policy design and testing
-- Real-time subscriptions with Combine
+- Real-time subscriptions with Dart Streams
 - Supabase Storage integration
 - Offline-first patterns
 - Query optimization and caching
+- Platform-specific auth (Sign in with Apple, Google Sign-In)
 
-**Invoke when:** Integrating Supabase with iOS, working on authentication, database queries, real-time features, debugging connection issues
+**Invoke when:** Integrating Supabase with Flutter, working on authentication, database queries, real-time features, debugging connection issues
 
 ---
 
 ### 🔄 Dev Sync Coordinator (`dev-sync-coordinator.md`)
-**Expertise:** Cross-platform coordination, iOS-Backend alignment, integration verification
+**Expertise:** Cross-platform coordination, Mobile-Backend alignment, integration verification
 **Use for:**
 - Verifying iOS and Supabase implementations are aligned
 - Detecting potential misalignment between frontend and backend
@@ -59,7 +61,7 @@ This directory contains specialized Claude Code agents, each with expertise in a
 - Sprint checkpoint reviews
 - Integration testing coordination
 
-**Invoke when:** After significant iOS or Supabase work, before starting cross-platform features, during sprint reviews, when detecting misalignment
+**Invoke when:** After significant Flutter or Supabase work, before starting cross-platform features, during sprint reviews, when detecting misalignment
 
 ---
 
@@ -192,33 +194,35 @@ GitHub Workflow Manager → creates comprehensive PR
 
 ### When to Use Which Agent
 
-**Use iOS SwiftUI Architect when:**
-- Writing Swift/SwiftUI code
+**Use Flutter Architect when:**
+- Writing Flutter/Dart code
 - Debugging UI issues or state management problems
-- Implementing EventKit integration
-- Optimizing iOS performance
-- Designing MVVM architecture
+- Implementing native calendar integration (platform channels)
+- Optimizing cross-platform performance
+- Designing clean architecture
 - Handling navigation and data flow
+- Creating adaptive UIs (Material vs Cupertino)
 
-**Use iOS UX Designer when:**
-- Designing or reviewing screen layouts
+**Use Mobile UX Designer when:**
+- Designing or reviewing screen layouts for iOS and Android
 - Making UI component or navigation decisions
-- Evaluating whether to follow iOS conventions or create custom solutions
+- Evaluating whether to use platform-specific or unified design
 - Analyzing calendar-specific design patterns
-- Ensuring Apple HIG compliance
-- Optimizing UX for iOS contexts (gestures, accessibility, small screens)
-- Resolving design conflicts between innovation and platform conventions
+- Ensuring Apple HIG and Material Design compliance
+- Optimizing UX for mobile contexts (gestures, accessibility, small screens, platform differences)
+- Resolving design conflicts between iOS and Android conventions
 
-**Use Supabase iOS Integration when:**
-- Setting up Supabase authentication in iOS
-- Implementing database queries from Swift
+**Use Supabase Mobile Integration when:**
+- Setting up Supabase authentication in Flutter
+- Implementing database queries from Dart
 - Creating or testing RLS policies
-- Setting up real-time subscriptions with Combine
+- Setting up real-time subscriptions with Dart Streams
 - Debugging Supabase connection issues
 - Implementing offline-first patterns
+- Integrating platform-specific auth (Sign in with Apple, Google)
 
 **Use Dev Sync Coordinator when:**
-- After completing iOS or Supabase features
+- After completing Flutter or Supabase features
 - Before starting cross-platform work
 - During sprint checkpoints
 - When you suspect frontend/backend misalignment
@@ -251,7 +255,7 @@ Agents are designed to work together. For complex tasks:
 
 1. **Start with Feature Values Advisor** to ensure alignment with core values
 2. **Use Feature Orchestrator** to plan and break down the work
-3. **Involve technical agents** (iOS SwiftUI Architect, Supabase iOS Integration) for implementation
+3. **Involve technical agents** (Flutter Architect, Supabase Mobile Integration) for implementation
 4. **Use Dev Sync Coordinator** to verify frontend/backend alignment
 5. **Let GitHub Workflow Manager** handle PRs and sprint workflow
 
@@ -269,9 +273,9 @@ Each agent can be customized for your workflow:
 .claude/
 └── agents/
     ├── README.md (this file)
-    ├── ios-swiftui-architect.md
-    ├── ios-ux-designer.md
-    ├── supabase-ios-integration.md
+    ├── flutter-architect.md
+    ├── mobile-ux-designer.md
+    ├── supabase-mobile-integration.md
     ├── dev-sync-coordinator.md
     ├── feature-values-advisor.md
     ├── feature-analyzer.md
@@ -287,4 +291,4 @@ These agent files should be updated when:
 - New patterns emerge
 - Project requirements shift
 
-Last updated: December 2, 2025
+Last updated: December 6, 2025 - Updated to Flutter/Dart cross-platform development

@@ -87,7 +87,7 @@ This phase requires NO coding. Focus on learning, validation, and preparation to
   - Import sketches
   - Add navigation flows
   - Define color palette (3-4 colors max)
-  - Choose typography (SF Pro for iOS consistency)
+  - Choose typography (platform-appropriate for Flutter/Dart cross-platform development)
 - Design key interactions
   - Navigation animations
   - Voting interactions
@@ -108,52 +108,72 @@ This phase requires NO coding. Focus on learning, validation, and preparation to
 - dbdiagram.io
 - Notion or project management tool
 
-### Week 3 (Dec 15-21): Learning Swift & SwiftUI
+### Week 3 (Dec 15-21): Flutter & Dart Learning
 
-**Goals:** Build Swift/SwiftUI foundation, understand iOS development basics
+**Goals:** Build Flutter/Dart foundation, understand cross-platform development basics
 
 **Daily Schedule:**
-- Morning (1-2 hrs): Swift tutorials
+- Morning (1-2 hrs): Flutter & Dart tutorials
 - Afternoon (1 hr): Backend/Supabase learning
 - Evening (30 min): Review notes, plan next day
 
 **Learning Path:**
-- **Days 1-2:** Swift Playgrounds basics
-  - Variables, functions, optionals
-  - Resource: https://www.apple.com/swift/playgrounds/
+- **Days 1-3:** Dart fundamentals
+  - Variables, functions, null safety
+  - Object-oriented programming in Dart
+  - Async/await patterns
+  - Resource: Dart language tour (dart.dev)
 
-- **Days 3-4:** SwiftUI fundamentals
-  - Views, state, binding concepts
-  - Resource: 100 Days of SwiftUI (Days 1-15)
-  - https://www.hackingwithswift.com/100/swiftui
+- **Days 4-7:** Flutter basics
+  - Widgets, layouts, composition
+  - Stateful vs Stateless widgets
+  - State management fundamentals
+  - Resource: Flutter & Dart - The Complete Guide (Udemy)
+  - Resource: Official Flutter documentation (flutter.dev)
 
-- **Days 5-6:** Lists, navigation, data flow
-  - Resource: 100 Days of SwiftUI (Days 16-25)
+- **Days 8-12:** Navigation, forms, platform channels
+  - Flutter navigation patterns
+  - Form validation and input handling
+  - Introduction to platform channels (iOS & Android native code)
+  - Resource: Flutter codelabs and samples
 
-- **Day 7:** Build mini project
+- **Days 13-16:** Provider state management
+  - Provider pattern for state management
+  - Async patterns and futures
+  - Error handling strategies
+  - Resource: Official Provider documentation
+
+- **Days 17-21:** Material Design + Cupertino widgets
+  - Material Design widgets (Android-style)
+  - Cupertino widgets (iOS-style)
+  - Platform-adaptive UI patterns
+  - Practice: Building platform-specific interfaces
+
+- **Days 22-25:** Practice projects
   - Task: "Simple To-Do List App"
-  - Features: Add items, delete items, mark complete
-  - Practice: Lists, Forms, State, Binding
+  - Features: Add items, delete items, mark complete, persist data
+  - Practice: Provider, Lists, Forms, Platform-specific UI
 
 **Framework Learning:**
-- EventKit framework
-  - Read Apple's EventKit documentation
-  - Watch WWDC sessions on calendar integration
-  - Understand calendar permissions flow
+- Platform channels for calendar access
+  - EventKit (iOS) integration via platform channels
+  - CalendarContract (Android) integration via platform channels
+  - Understand permission flows on both platforms
 
 - Supabase (backend)
   - Watch: "Supabase in 100 seconds" video
-  - Read: Supabase Swift SDK docs
+  - Read: Supabase Dart/Flutter SDK docs
   - Build: Simple CRUD app with Supabase
 
 **Developer Accounts:**
 - Create Apple Developer account ($99/year)
+- Create Google Play Developer account ($25 one-time)
 - Create Supabase account (free tier)
 - Create Stripe account (for future monetization)
 
 **Deliverables:**
-- Completed to-do list app (demonstrates SwiftUI proficiency)
-- EventKit notes (capabilities & limitations)
+- Completed to-do list app (demonstrates Flutter proficiency)
+- Platform channel notes (EventKit + CalendarContract capabilities)
 - Supabase test project with CRUD operations
 - All developer accounts active
 
@@ -166,7 +186,7 @@ This phase requires NO coding. Focus on learning, validation, and preparation to
   - Create project structure diagram
   - List all dependencies needed
   - Plan API endpoints (data flow)
-  - Review MVVM patterns
+  - Review Provider patterns for Flutter state management
 
 - Break down MVP into GitHub issues
   - Create 100+ specific tasks
@@ -181,15 +201,16 @@ This phase requires NO coding. Focus on learning, validation, and preparation to
   - Create daily development schedule
 
 - Prepare Day 1 checklist
-  - Xcode installation steps
+  - Flutter project setup (Android Studio + VS Code)
   - Project setup commands
   - Dependencies to install
   - First features to build
+  - TestFlight + Google Play Internal Testing preparation
 
 - Final design polish
   - Get feedback from 2-3 friends on Figma designs
   - Make final adjustments
-  - Export assets (icons, colors as Swift code)
+  - Export assets (icons, colors as Dart code)
 
 - Workspace preparation
   - Clear schedule for Dec 26-27 (dedicated coding)
@@ -211,37 +232,42 @@ This phase requires NO coding. Focus on learning, validation, and preparation to
          - Connect to monitor, keyboard, mouse
          - Complete macOS setup
 
-8:30 AM - Software Installation (Xcode first!)
-         - Xcode download (18GB - start immediately)
+8:30 AM - Software Installation
+         - Android Studio download (install Flutter plugin)
+         - VS Code download (install Flutter + Dart extensions)
          - Homebrew installation
-         - Install git, cocoapods
-         - VS Code (optional)
+         - Install git
+         - Flutter SDK installation
 
-10:00 AM - Developer Setup (while Xcode downloads)
+10:00 AM - Developer Setup
           - Sign in to Apple Developer account
-          - Configure Xcode once installed
+          - Sign in to Google Play Developer account
+          - Configure Android Studio with Flutter SDK
+          - Configure VS Code with Flutter extensions
           - Connect GitHub account
 
 11:00 AM - Create First Project
-          - File → New → Project → iOS App
-          - Name: CalendarApp
-          - Interface: SwiftUI
-          - Language: Swift
-          - Run simulator (⌘+R)
+          - flutter create calendar_app
+          - Open in Android Studio or VS Code
+          - Run on iOS Simulator: flutter run
+          - Run on Android Emulator: flutter run
+          - Verify both platforms work
 
 12:00 PM - Dependency Setup
-          - Add Supabase package dependency
-          - Configure info.plist for calendar access
-          - Set up project structure
+          - Add Supabase package dependency (pubspec.yaml)
+          - Configure AndroidManifest.xml for calendar permissions
+          - Configure Info.plist for calendar access (iOS)
+          - Set up project structure (Provider pattern)
 
 2:00 PM - First Commit
          - git init
          - git add .
-         - git commit -m "Initial project setup"
+         - git commit -m "Initial Flutter project setup"
          - git push to GitHub
 
 3:00 PM - Build First Feature
-         - Create simple calendar view (just dates)
+         - Create simple calendar screen (just dates)
+         - Test on both iOS and Android
          - See something on screen!
 
 5:00 PM - Plan Tomorrow
@@ -275,38 +301,40 @@ This phase requires NO coding. Focus on learning, validation, and preparation to
 
 | Day | Date | Focus | Deliverables | Target |
 |-----|------|-------|---------------|--------|
-| 1 | Dec 26 | Project Setup | MVVM structure, Models, Supabase connection | API call working |
-| 2 | Dec 27 | Auth UI | LoginView, SignUpView, validation | UI screens complete |
+| 1 | Dec 26 | Project Setup | Provider architecture, Models, Supabase connection | API call working |
+| 2 | Dec 27 | Auth UI | Login/SignUp screens (Material + Cupertino), validation | UI screens complete on both platforms |
 | 3 | Dec 28 | Auth Logic | Sign up/login flows, error handling | Can create account & log in |
-| 4 | Dec 29 | Session Mgmt | Keychain storage, auto-login, token expiration | Auth persists between launches |
+| 4 | Dec 29 | Session Mgmt | Secure storage, auto-login, token expiration | Auth persists between launches |
 | 5 | Dec 30 | User Profile | Profile fetch/edit, avatar support | User can update profile |
-| 6 | Dec 31 | Calendar Skeleton | CalendarView, month navigation | Can browse calendar |
-| 7 | Jan 1 | Review & Polish | Code review, bug fixes, refactoring | Clean, working foundation |
+| 6 | Dec 31 | Calendar Skeleton | Calendar widget (Material + Cupertino), month navigation | Can browse calendar on iOS & Android |
+| 7 | Jan 1 | Review & Polish | Code review, bug fixes, refactoring | Clean, working foundation on both platforms |
 
 #### Week 2 (Jan 2 - Jan 8)
 
 | Day | Date | Focus | Deliverables | Target |
 |-----|------|-------|---------------|--------|
-| 8 | Jan 2 | EventKit Integration | Permissions, CalendarManager, fetch events | See Apple Calendar events |
+| 8 | Jan 2 | Platform Channel Integration | Permissions, EventKit (iOS) + CalendarContract (Android), fetch events | See native calendar events on both platforms |
 | 9 | Jan 3 | Display Events | Parse by date, event dots, day view | Events visible on calendar |
-| 10 | Jan 4 | Event Details | EventDetailView, edit/delete buttons | Can tap event → see details |
-| 11 | Jan 5 | Create Event UI | Title, date/time, location, privacy fields | All input fields working |
-| 12 | Jan 6 | Create Event Logic | Save to Apple Calendar & Supabase | Can create events end-to-end |
-| 13 | Jan 7 | Edit/Delete | Full CRUD operations, EventKit sync | Full event CRUD working |
-| 14 | Jan 8 | **CHECKPOINT 1** | Test all features, demo to friend, document | Usable personal calendar |
+| 10 | Jan 4 | Event Details | Event detail screen, edit/delete buttons | Can tap event → see details |
+| 11 | Jan 5 | Create Event UI | Title, date/time, location, privacy fields (adaptive UI) | All input fields working on both platforms |
+| 12 | Jan 6 | Create Event Logic | Save to native calendar & Supabase (iOS & Android) | Can create events end-to-end |
+| 13 | Jan 7 | Edit/Delete | Full CRUD operations, platform channel sync | Full event CRUD working on both platforms |
+| 14 | Jan 8 | **CHECKPOINT 1** | Test all features on iOS & Android, demo to friend | Usable personal calendar on both platforms |
 
 **Checkpoint 1 (Jan 8) - Must Pass:**
-- ✅ Can users create accounts and log in?
-- ✅ Does Apple Calendar sync work?
+- ✅ Can users create accounts and log in on both platforms?
+- ✅ Does native calendar sync work (iOS & Android)?
 - ✅ Can users create/edit/delete events with privacy settings?
+- ✅ Does the app work correctly on both iOS and Android?
 - ❌ **If no → Extend Sprint 1 by 1 week**
 
 **Sprint 1 Deliverables:**
-- Working authentication system
-- Personal calendar syncing with Apple Calendar
+- Working authentication system on both platforms
+- Personal calendar syncing with native calendars (iOS & Android)
 - Full event CRUD (create, view, edit, delete)
 - 3-level privacy settings UI
-- Basic functional UI (not polished)
+- Basic functional UI (platform-adaptive, not polished)
+- Testing on both iOS Simulator and Android Emulator
 
 ---
 
@@ -339,11 +367,11 @@ This phase requires NO coding. Focus on learning, validation, and preparation to
 |-----|------|-------|---------------|--------|
 | 22 | Jan 16 | Shadow Calendar - DB | calendar_sharing table, visibility rules | Shadow calendar data model |
 | 23 | Jan 17 | Shadow Calendar - Logic | AvailabilityManager, privacy filtering | Privacy-respecting availability data |
-| 24 | Jan 18 | Group Calendar - Setup | GroupCalendarView, fetch shadow calendars | Basic group calendar structure |
+| 24 | Jan 18 | Group Calendar - Setup | Group calendar screen, fetch shadow calendars | Basic group calendar structure |
 | 25 | Jan 19 | Group Calendar - Heatmap | Availability overlaps, visualization | Visual heatmap working |
 | 26 | Jan 20 | Availability Details | Tap time → show who's available | Detailed availability breakdown |
 | 27 | Jan 21 | Smart Suggestions | "Find best times" algorithm | Smart suggestions working |
-| 28 | Jan 22 | **CHECKPOINT 2** | Full shadow calendar test, privacy verify | Shadow calendar rock-solid |
+| 28 | Jan 22 | **CHECKPOINT 2** | Full shadow calendar test on both platforms, privacy verify | Shadow calendar rock-solid |
 
 **Checkpoint 2 (Jan 22) - Must Pass:**
 - ✅ Can users add friends and create groups?
@@ -799,7 +827,7 @@ If at ANY checkpoint you answer "no" to all items:
 - ✅ Database schema approved
 - ✅ GitHub repository set up with 100+ issues
 - ✅ All developer accounts active
-- ✅ Swift/SwiftUI fundamentals learned
+- ✅ Flutter/Dart fundamentals learned
 - ✅ Day 1 checklist created and tested
 
 ### Phase 1 (Dec 26 - Feb 26) - MVP Development
@@ -882,8 +910,10 @@ If at ANY checkpoint you answer "no" to all items:
 ### Development Tools
 
 **Local Development:**
-- Xcode (Apple's IDE, free)
-- Swift Package Manager (dependency management)
+- Android Studio (primary IDE for Flutter, free)
+- VS Code with Flutter extension (alternative IDE, free)
+- Xcode (for iOS builds on Mac, free)
+- Flutter SDK and Dart pub (dependency management)
 - Simulator (testing on Mac without device)
 - Git & GitHub (version control)
 
@@ -901,7 +931,7 @@ If at ANY checkpoint you answer "no" to all items:
 
 **Testing & Monitoring:**
 - TestFlight (beta distribution)
-- Xcode Test Navigator (unit & UI tests)
+- Flutter test command (unit, widget & integration tests)
 - PostHog or Mixpanel (analytics)
 - Sentry or Bugsnag (crash reporting)
 
@@ -936,7 +966,7 @@ CalendarApp/
 │   ├── Settings/ (Preferences, account)
 │   └── Components/ (Reusable UI)
 ├── Utilities/
-│   ├── Extensions/ (Swift, SwiftUI)
+│   ├── Extensions/ (Dart utilities)
 │   ├── Constants/ (Colors, fonts, etc.)
 │   └── Logger/ (Debug logging)
 └── Resources/
@@ -960,7 +990,7 @@ xcode-build -scheme CalendarApp -destination 'platform=iOS Simulator,name=iPhone
 
 **Code Quality:**
 ```bash
-# Install SwiftLint
+# Run Flutter analyzer
 brew install swiftlint
 
 # Run linting
@@ -975,7 +1005,7 @@ swiftlint autocorrect
 # Build for TestFlight
 xcodebuild -scheme CalendarApp -configuration Release archive
 
-# Upload to TestFlight (via Xcode or Fastlane)
+# Upload to TestFlight (iOS) and Google Play Internal Testing (Android)
 fastlane beta
 ```
 

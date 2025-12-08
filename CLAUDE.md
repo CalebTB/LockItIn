@@ -5,10 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This project uses **specialized Claude subagents** for different aspects of development. Each agent has deep expertise in their domain (9 agents total):
 
-- **🍎 iOS SwiftUI Architect** (`.claude/agents/ios-swiftui-architect.md`) - Swift, SwiftUI, MVVM, EventKit, state management
-- **🎨 iOS UX Designer** (`.claude/agents/ios-ux-designer.md`) - iOS UI/UX design, Apple HIG, interaction patterns, visual design
-- **🔗 Supabase iOS Integration** (`.claude/agents/supabase-ios-integration.md`) - Supabase Swift SDK, auth, RLS, real-time
-- **🔄 Dev Sync Coordinator** (`.claude/agents/dev-sync-coordinator.md`) - iOS-Backend alignment verification
+- **📱 Flutter Architect** (`.claude/agents/flutter-architect.md`) - Flutter/Dart, cross-platform mobile (iOS & Android), state management, native platform integration
+- **🎨 Mobile UX Designer** (`.claude/agents/mobile-ux-designer.md`) - iOS & Android UI/UX design, HIG + Material Design, interaction patterns, adaptive design
+- **🔗 Supabase Mobile Integration** (`.claude/agents/supabase-mobile-integration.md`) - Supabase Flutter SDK, auth, RLS, real-time for iOS & Android
+- **🔄 Dev Sync Coordinator** (`.claude/agents/dev-sync-coordinator.md`) - Frontend-Backend alignment verification
 - **💎 Feature Values Advisor** (`.claude/agents/feature-values-advisor.md`) - Privacy-first principles, value alignment
 - **📊 Feature Analyzer** (`.claude/agents/feature-analyzer.md`) - Feature analysis and market research
 - **🎯 Feature Orchestrator** (`.claude/agents/feature-orchestrator.md`) - Feature lifecycle, roadmap, market research
@@ -18,17 +18,17 @@ This project uses **specialized Claude subagents** for different aspects of deve
 
 ## Project Overview
 
-**Shareless: Everything Calendar** is an iOS calendar app for group event planning with privacy-first availability sharing. The core innovation is a "Shadow Calendar" system that lets users share their availability (when they're busy/free) without revealing private event details, combined with real-time group voting on event proposals.
+**Shareless: Everything Calendar** (LockItIn) is a cross-platform mobile app for group event planning with privacy-first availability sharing. The core innovation is a "Shadow Calendar" system that lets users share their availability (when they're busy/free) without revealing private event details, combined with real-time group voting on event proposals.
 
 **Target Launch:** April 30, 2026
 **Development Status:** Pre-development (planning phase until Dec 25, 2025)
-**Platform:** iOS-first (Swift/SwiftUI), targeting iOS 17+
+**Platform:** Cross-platform (Flutter for iOS & Android), targeting iOS 13+ and Android 8.0+
 
 ### Core Value Proposition
 Solve the "30 messages to plan one event" problem by showing real availability from calendars, enabling one-tap voting on time options, and auto-creating events when consensus is reached.
 
 ## Documentation Structure
-This repository contains **planning documentation only** - no code yet. The actual iOS app will be developed in a separate repository starting December 25, 2025.
+This repository contains **planning documentation only** - no code yet. The actual Flutter app will be developed in a separate repository starting December 25, 2025.
 
 ### Master Documentation Index
 
@@ -67,11 +67,14 @@ This repository contains **planning documentation only** - no code yet. The actu
 
 ### Technology Stack
 
-**Frontend (iOS):**
-- Swift 5.9+ with SwiftUI (MVVM pattern)
-- Combine for reactive programming
-- EventKit for Apple Calendar bidirectional sync
-- Supabase Swift SDK for backend communication
+**Frontend (Cross-Platform Mobile):**
+- Flutter 3.16+ with Dart 3.0+ (clean architecture pattern)
+- Provider or Riverpod for state management
+- Platform channels for native calendar access:
+  - iOS: EventKit for Apple Calendar bidirectional sync
+  - Android: CalendarContract for Google Calendar / device calendar sync
+- Supabase Flutter SDK for backend communication
+- Material Design (Android) and Cupertino widgets (iOS) for platform-native feel
 
 **Backend (Supabase):**
 - PostgreSQL 15 database (13 tables)
@@ -81,18 +84,18 @@ This repository contains **planning documentation only** - no code yet. The actu
 - Supabase Edge Functions for serverless logic
 
 **Third-Party Services:**
-- APNs (Apple Push Notification Service)
+- Push Notifications (Firebase Cloud Messaging for Android, APNs for iOS)
 - Stripe (payment processing for premium subscriptions)
 - PostHog or Mixpanel (analytics)
 
 ### Core Data Models
 
 **Privacy-First Event Model:**
-```swift
+```dart
 enum EventVisibility {
-    case private              // Hidden from all groups
-    case sharedWithName       // Groups see event title & time
-    case busyOnly             // Groups see "busy" block without details
+  private,           // Hidden from all groups
+  sharedWithName,    // Groups see event title & time
+  busyOnly,          // Groups see "busy" block without details
 }
 ```
 
@@ -118,16 +121,19 @@ enum EventVisibility {
 - Vote counts update in real-time for all group members
 - Auto-event creation when voting deadline passes or organizer confirms
 
-**3. EventKit Bidirectional Sync**
+**3. Native Calendar Bidirectional Sync**
 - Background sync every 15 minutes
-- Store `apple_calendar_id` in events table for two-way sync
+- Platform-specific integration:
+  - iOS: EventKit for Apple Calendar
+  - Android: CalendarContract for Google Calendar / device calendars
+- Store `native_calendar_id` in events table for two-way sync
 - Conflict resolution: Last write wins (with user notification)
 - Offline queue for changes made while disconnected
 
 ## MVP Feature Scope
 
 ### TIER 1 (Must-Have):
-1. Personal calendar with Apple Calendar sync
+1. Personal calendar with native calendar sync (Apple Calendar on iOS, Google Calendar on Android)
 2. Shadow Calendar privacy system (Private/Shared/Busy-Only)
 3. Friend system + group creation
 4. Group availability heatmap
@@ -143,11 +149,10 @@ enum EventVisibility {
 ### Explicitly NOT in MVP (Planned for Later Phases):
 
 **Year 1 (Post-MVP):**
-- Android app
-- Google Calendar / Outlook integration
+- Outlook / Office 365 calendar integration
 - Recurring availability patterns
 - Additional event templates
-- Calendar widgets
+- Home screen widgets (iOS and Android)
 
 **Year 2+ (Growth Phase - Public/Business Events):**
 - Public event discovery (concerts, shows, restaurants)
@@ -155,6 +160,12 @@ enum EventVisibility {
 - Event sharing to friend groups (vote on which public event to attend)
 - Ticketing integration
 - Advanced event discovery features
+
+**Why Cross-Platform is Essential:**
+- Friend groups are mixed (iPhone + Android users)
+- Network effects require ALL members can participate
+- iOS-only = broken coordination when one person can't access the app
+- Cross-platform maximizes addressable market and virality
 
 **Why Friend Groups First:**
 - Simpler use case, faster validation
@@ -168,9 +179,10 @@ enum EventVisibility {
 ## Development Timeline
 
 **Phase 0: Pre-Mac Preparation (Dec 1-25, 2025)**
-- Learning Swift/SwiftUI (100 Days of SwiftUI course)
-- Finalizing designs in Figma
-- No coding until Mac Mini arrives Dec 25
+- Learning Flutter/Dart (Flutter & Dart - The Complete Guide, official Flutter docs)
+- Finalizing designs in Figma (both iOS and Android adaptive designs)
+- Setting up development environment (Flutter SDK, Android Studio, Xcode)
+- No coding until Mac Mini arrives Dec 25 (needed for iOS builds)
 
 **Phase 1: MVP Development (Dec 26 - Feb 26, 2026) - 9 weeks**
 - Sprint 1: Authentication, project setup, calendar view skeleton
@@ -180,30 +192,32 @@ enum EventVisibility {
 - Sprint 5: Polish, notifications, offline support
 
 **Phase 2: Beta Testing (Feb 27 - Apr 8, 2026) - 6 weeks**
-- TestFlight with 100+ beta testers
+- TestFlight (iOS) and Google Play Internal Testing (Android) with 100+ beta testers
 - Iteration based on feedback
 - Bug fixes and UX polish
+- Test on wide variety of devices (iOS and Android)
 
 **Phase 3: Launch (Apr 9-30, 2026) - 4 weeks**
-- App Store submission
+- App Store (iOS) and Google Play Store (Android) submission
 - Soft launch with marketing push
-- Target: 500+ downloads, 200+ active users in Month 1
+- Target: 500+ downloads, 200+ active users in Month 1 across both platforms
 
 ## Key Design Principles
 
-1. **Native Feel** - Follows Apple HIG, uses SF Pro font, system colors, feels like built by Apple
+1. **Platform-Native Feel** - Follows Apple HIG on iOS (Cupertino widgets, SF Pro) and Material Design on Android (Material widgets, Roboto), uses system colors, feels native to each platform
 2. **Minimal & Focused** - One primary action per screen, progressive disclosure
-3. **Delightful Details** - Spring physics animations, haptic feedback, confetti on event confirmations
+3. **Delightful Details** - Platform-appropriate animations (spring physics on iOS, Material motion on Android), haptic feedback, confetti on event confirmations
 4. **Privacy-First** - Granular controls, opt-in sharing, RLS enforcement at DB level
 5. **Fast & Responsive** - Optimistic UI, aggressive caching, offline queue, <100ms interactions
 
 ## Common Pitfalls to Avoid
 
-### EventKit Integration
+### Native Calendar Integration
 - **Don't**: Request calendar access immediately on launch
 - **Don't**: Sync all calendars (can be thousands of events)
 - **Do**: Request during onboarding with clear explanation of value
 - **Do**: Sync last 30 days + next 60 days, with pagination
+- **Do**: Handle platform-specific permissions (iOS EventKit, Android Calendar permissions)
 
 ### Privacy System
 - **Don't**: Show "who's busy" by default in group availability view
@@ -226,41 +240,53 @@ enum EventVisibility {
 ## Testing Strategy
 
 **Unit Tests (70% coverage target):**
-- ViewModels (business logic)
+- Providers/Business logic layer
 - Utilities and extensions
 - Data models and transformations
 
 **Integration Tests:**
 - Supabase API calls
-- EventKit calendar sync
+- Native calendar sync (EventKit on iOS, CalendarContract on Android)
 - Offline queue processing
+- Platform channel communication
 
-**UI Tests:**
+**Widget Tests:**
 - Critical user flows: Event creation → Proposal → Voting → Confirmation
 - Onboarding flow
 - Privacy settings enforcement
+- Both Material (Android) and Cupertino (iOS) widget variants
 
 ## Future Context
 
 When the actual codebase is created (starting Dec 25, 2025):
 
-**Expected Project Structure (MVVM):**
+**Expected Project Structure (Clean Architecture):**
 ```
-CalendarApp/
-├── App/ (entry point, AppDelegate)
-├── Core/ (Network, Storage, EventKit, Notifications)
-├── Models/ (User, Group, Event, EventProposal, Vote)
-├── ViewModels/ (Auth, Calendar, Groups, Inbox)
-├── Views/ (Auth, Calendar, Groups, Inbox, Profile, Components)
-├── Utilities/ (Extensions, Constants, Logger)
-└── Resources/ (Assets, Localizable.strings)
+lockitin_app/
+├── lib/
+│   ├── main.dart
+│   ├── core/ (Network, Storage, Platform Channels, Constants)
+│   ├── data/ (Models, Repositories, Data Sources)
+│   ├── domain/ (Use Cases, Entities, Repository Interfaces)
+│   ├── presentation/
+│   │   ├── providers/ (State Management)
+│   │   ├── screens/ (Auth, Calendar, Groups, Inbox, Profile)
+│   │   └── widgets/ (Reusable Components)
+│   └── utils/ (Extensions, Helpers, Logger)
+├── ios/ (iOS-specific native code, platform channels)
+├── android/ (Android-specific native code, platform channels)
+├── assets/ (Images, Fonts, Localizations)
+└── test/ (Unit, Widget, Integration tests)
 ```
 
 **Development Commands (when code exists):**
-- Build: Xcode GUI or `xcodebuild -scheme CalendarApp build`
-- Tests: Xcode Test Navigator or `xcodebuild test -scheme CalendarApp`
-- Lint: SwiftLint (`.swiftlint.yml` config to be added)
-- TestFlight: Fastlane automation (`fastlane beta`)
+- Run: `flutter run` (iOS/Android)
+- Build iOS: `flutter build ios` or `flutter build ipa`
+- Build Android: `flutter build apk` or `flutter build appbundle`
+- Tests: `flutter test`
+- Lint: `flutter analyze` (analysis_options.yaml config)
+- iOS TestFlight: `flutter build ipa && Fastlane`
+- Android Internal Testing: `flutter build appbundle` + Google Play Console
 
 ## Important Notes
 
@@ -272,4 +298,4 @@ CalendarApp/
 
 ---
 
-*Last updated: December 2, 2025*
+*Last updated: December 6, 2025 - Updated to Flutter/Dart cross-platform development*
