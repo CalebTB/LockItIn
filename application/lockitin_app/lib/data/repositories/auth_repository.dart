@@ -121,6 +121,40 @@ class AuthRepository {
     return _client.auth.currentSession != null;
   }
 
+  /// Check if session is expired
+  bool isSessionExpired() {
+    final session = _client.auth.currentSession;
+    if (session == null) return true;
+
+    final expiresAt = session.expiresAt;
+    if (expiresAt == null) return false;
+
+    // Check if session expires in the next 5 minutes
+    final expiryTime = DateTime.fromMillisecondsSinceEpoch(expiresAt * 1000);
+    final now = DateTime.now();
+    return expiryTime.isBefore(now.add(const Duration(minutes: 5)));
+  }
+
+  /// Refresh session token
+  Future<bool> refreshSession() async {
+    try {
+      Logger.info('Refreshing session token', 'AuthRepository');
+
+      final session = await _client.auth.refreshSession();
+
+      if (session.session != null) {
+        Logger.success('Session refreshed successfully', 'AuthRepository');
+        return true;
+      }
+
+      Logger.warning('Session refresh returned null', 'AuthRepository');
+      return false;
+    } catch (e, stackTrace) {
+      Logger.error('Session refresh failed', e, stackTrace);
+      return false;
+    }
+  }
+
   /// Reset password
   Future<void> resetPassword(String email) async {
     try {

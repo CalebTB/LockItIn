@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/network/supabase_client.dart';
 import '../../core/utils/logger.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -6,6 +9,7 @@ import '../../data/repositories/auth_repository.dart';
 /// Provider for authentication state management
 class AuthProvider extends ChangeNotifier {
   final AuthRepository _authRepository = AuthRepository();
+  StreamSubscription<AuthState>? _authStateSubscription;
 
   UserModel? _currentUser;
   bool _isLoading = false;
@@ -22,15 +26,98 @@ class AuthProvider extends ChangeNotifier {
     _setLoading(true);
     try {
       if (_authRepository.isAuthenticated()) {
+        // Check if session is expired
+        if (_authRepository.isSessionExpired()) {
+          Logger.info('Session expired, attempting refresh', 'AuthProvider');
+
+          // Try to refresh the session
+          final refreshed = await _authRepository.refreshSession();
+
+          if (!refreshed) {
+            // Refresh failed, clear session
+            Logger.warning('Session refresh failed, clearing session', 'AuthProvider');
+            await _authRepository.signOut();
+            _currentUser = null;
+            _setLoading(false);
+            return;
+          }
+        }
+
+        // Get current user
         _currentUser = await _authRepository.getCurrentUser();
-        Logger.success('User already authenticated', 'AuthProvider');
+
+        if (_currentUser != null) {
+          Logger.success('User session restored: ${_currentUser!.email}', 'AuthProvider');
+        } else {
+          Logger.warning('Session exists but user profile not found', 'AuthProvider');
+          await _authRepository.signOut();
+        }
+      } else {
+        Logger.info('No active session found', 'AuthProvider');
       }
+
+      // Set up auth state listener for automatic token refresh
+      _setupAuthStateListener();
     } catch (e) {
       Logger.error('Failed to initialize auth', e);
       _errorMessage = 'Failed to restore session';
+      // Clear potentially corrupted session
+      try {
+        await _authRepository.signOut();
+      } catch (_) {}
+      _currentUser = null;
     } finally {
       _setLoading(false);
     }
+  }
+
+  /// Set up auth state listener for automatic session management
+  void _setupAuthStateListener() {
+    final client = SupabaseClientManager.client;
+
+    _authStateSubscription?.cancel();
+    _authStateSubscription = client.auth.onAuthStateChange.listen((data) {
+      final event = data.event;
+      Logger.info('Auth state changed: $event', 'AuthProvider');
+
+      // Handle different auth events
+      switch (event) {
+        case AuthChangeEvent.initialSession:
+          Logger.info('Initial session loaded', 'AuthProvider');
+          // Initial session is handled by initialize() method
+          break;
+
+        case AuthChangeEvent.signedIn:
+          Logger.info('User signed in via auth state listener', 'AuthProvider');
+          // User data will be fetched via signIn/signUp methods
+          break;
+
+        case AuthChangeEvent.signedOut:
+          Logger.info('User signed out via auth state listener', 'AuthProvider');
+          _currentUser = null;
+          notifyListeners();
+          break;
+
+        case AuthChangeEvent.tokenRefreshed:
+          Logger.info('Token auto-refreshed by Supabase', 'AuthProvider');
+          // Supabase automatically handles token refresh, no action needed
+          break;
+
+        case AuthChangeEvent.userUpdated:
+          Logger.info('User profile updated', 'AuthProvider');
+          // Optionally refresh user profile data
+          break;
+
+        default:
+          Logger.info('Unhandled auth event: $event', 'AuthProvider');
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authStateSubscription?.cancel();
+    super.dispose();
   }
 
   /// Sign up
