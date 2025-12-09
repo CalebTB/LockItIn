@@ -217,6 +217,46 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Update profile
+  Future<bool> updateProfile({
+    String? fullName,
+    String? bio,
+    String? avatarUrl,
+  }) async {
+    if (_currentUser == null) {
+      _errorMessage = 'No user logged in';
+      return false;
+    }
+
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final updatedUser = await _authRepository.updateProfile(
+        userId: _currentUser!.id,
+        fullName: fullName,
+        bio: bio,
+        avatarUrl: avatarUrl,
+      );
+
+      if (updatedUser != null) {
+        _currentUser = updatedUser;
+        Logger.success('Profile updated successfully', 'AuthProvider');
+        _setLoading(false);
+        return true;
+      }
+
+      _errorMessage = 'Profile update failed';
+      _setLoading(false);
+      return false;
+    } catch (e) {
+      Logger.error('Profile update error', e);
+      _errorMessage = 'Failed to update profile';
+      _setLoading(false);
+      return false;
+    }
+  }
+
   // Helper methods
   void _setLoading(bool value) {
     _isLoading = value;

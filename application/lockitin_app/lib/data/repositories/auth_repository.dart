@@ -166,4 +166,34 @@ class AuthRepository {
       rethrow;
     }
   }
+
+  /// Update user profile
+  Future<UserModel?> updateProfile({
+    required String userId,
+    String? fullName,
+    String? bio,
+    String? avatarUrl,
+  }) async {
+    try {
+      Logger.info('Updating profile for user: $userId', 'AuthRepository');
+
+      final updates = <String, dynamic>{};
+      if (fullName != null) updates['full_name'] = fullName;
+      if (bio != null) updates['bio'] = bio;
+      if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
+
+      final response = await _client
+          .from('users')
+          .update(updates)
+          .eq('id', userId)
+          .select()
+          .single();
+
+      Logger.success('Profile updated successfully', 'AuthRepository');
+      return UserModel.fromJson(response);
+    } catch (e, stackTrace) {
+      Logger.error('Profile update failed', e, stackTrace);
+      rethrow;
+    }
+  }
 }
