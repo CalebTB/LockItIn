@@ -1,5 +1,5 @@
 name: lockitin_app
-description: "A new Flutter project."
+description: "LockItIn - Privacy-first group calendar and event planning app"
 publish_to: 'none'
 version: 0.1.0
 
@@ -10,10 +10,40 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # State Management
+  provider: ^6.1.1
+
+  # Supabase
+  supabase_flutter: ^2.3.4
+
+  # Storage
+  flutter_secure_storage: ^9.0.0
+
+  # UI & Icons
+  cupertino_icons: ^1.0.6
+
+  # Date & Time
+  intl: ^0.20.2
+  table_calendar: ^3.0.9
+
+  # HTTP & Networking
+  http: ^1.2.0
+
+  # Utilities
+  uuid: ^4.3.3
+  equatable: ^2.0.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  mockito: ^5.4.4
+  build_runner: ^2.4.8
 
 flutter:
   uses-material-design: true
+
+  # Assets (uncomment when you add assets)
+  # assets:
+  #   - assets/images/
+  #   - assets/icons/
