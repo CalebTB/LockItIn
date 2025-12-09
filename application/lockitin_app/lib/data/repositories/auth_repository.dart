@@ -32,17 +32,15 @@ class AuthRepository {
         await SecureStorage.saveUserId(response.user!.id);
         await SecureStorage.saveUserEmail(email);
 
-        // Create user profile in users table
-        final userModel = UserModel(
-          id: response.user!.id,
-          email: email,
-          fullName: fullName,
-          createdAt: DateTime.now(),
-        );
+        // User profile is automatically created by database trigger
+        // Fetch the created profile
+        final userData = await _client
+            .from('users')
+            .select()
+            .eq('id', response.user!.id)
+            .single();
 
-        await _client.from('users').insert(userModel.toJson());
-
-        return userModel;
+        return UserModel.fromJson(userData);
       }
 
       return null;
