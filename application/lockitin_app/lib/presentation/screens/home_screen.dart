@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'auth/login_screen.dart';
+import 'profile_screen.dart';
 
 /// Home screen (placeholder - will be built during Sprint 1)
 class HomeScreen extends StatelessWidget {
@@ -18,6 +19,18 @@ class HomeScreen extends StatelessWidget {
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
+  }
+
+  Color _getAvatarColor(String email) {
+    // Generate a deterministic color from email
+    int hash = 0;
+    for (int i = 0; i < email.length; i++) {
+      hash = email.codeUnitAt(i) + ((hash << 5) - hash);
+    }
+
+    // Use HSL to generate vibrant colors
+    final hue = (hash % 360).toDouble();
+    return HSLColor.fromAHSL(1.0, hue, 0.7, 0.6).toColor();
   }
 
   @override
@@ -79,10 +92,19 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    IconButton(
-                      icon: Icon(Icons.logout_rounded, color: colorScheme.error),
-                      onPressed: () => _handleLogout(context),
-                      tooltip: 'Logout',
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: IconButton(
+                        icon: Icon(Icons.person_rounded, color: colorScheme.primary),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ProfileScreen(),
+                            ),
+                          );
+                        },
+                        tooltip: 'Profile',
+                      ),
                     ),
                   ],
                 ),
@@ -166,11 +188,11 @@ class HomeScreen extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               CircleAvatar(
-                                backgroundColor: colorScheme.primary.withOpacity(0.1),
+                                backgroundColor: _getAvatarColor(authProvider.currentUser?.email ?? ''),
                                 radius: 24,
                                 child: Icon(
                                   Icons.person_rounded,
-                                  color: colorScheme.primary,
+                                  color: Colors.white,
                                   size: 28,
                                 ),
                               ),
