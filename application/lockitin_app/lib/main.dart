@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/network/supabase_client.dart';
 import 'core/utils/logger.dart';
+import 'core/theme/app_theme.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/screens/splash_screen.dart';
 
@@ -41,25 +42,10 @@ class LockItInApp extends StatelessWidget {
         title: 'LockItIn',
         debugShowCheckedModeBanner: false,
 
-        // Theme
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF007AFF), // iOS Blue
-            brightness: Brightness.light,
-          ),
-          useMaterial3: true,
-          fontFamily: 'SF Pro', // Will use system font on iOS
-        ),
-
-        // Dark Theme
-        darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF0A84FF), // iOS Blue (Dark Mode)
-            brightness: Brightness.dark,
-          ),
-          useMaterial3: true,
-          fontFamily: 'SF Pro',
-        ),
+        // Centralized Theme - Now managed in app_theme.dart
+        // To change colors, edit lib/core/theme/app_colors.dart
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
 
         // Use system theme mode
         themeMode: ThemeMode.system,
