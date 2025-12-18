@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'auth/login_screen.dart';
 import 'profile_screen.dart';
+import 'calendar_screen.dart';
 
 /// Home screen (placeholder - will be built during Sprint 1)
 class HomeScreen extends StatelessWidget {
@@ -232,8 +233,15 @@ class HomeScreen extends StatelessWidget {
                             _FeatureCard(
                               icon: Icons.calendar_today_rounded,
                               title: 'Calendar View',
-                              subtitle: 'Coming in Sprint 1',
+                              subtitle: 'View your calendar',
                               color: colorScheme.primary,
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const CalendarScreen(),
+                                  ),
+                                );
+                              },
                             ),
                             _FeatureCard(
                               icon: Icons.group_rounded,
@@ -302,54 +310,59 @@ class _FeatureCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final Color color;
+  final VoidCallback? onTap;
 
   const _FeatureCard({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 160,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 2,
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            icon,
-            size: 40,
-            color: color,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 160,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: color.withOpacity(0.3),
+            width: 2,
           ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 40,
               color: color,
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 11,
-              color: color.withOpacity(0.7),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 11,
+                color: color.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
