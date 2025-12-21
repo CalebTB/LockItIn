@@ -4,6 +4,7 @@ import 'core/network/supabase_client.dart';
 import 'core/utils/logger.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/providers/auth_provider.dart';
+import 'presentation/providers/device_calendar_provider.dart';
 import 'presentation/screens/splash_screen.dart';
 
 void main() async {
@@ -33,8 +34,10 @@ class LockItInApp extends StatelessWidget {
         // Authentication Provider
         ChangeNotifierProvider(create: (_) => AuthProvider()),
 
+        // Device Calendar Provider (platform channels)
+        ChangeNotifierProvider(create: (_) => DeviceCalendarProvider()),
+
         // Add more providers here as you build features:
-        // ChangeNotifierProvider(create: (_) => CalendarProvider()),
         // ChangeNotifierProvider(create: (_) => GroupsProvider()),
         // etc.
       ],
