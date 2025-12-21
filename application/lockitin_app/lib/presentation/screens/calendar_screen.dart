@@ -286,6 +286,9 @@ class _CalendarViewState extends State<_CalendarView> {
               final isToday = CalendarUtils.isToday(date);
               final isSelected = CalendarUtils.isSameDay(date, provider.focusedDate);
 
+              final hasEvents = provider.hasEvents(date);
+              final eventCount = provider.getEventsForDay(date).length;
+
               return Expanded(
                 child: _buildDateCell(
                   context,
@@ -293,6 +296,8 @@ class _CalendarViewState extends State<_CalendarView> {
                   isToday: isToday,
                   isSelected: isSelected,
                   isOutside: !isCurrentMonth,
+                  hasEvents: hasEvents,
+                  eventCount: eventCount,
                   onTap: () => provider.selectDate(date),
                 ),
               );
@@ -313,6 +318,8 @@ class _CalendarViewState extends State<_CalendarView> {
     required bool isToday,
     required bool isSelected,
     required bool isOutside,
+    required bool hasEvents,
+    required int eventCount,
     required VoidCallback onTap,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -380,29 +387,51 @@ class _CalendarViewState extends State<_CalendarView> {
 
               const SizedBox(height: 4),
 
-              // Event preview space - placeholder for future implementation
-              // This space allows for 2-3 event indicator bars
+              // Event indicators
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // TODO: Replace with actual event indicators when events are implemented
-                    // Example format:
-                    // - Small colored bars (3-4px height) with event titles
-                    // - Maximum 3 events shown, "+X more" indicator
-                    // - Different colors per calendar/event type
-
-                    // Placeholder to demonstrate space available
-                    // Remove these when implementing actual events
-                    if (day.day % 5 == 0)
-                      Container(
-                        height: 4,
-                        margin: const EdgeInsets.only(bottom: 2),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(2),
+                    if (hasEvents) ...[
+                      // Show up to 3 event dots, then "+X" indicator
+                      if (eventCount <= 3)
+                        ...List.generate(
+                          eventCount,
+                          (index) => Container(
+                            height: 3,
+                            margin: const EdgeInsets.only(bottom: 2),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary,
+                              borderRadius: BorderRadius.circular(1.5),
+                            ),
+                          ),
+                        )
+                      else ...[
+                        // Show 2 dots + "+X more" indicator
+                        ...List.generate(
+                          2,
+                          (index) => Container(
+                            height: 3,
+                            margin: const EdgeInsets.only(bottom: 2),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary,
+                              borderRadius: BorderRadius.circular(1.5),
+                            ),
+                          ),
                         ),
-                      ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 1),
+                          child: Text(
+                            '+${eventCount - 2}',
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w500,
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ],
                 ),
               ),
