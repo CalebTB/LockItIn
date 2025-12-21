@@ -1,14 +1,14 @@
-/// Supabase Configuration
-///
-/// This file contains the Supabase URL and Anonymous Key for connecting to your backend.
-///
-/// ⚠️ IMPORTANT: Replace these with your actual Supabase credentials
-///
-/// To get your credentials:
-/// 1. Go to https://app.supabase.com/
-/// 2. Select your project
-/// 3. Go to Settings > API
-/// 4. Copy the "Project URL" and "anon public" key
+// Supabase Configuration
+//
+// This file contains the Supabase URL and Anonymous Key for connecting to your backend.
+//
+// ⚠️ IMPORTANT: Replace these with your actual Supabase credentials
+//
+// To get your credentials:
+// 1. Go to https://app.supabase.com/
+// 2. Select your project
+// 3. Go to Settings > API
+// 4. Copy the "Project URL" and "anon public" key
 
 class SupabaseConfig {
   /// Your Supabase project URL

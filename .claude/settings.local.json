@@ -18,7 +18,11 @@
       "Bash(gh pr create:*)",
       "Bash(git commit:*)",
       "Bash(flutter test:*)",
-      "Bash(flutter analyze:*)"
+      "Bash(flutter analyze:*)",
+      "Bash(cat:*)",
+      "Bash(flutter clean:*)",
+      "Bash(./gradlew clean:*)",
+      "Bash(flutter build:*)"
     ],
     "deny": [],
     "ask": []

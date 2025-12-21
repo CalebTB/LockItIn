@@ -1,26 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import 'auth/login_screen.dart';
 import 'profile_screen.dart';
 import 'calendar_screen.dart';
 
 /// Home screen (placeholder - will be built during Sprint 1)
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
-
-  Future<void> _handleLogout(BuildContext context) async {
-    final authProvider = context.read<AuthProvider>();
-    await authProvider.signOut();
-
-    if (!context.mounted) return;
-
-    // Navigate to login screen and clear navigation stack
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
-  }
 
   Color _getAvatarColor(String email) {
     // Generate a deterministic color from email
@@ -48,13 +34,13 @@ class HomeScreen extends StatelessWidget {
             end: Alignment.bottomRight,
             colors: isDark
                 ? [
-                    colorScheme.primary.withOpacity(0.2),
-                    colorScheme.secondary.withOpacity(0.1),
+                    colorScheme.primary.withValues(alpha: 0.2),
+                    colorScheme.secondary.withValues(alpha: 0.1),
                     colorScheme.surface,
                   ]
                 : [
-                    colorScheme.primary.withOpacity(0.1),
-                    colorScheme.secondary.withOpacity(0.05),
+                    colorScheme.primary.withValues(alpha: 0.1),
+                    colorScheme.secondary.withValues(alpha: 0.05),
                     Colors.white,
                   ],
           ),
@@ -132,7 +118,7 @@ class HomeScreen extends StatelessWidget {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: colorScheme.primary.withOpacity(0.3),
+                                color: colorScheme.primary.withValues(alpha: 0.3),
                                 blurRadius: 20,
                                 spreadRadius: 5,
                               ),
@@ -174,12 +160,12 @@ class HomeScreen extends StatelessWidget {
                             color: colorScheme.surface,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: colorScheme.primary.withOpacity(0.2),
+                              color: colorScheme.primary.withValues(alpha: 0.2),
                               width: 2,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
+                                color: Colors.black.withValues(alpha: 0.05),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -205,7 +191,7 @@ class HomeScreen extends StatelessWidget {
                                     'Logged in as',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: colorScheme.onSurface.withOpacity(0.6),
+                                      color: colorScheme.onSurface.withValues(alpha: 0.6),
                                     ),
                                   ),
                                   const SizedBox(height: 4),
@@ -328,10 +314,10 @@ class _FeatureCard extends StatelessWidget {
         width: 160,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             width: 2,
           ),
         ),
@@ -357,7 +343,7 @@ class _FeatureCard extends StatelessWidget {
               subtitle,
               style: TextStyle(
                 fontSize: 11,
-                color: color.withOpacity(0.7),
+                color: color.withValues(alpha: 0.7),
               ),
               textAlign: TextAlign.center,
             ),
