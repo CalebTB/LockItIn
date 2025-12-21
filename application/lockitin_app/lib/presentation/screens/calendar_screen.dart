@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/calendar_provider.dart';
 import '../../domain/models/calendar_month.dart';
 import '../../utils/calendar_utils.dart';
+import '../widgets/day_events_bottom_sheet.dart';
 
 /// Calendar screen showing custom month grid view with horizontal swipe navigation
 /// Uses CalendarProvider for state management and caching
@@ -287,7 +288,8 @@ class _CalendarViewState extends State<_CalendarView> {
               final isSelected = CalendarUtils.isSameDay(date, provider.focusedDate);
 
               final hasEvents = provider.hasEvents(date);
-              final eventCount = provider.getEventsForDay(date).length;
+              final events = provider.getEventsForDay(date);
+              final eventCount = events.length;
 
               return Expanded(
                 child: _buildDateCell(
@@ -298,7 +300,17 @@ class _CalendarViewState extends State<_CalendarView> {
                   isOutside: !isCurrentMonth,
                   hasEvents: hasEvents,
                   eventCount: eventCount,
-                  onTap: () => provider.selectDate(date),
+                  onTap: () {
+                    provider.selectDate(date);
+                    // Show event details if date has events
+                    if (hasEvents) {
+                      DayEventsBottomSheet.show(
+                        context,
+                        date: date,
+                        events: events,
+                      );
+                    }
+                  },
                 ),
               );
             }),
