@@ -24,6 +24,9 @@ class DayEventsBottomSheet extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => DayEventsBottomSheet(
         selectedDate: date,
         events: events,
@@ -139,7 +142,6 @@ class DayEventsBottomSheet extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final timeFormat = DateFormat('h:mm a');
     final startTime = timeFormat.format(event.startTime);
-    final endTime = timeFormat.format(event.endTime);
 
     // Calculate duration
     final duration = event.endTime.difference(event.startTime);

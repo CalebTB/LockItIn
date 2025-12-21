@@ -21,7 +21,7 @@ class CalendarProvider extends ChangeNotifier {
   int _currentPageIndex = 0;
 
   /// All events indexed by date (YYYY-MM-DD format)
-  Map<String, List<EventModel>> _eventsByDate = {};
+  final Map<String, List<EventModel>> _eventsByDate = {};
 
   /// Calendar manager for native calendar access
   final CalendarManager _calendarManager = CalendarManager();

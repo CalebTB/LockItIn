@@ -352,21 +352,25 @@ class _CalendarViewState extends State<_CalendarView> {
     // Determine border color for current month dates
     final borderColor = colorScheme.onSurface.withValues(alpha: 0.08);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        // NO margin - cells touch seamlessly
-        margin: EdgeInsets.zero,
-        // Border on all sides - cells will share borders perfectly
-        decoration: BoxDecoration(
-          color: isToday
-              ? colorScheme.primaryContainer.withValues(alpha: 0.1)
-              : Colors.transparent,
-          border: Border.all(
-            color: borderColor,
-            width: 0.5,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: colorScheme.primary.withValues(alpha: 0.1),
+        highlightColor: colorScheme.primary.withValues(alpha: 0.05),
+        child: Container(
+          // NO margin - cells touch seamlessly
+          margin: EdgeInsets.zero,
+          // Border on all sides - cells will share borders perfectly
+          decoration: BoxDecoration(
+            color: isToday
+                ? colorScheme.primaryContainer.withValues(alpha: 0.1)
+                : Colors.transparent,
+            border: Border.all(
+              color: borderColor,
+              width: 0.5,
+            ),
           ),
-        ),
         child: Padding(
           // Internal padding for content - reduced to move date numbers closer to corner
           padding: const EdgeInsets.all(4.0),
@@ -449,6 +453,7 @@ class _CalendarViewState extends State<_CalendarView> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );
