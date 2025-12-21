@@ -1,4 +1,4 @@
-/// Application-wide constants
+// Application-wide constants
 
 class AppConstants {
   // App Information

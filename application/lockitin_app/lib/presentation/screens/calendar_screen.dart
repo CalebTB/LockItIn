@@ -197,7 +197,7 @@ class _CalendarViewState extends State<_CalendarView> {
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 11,
-                              color: colorScheme.onSurface.withOpacity(0.6),
+                              color: colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                           ),
                         ),
@@ -209,7 +209,7 @@ class _CalendarViewState extends State<_CalendarView> {
                 Divider(
                   height: 1,
                   thickness: 0.5,
-                  color: colorScheme.onSurface.withOpacity(0.08),
+                  color: colorScheme.onSurface.withValues(alpha: 0.08),
                 ),
               ],
             ),
@@ -242,15 +242,12 @@ class _CalendarViewState extends State<_CalendarView> {
 
   /// Build the month grid with seamlessly touching cells
   Widget _buildMonthGrid(BuildContext context, CalendarMonth monthData, CalendarProvider provider) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     // Get all dates for the month grid (including padding from prev/next month)
     final firstDayOfMonth = DateTime(monthData.month.year, monthData.month.month, 1);
     final lastDayOfMonth = DateTime(monthData.month.year, monthData.month.month + 1, 0);
 
     // Calculate padding needed (start from Sunday)
     final startWeekday = firstDayOfMonth.weekday % 7; // 0 = Sunday
-    final endWeekday = lastDayOfMonth.weekday % 7;
 
     // Build list of all dates to display (6 rows of 7 days = 42 cells)
     final List<DateTime?> dates = [];
@@ -326,7 +323,7 @@ class _CalendarViewState extends State<_CalendarView> {
         margin: EdgeInsets.zero,
         decoration: BoxDecoration(
           border: Border.all(
-            color: colorScheme.onSurface.withOpacity(0.03),
+            color: colorScheme.onSurface.withValues(alpha: 0.03),
             width: 0.5,
           ),
         ),
@@ -334,7 +331,7 @@ class _CalendarViewState extends State<_CalendarView> {
     }
 
     // Determine border color for current month dates
-    final borderColor = colorScheme.onSurface.withOpacity(0.08);
+    final borderColor = colorScheme.onSurface.withValues(alpha: 0.08);
 
     return GestureDetector(
       onTap: onTap,
@@ -344,7 +341,7 @@ class _CalendarViewState extends State<_CalendarView> {
         // Border on all sides - cells will share borders perfectly
         decoration: BoxDecoration(
           color: isToday
-              ? colorScheme.primaryContainer.withOpacity(0.1)
+              ? colorScheme.primaryContainer.withValues(alpha: 0.1)
               : Colors.transparent,
           border: Border.all(
             color: borderColor,
@@ -402,7 +399,7 @@ class _CalendarViewState extends State<_CalendarView> {
                         height: 4,
                         margin: const EdgeInsets.only(bottom: 2),
                         decoration: BoxDecoration(
-                          color: colorScheme.primary.withOpacity(0.3),
+                          color: colorScheme.primary.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),

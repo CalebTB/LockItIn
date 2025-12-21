@@ -43,3 +43,17 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Gradle and Kotlin cache
+/android/.gradle/
+/android/.kotlin/
+/android/local.properties
+
+# Platform-specific folders (iOS/Android only project)
+/web/
+/windows/
+/linux/
+/macos/
+
+# Flutter metadata
+/.metadata

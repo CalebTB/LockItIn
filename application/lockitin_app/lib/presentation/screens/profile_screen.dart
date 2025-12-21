@@ -143,7 +143,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 width: 120,
                                 height: 120,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Icon(
+                                errorBuilder: (context, error, stackTrace) => Icon(
                                   Icons.person_rounded,
                                   size: 60,
                                   color: Colors.white,

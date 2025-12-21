@@ -74,7 +74,7 @@ class _SplashScreenState extends State<SplashScreen> {
               'Privacy-first group planning',
               style: TextStyle(
                 fontSize: 16,
-                color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.8),
+                color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(height: 48),
