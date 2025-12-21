@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'profile_screen.dart';
 import 'calendar_screen.dart';
+import 'device_calendar_screen.dart';
 
 /// Home screen (placeholder - will be built during Sprint 1)
 class HomeScreen extends StatelessWidget {
@@ -225,6 +226,19 @@ class HomeScreen extends StatelessWidget {
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
                                     builder: (_) => const CalendarScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                            _FeatureCard(
+                              icon: Icons.sync_rounded,
+                              title: 'Device Calendar',
+                              subtitle: 'Sync native events',
+                              color: Colors.green,
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const DeviceCalendarScreen(),
                                   ),
                                 );
                               },
