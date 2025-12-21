@@ -1,9 +1,12 @@
 import 'package:flutter/foundation.dart';
 import '../../domain/models/calendar_month.dart';
 import '../../utils/calendar_utils.dart';
+import '../../data/models/event_model.dart';
+import '../../core/services/calendar_manager.dart';
+import '../../core/utils/logger.dart';
 
 /// Provider for calendar state management
-/// Manages focused date, current page, and precomputed month data
+/// Manages focused date, current page, precomputed month data, and events
 class CalendarProvider extends ChangeNotifier {
   /// All months available in the calendar (cached for performance)
   late List<CalendarMonth> _months;
@@ -17,6 +20,18 @@ class CalendarProvider extends ChangeNotifier {
   /// Current page index in the month list
   int _currentPageIndex = 0;
 
+  /// All events indexed by date (YYYY-MM-DD format)
+  Map<String, List<EventModel>> _eventsByDate = {};
+
+  /// Calendar manager for native calendar access
+  final CalendarManager _calendarManager = CalendarManager();
+
+  /// Loading state for events
+  bool _isLoadingEvents = false;
+
+  /// Error state for event loading
+  String? _eventLoadError;
+
   /// Number of months to show backward (10 years back)
   static const int _monthsBackward = 120;
 
@@ -29,6 +44,7 @@ class CalendarProvider extends ChangeNotifier {
   CalendarProvider({DateTime? initialDate})
       : _focusedDate = initialDate ?? DateTime.now() {
     _initializeMonths();
+    _loadEvents();
   }
 
   // Getters
@@ -48,6 +64,8 @@ class CalendarProvider extends ChangeNotifier {
   DateTime get focusedDate => _focusedDate;
   int get currentPageIndex => _currentPageIndex;
   DateTime get currentMonth => _months[_currentPageIndex].month;
+  bool get isLoadingEvents => _isLoadingEvents;
+  String? get eventLoadError => _eventLoadError;
 
   /// Get the index of today's month in the months list (dynamically calculated)
   /// This ensures the "Today" button always navigates to the correct month
@@ -113,15 +131,89 @@ class CalendarProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Get events for a specific day (placeholder for future implementation)
-  List<dynamic> getEventsForDay(DateTime day) {
-    // TODO: Implement event fetching from Supabase
-    // This will be connected to event repository in future sprints
-    return [];
+  /// Load events from native calendar
+  /// Fetches events for a reasonable date range (30 days back, 60 days forward)
+  Future<void> _loadEvents() async {
+    _isLoadingEvents = true;
+    _eventLoadError = null;
+    notifyListeners();
+
+    try {
+      // Check permission first
+      final permission = await _calendarManager.checkPermission();
+
+      if (permission != CalendarPermissionStatus.granted) {
+        Logger.info('Calendar permission not granted, skipping event load');
+        _isLoadingEvents = false;
+        notifyListeners();
+        return;
+      }
+
+      // Fetch events for reasonable range (30 days back, 60 days forward)
+      final now = DateTime.now();
+      final startDate = DateTime(now.year, now.month - 1, now.day);
+      final endDate = DateTime(now.year, now.month + 2, now.day);
+
+      final events = await _calendarManager.fetchEvents(
+        startDate: startDate,
+        endDate: endDate,
+      );
+
+      Logger.info('Loaded ${events.length} events from native calendar');
+
+      // Index events by date
+      _indexEventsByDate(events);
+
+      _isLoadingEvents = false;
+      notifyListeners();
+    } catch (e) {
+      Logger.error('Failed to load events: $e');
+      _eventLoadError = e.toString();
+      _isLoadingEvents = false;
+      notifyListeners();
+    }
   }
 
-  /// Check if a date has events (placeholder)
+  /// Index events by date for efficient lookup
+  /// Groups events by their start date (YYYY-MM-DD format)
+  void _indexEventsByDate(List<EventModel> events) {
+    _eventsByDate.clear();
+
+    for (final event in events) {
+      final dateKey = _dateKey(event.startTime);
+
+      if (_eventsByDate.containsKey(dateKey)) {
+        _eventsByDate[dateKey]!.add(event);
+      } else {
+        _eventsByDate[dateKey] = [event];
+      }
+    }
+
+    // Sort events within each day by start time
+    for (final dateKey in _eventsByDate.keys) {
+      _eventsByDate[dateKey]!.sort((a, b) => a.startTime.compareTo(b.startTime));
+    }
+  }
+
+  /// Generate date key for event indexing (YYYY-MM-DD)
+  String _dateKey(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Get events for a specific day
+  List<EventModel> getEventsForDay(DateTime day) {
+    final key = _dateKey(day);
+    return _eventsByDate[key] ?? [];
+  }
+
+  /// Check if a date has events
   bool hasEvents(DateTime date) {
-    return getEventsForDay(date).isNotEmpty;
+    final key = _dateKey(date);
+    return _eventsByDate.containsKey(key) && _eventsByDate[key]!.isNotEmpty;
+  }
+
+  /// Refresh events (e.g., after permission granted or manual refresh)
+  Future<void> refreshEvents() async {
+    await _loadEvents();
   }
 }
