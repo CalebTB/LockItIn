@@ -3,6 +3,7 @@ import '../../domain/models/calendar_month.dart';
 import '../../utils/calendar_utils.dart';
 import '../../data/models/event_model.dart';
 import '../../core/services/calendar_manager.dart';
+import '../../core/services/holiday_service.dart';
 import '../../core/utils/logger.dart';
 
 /// Provider for calendar state management
@@ -131,38 +132,44 @@ class CalendarProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Load events from native calendar
+  /// Load events from native calendar and holidays
   /// Fetches events for a reasonable date range (30 days back, 60 days forward)
+  /// Also loads national holidays from JSON asset
   Future<void> _loadEvents() async {
     _isLoadingEvents = true;
     _eventLoadError = null;
     notifyListeners();
 
     try {
-      // Check permission first
-      final permission = await _calendarManager.checkPermission();
+      final List<EventModel> allEvents = [];
 
-      if (permission != CalendarPermissionStatus.granted) {
-        Logger.info('Calendar permission not granted, skipping event load');
-        _isLoadingEvents = false;
-        notifyListeners();
-        return;
-      }
-
-      // Fetch events for reasonable range (30 days back, 60 days forward)
+      // Load national holidays first (always available, no permission needed)
       final now = DateTime.now();
       final startDate = DateTime(now.year, now.month - 1, now.day);
       final endDate = DateTime(now.year, now.month + 2, now.day);
 
-      final events = await _calendarManager.fetchEvents(
-        startDate: startDate,
-        endDate: endDate,
-      );
+      final holidays = await HolidayService.getHolidaysInRange(startDate, endDate);
+      allEvents.addAll(holidays);
+      Logger.info('Loaded ${holidays.length} holidays');
 
-      Logger.info('Loaded ${events.length} events from native calendar');
+      // Check permission for native calendar events
+      final permission = await _calendarManager.checkPermission();
 
-      // Index events by date
-      _indexEventsByDate(events);
+      if (permission == CalendarPermissionStatus.granted) {
+        // Fetch events from native calendar
+        final events = await _calendarManager.fetchEvents(
+          startDate: startDate,
+          endDate: endDate,
+        );
+
+        allEvents.addAll(events);
+        Logger.info('Loaded ${events.length} events from native calendar');
+      } else {
+        Logger.info('Calendar permission not granted, showing holidays only');
+      }
+
+      // Index all events (holidays + native calendar events) by date
+      _indexEventsByDate(allEvents);
 
       _isLoadingEvents = false;
       notifyListeners();
