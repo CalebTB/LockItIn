@@ -289,7 +289,6 @@ class _CalendarViewState extends State<_CalendarView> {
 
               final hasEvents = provider.hasEvents(date);
               final events = provider.getEventsForDay(date);
-              final eventCount = events.length;
 
               return Expanded(
                 child: _buildDateCell(
@@ -299,7 +298,7 @@ class _CalendarViewState extends State<_CalendarView> {
                   isSelected: isSelected,
                   isOutside: !isCurrentMonth,
                   hasEvents: hasEvents,
-                  eventCount: eventCount,
+                  events: events,
                   onTap: () {
                     provider.selectDate(date);
                     // Navigate to day detail screen with events list
@@ -332,7 +331,7 @@ class _CalendarViewState extends State<_CalendarView> {
     required bool isSelected,
     required bool isOutside,
     required bool hasEvents,
-    required int eventCount,
+    required List<dynamic> events,
     required VoidCallback onTap,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -402,49 +401,81 @@ class _CalendarViewState extends State<_CalendarView> {
                 ),
               ),
 
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
 
-              // Event indicators
+              // Event indicators with titles
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (hasEvents) ...[
-                      // Show up to 3 event dots, then "+X" indicator
-                      if (eventCount <= 3)
-                        ...List.generate(
-                          eventCount,
-                          (index) => Container(
-                            height: 3,
+                      // Show up to 2 event titles, then "+X more" indicator
+                      if (events.length <= 2)
+                        ...events.map(
+                          (event) => Container(
+                            height: 16,
                             margin: const EdgeInsets.only(bottom: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
                             decoration: BoxDecoration(
                               color: colorScheme.primary,
-                              borderRadius: BorderRadius.circular(1.5),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(
+                              event.title,
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w500,
+                                color: colorScheme.onPrimary,
+                                height: 1.0,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         )
                       else ...[
-                        // Show 2 dots + "+X more" indicator
-                        ...List.generate(
-                          2,
-                          (index) => Container(
-                            height: 3,
+                        // Show first 2 events
+                        ...events.take(2).map(
+                          (event) => Container(
+                            height: 16,
                             margin: const EdgeInsets.only(bottom: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
                             decoration: BoxDecoration(
                               color: colorScheme.primary,
-                              borderRadius: BorderRadius.circular(1.5),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(
+                              event.title,
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w500,
+                                color: colorScheme.onPrimary,
+                                height: 1.0,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 1),
+                        // "+X more" indicator
+                        Container(
+                          height: 14,
+                          margin: const EdgeInsets.only(bottom: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
                           child: Text(
-                            '+${eventCount - 2}',
+                            '+${events.length - 2} more',
                             style: TextStyle(
                               fontSize: 8,
-                              fontWeight: FontWeight.w500,
-                              color: colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onPrimaryContainer,
+                              height: 1.0,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.clip,
                           ),
                         ),
                       ],
