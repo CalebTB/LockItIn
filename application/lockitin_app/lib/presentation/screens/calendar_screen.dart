@@ -302,11 +302,12 @@ class _CalendarViewState extends State<_CalendarView> {
                   eventCount: eventCount,
                   onTap: () {
                     provider.selectDate(date);
-                    // Navigate to day detail screen
+                    // Navigate to day detail screen with events list
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => DayDetailScreen(
                           selectedDate: date,
+                          events: events,
                         ),
                       ),
                     );

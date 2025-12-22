@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import '../../data/models/event_model.dart';
-import '../providers/calendar_provider.dart';
 
 /// Day detail screen showing all events for a selected date
 class DayDetailScreen extends StatelessWidget {
   final DateTime selectedDate;
+  final List<EventModel> events;
 
   const DayDetailScreen({
     super.key,
     required this.selectedDate,
+    required this.events,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final events = context.watch<CalendarProvider>().getEventsForDay(selectedDate);
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
