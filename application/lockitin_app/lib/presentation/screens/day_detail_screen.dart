@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../data/models/event_model.dart';
+import '../../utils/privacy_colors.dart';
+import '../providers/settings_provider.dart';
 import 'event_detail_screen.dart';
 
 /// Day detail screen showing all events for a selected date
@@ -152,7 +155,7 @@ class DayDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     // Privacy pill badge
-                    _buildPrivacyPillBadge(event.visibility),
+                    _buildPrivacyPillBadge(context, event.visibility),
                   ],
                 ),
 
@@ -241,7 +244,7 @@ class DayDetailScreen extends StatelessWidget {
             child: Row(
               children: [
                 // Colored left border indicator
-                _buildPrivacyBorderDecoration(event.visibility),
+                _buildPrivacyBorderDecoration(context, event.visibility),
                 // Event content
                 Expanded(
                   child: Padding(
@@ -379,41 +382,21 @@ class DayDetailScreen extends StatelessWidget {
   // PRIVACY INDICATOR HELPER METHODS
   // ═══════════════════════════════════════════════════════════════════════
 
-  /// Get privacy color based on visibility setting
-  /// Private = Red (#EF4444), Shared = Green (#10B981), Busy Only = Orange (#F59E0B)
-  Color _getPrivacyColor(EventVisibility visibility) {
-    switch (visibility) {
-      case EventVisibility.private:
-        return const Color(0xFFEF4444); // Red
-      case EventVisibility.sharedWithName:
-        return const Color(0xFF10B981); // Green
-      case EventVisibility.busyOnly:
-        return const Color(0xFFF59E0B); // Orange
-    }
+  /// Get privacy color based on visibility setting and user's color palette preference
+  /// Uses SettingsProvider to determine if color-blind palette should be used
+  Color _getPrivacyColor(BuildContext context, EventVisibility visibility) {
+    final useColorBlindPalette = context.watch<SettingsProvider>().useColorBlindPalette;
+    return PrivacyColors.getPrivacyColor(visibility, useColorBlindPalette: useColorBlindPalette);
   }
 
   /// Get privacy label text
   String _getPrivacyLabel(EventVisibility visibility) {
-    switch (visibility) {
-      case EventVisibility.private:
-        return 'Private';
-      case EventVisibility.sharedWithName:
-        return 'Shared';
-      case EventVisibility.busyOnly:
-        return 'Busy';
-    }
+    return PrivacyColors.getPrivacyLabel(visibility);
   }
 
   /// Get privacy icon
   IconData _getPrivacyIcon(EventVisibility visibility) {
-    switch (visibility) {
-      case EventVisibility.private:
-        return Icons.lock;
-      case EventVisibility.sharedWithName:
-        return Icons.people;
-      case EventVisibility.busyOnly:
-        return Icons.remove_red_eye_outlined;
-    }
+    return PrivacyColors.getPrivacyIcon(visibility);
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -425,8 +408,8 @@ class DayDetailScreen extends StatelessWidget {
   // Con: Takes more horizontal space
   // ═══════════════════════════════════════════════════════════════════════
 
-  Widget _buildPrivacyPillBadge(EventVisibility visibility) {
-    final privacyColor = _getPrivacyColor(visibility);
+  Widget _buildPrivacyPillBadge(BuildContext context, EventVisibility visibility) {
+    final privacyColor = _getPrivacyColor(context, visibility);
     final label = _getPrivacyLabel(visibility);
     final icon = _getPrivacyIcon(visibility);
 
@@ -471,8 +454,8 @@ class DayDetailScreen extends StatelessWidget {
   // Con: Less explicit, requires learning what colors mean
   // ═══════════════════════════════════════════════════════════════════════
 
-  Widget _buildPrivacyBorderDecoration(EventVisibility visibility) {
-    final privacyColor = _getPrivacyColor(visibility);
+  Widget _buildPrivacyBorderDecoration(BuildContext context, EventVisibility visibility) {
+    final privacyColor = _getPrivacyColor(context, visibility);
 
     return Container(
       width: 4,
