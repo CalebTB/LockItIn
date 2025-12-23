@@ -89,32 +89,29 @@ class EventDetailScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // Location (if available) - Top right, no box
+            // Location (if available) - Left aligned, no box
             if (event.location != null && event.location!.isNotEmpty)
-              Align(
-                alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.location_on,
-                      size: 18,
-                      color: colorScheme.primary,
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        event.location!,
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: colorScheme.onSurface.withValues(alpha: 0.8),
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.location_on,
+                    size: 18,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      event.location!,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: colorScheme.onSurface.withValues(alpha: 0.8),
                       ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
 
             if (event.location != null && event.location!.isNotEmpty)
