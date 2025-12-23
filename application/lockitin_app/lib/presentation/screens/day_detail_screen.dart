@@ -117,10 +117,31 @@ class DayDetailScreen extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          // Navigate to event detail screen
+          // Navigate to event detail screen with custom slide transition
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => EventDetailScreen(event: event),
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  EventDetailScreen(event: event),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                // Slide from right with fade
+                const begin = Offset(1.0, 0.0);
+                const end = Offset.zero;
+                const curve = Curves.easeInOutCubic;
+
+                var slideTween = Tween(begin: begin, end: end)
+                    .chain(CurveTween(curve: curve));
+                var fadeTween = Tween(begin: 0.0, end: 1.0)
+                    .chain(CurveTween(curve: curve));
+
+                return SlideTransition(
+                  position: animation.drive(slideTween),
+                  child: FadeTransition(
+                    opacity: animation.drive(fadeTween),
+                    child: child,
+                  ),
+                );
+              },
+              transitionDuration: const Duration(milliseconds: 350),
             ),
           );
         },
