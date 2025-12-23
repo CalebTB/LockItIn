@@ -4,6 +4,7 @@ import '../../utils/calendar_utils.dart';
 import '../../data/models/event_model.dart';
 import '../../core/services/calendar_manager.dart';
 import '../../core/services/holiday_service.dart';
+import '../../core/services/test_events_service.dart';
 import '../../core/utils/logger.dart';
 
 /// Provider for calendar state management
@@ -151,6 +152,13 @@ class CalendarProvider extends ChangeNotifier {
       final holidays = await HolidayService.getHolidaysInRange(startDate, endDate);
       allEvents.addAll(holidays);
       Logger.info('Loaded ${holidays.length} holidays');
+
+      // Load test events for development (if enabled)
+      if (TestEventsService.enableTestEvents) {
+        final testEvents = TestEventsService.generateTestEvents();
+        allEvents.addAll(testEvents);
+        Logger.info('Loaded ${testEvents.length} test events');
+      }
 
       // Check permission for native calendar events
       final permission = await _calendarManager.checkPermission();
