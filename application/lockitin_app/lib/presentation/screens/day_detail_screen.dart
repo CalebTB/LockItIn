@@ -237,16 +237,17 @@ class DayDetailScreen extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () => _navigateToEventDetail(context, event),
-          child: Row(
-            children: [
-              // Colored left border indicator
-              _buildPrivacyBorderDecoration(event.visibility),
-              // Event content
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          child: IntrinsicHeight(
+            child: Row(
+              children: [
+                // Colored left border indicator
+                _buildPrivacyBorderDecoration(event.visibility),
+                // Event content
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Event title
                       Text(
@@ -319,9 +320,10 @@ class DayDetailScreen extends StatelessWidget {
                       ],
                     ],
                   ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );
