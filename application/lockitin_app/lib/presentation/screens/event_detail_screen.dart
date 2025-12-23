@@ -261,6 +261,7 @@ class EventDetailScreen extends StatelessWidget {
       children: [
         // Start date and time
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Start:',
@@ -271,22 +272,25 @@ class EventDetailScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Text(
-              isAllDay
-                  ? DateFormat('EEEE, MMMM d, yyyy').format(event.startTime)
-                  : DateFormat('EEEE, MMMM d, yyyy · h:mm a').format(event.startTime),
-              style: TextStyle(
-                fontSize: 16,
-                color: colorScheme.onSurface,
+            Expanded(
+              child: Text(
+                isAllDay
+                    ? DateFormat('EEEE, MMMM d, yyyy').format(event.startTime)
+                    : DateFormat('EEEE, MMMM d, yyyy · h:mm a').format(event.startTime),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
 
         if (!isAllDay || !isSameDay) ...[
           const SizedBox(height: 8),
           // End date and time
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'End:',
@@ -297,13 +301,15 @@ class EventDetailScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                isAllDay
-                    ? DateFormat('EEEE, MMMM d, yyyy').format(event.endTime)
-                    : DateFormat('EEEE, MMMM d, yyyy · h:mm a').format(event.endTime),
-                style: TextStyle(
-                  fontSize: 16,
-                  color: colorScheme.onSurface,
+              Expanded(
+                child: Text(
+                  isAllDay
+                      ? DateFormat('EEEE, MMMM d, yyyy').format(event.endTime)
+                      : DateFormat('EEEE, MMMM d, yyyy · h:mm a').format(event.endTime),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: colorScheme.onSurface,
+                  ),
                 ),
               ),
             ],
