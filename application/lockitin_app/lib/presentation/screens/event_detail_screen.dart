@@ -89,6 +89,37 @@ class EventDetailScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
+            // Location (if available) - Top right, no box
+            if (event.location != null && event.location!.isNotEmpty)
+              Align(
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.location_on,
+                      size: 18,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        event.location!,
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: colorScheme.onSurface.withValues(alpha: 0.8),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            if (event.location != null && event.location!.isNotEmpty)
+              const SizedBox(height: 12),
+
             // Date & Time Section
             _buildInfoSection(
               context,
@@ -99,26 +130,6 @@ class EventDetailScreen extends StatelessWidget {
             ),
 
             const SizedBox(height: 20),
-
-            // Location Section (if available)
-            if (event.location != null && event.location!.isNotEmpty)
-              _buildInfoSection(
-                context,
-                colorScheme,
-                icon: Icons.location_on,
-                title: 'Location',
-                content: Text(
-                  event.location!,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: colorScheme.onSurface,
-                    height: 1.5,
-                  ),
-                ),
-              ),
-
-            if (event.location != null && event.location!.isNotEmpty)
-              const SizedBox(height: 20),
 
             // Notes/Description Section (if available)
             if (event.description != null && event.description!.isNotEmpty)
