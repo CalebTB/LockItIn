@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/event_model.dart';
+import 'event_detail_screen.dart';
 
 /// Day detail screen showing all events for a selected date
 class DayDetailScreen extends StatelessWidget {
@@ -116,7 +117,12 @@ class DayDetailScreen extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          // TODO: Navigate to event detail screen when implemented
+          // Navigate to event detail screen
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => EventDetailScreen(event: event),
+            ),
+          );
         },
         child: Padding(
           padding: const EdgeInsets.all(16),
