@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/calendar_provider.dart';
 import '../../domain/models/calendar_month.dart';
 import '../../utils/calendar_utils.dart';
+import 'day_detail_screen.dart';
 
 /// Calendar screen showing custom month grid view with horizontal swipe navigation
 /// Uses CalendarProvider for state management and caching
@@ -286,6 +287,9 @@ class _CalendarViewState extends State<_CalendarView> {
               final isToday = CalendarUtils.isToday(date);
               final isSelected = CalendarUtils.isSameDay(date, provider.focusedDate);
 
+              final hasEvents = provider.hasEvents(date);
+              final events = provider.getEventsForDay(date);
+
               return Expanded(
                 child: _buildDateCell(
                   context,
@@ -293,7 +297,20 @@ class _CalendarViewState extends State<_CalendarView> {
                   isToday: isToday,
                   isSelected: isSelected,
                   isOutside: !isCurrentMonth,
-                  onTap: () => provider.selectDate(date),
+                  hasEvents: hasEvents,
+                  events: events,
+                  onTap: () {
+                    provider.selectDate(date);
+                    // Navigate to day detail screen with events list
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => DayDetailScreen(
+                          selectedDate: date,
+                          events: events,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               );
             }),
@@ -313,6 +330,8 @@ class _CalendarViewState extends State<_CalendarView> {
     required bool isToday,
     required bool isSelected,
     required bool isOutside,
+    required bool hasEvents,
+    required List<dynamic> events,
     required VoidCallback onTap,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -333,21 +352,25 @@ class _CalendarViewState extends State<_CalendarView> {
     // Determine border color for current month dates
     final borderColor = colorScheme.onSurface.withValues(alpha: 0.08);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        // NO margin - cells touch seamlessly
-        margin: EdgeInsets.zero,
-        // Border on all sides - cells will share borders perfectly
-        decoration: BoxDecoration(
-          color: isToday
-              ? colorScheme.primaryContainer.withValues(alpha: 0.1)
-              : Colors.transparent,
-          border: Border.all(
-            color: borderColor,
-            width: 0.5,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: colorScheme.primary.withValues(alpha: 0.1),
+        highlightColor: colorScheme.primary.withValues(alpha: 0.05),
+        child: Container(
+          // NO margin - cells touch seamlessly
+          margin: EdgeInsets.zero,
+          // Border on all sides - cells will share borders perfectly
+          decoration: BoxDecoration(
+            color: isToday
+                ? colorScheme.primaryContainer.withValues(alpha: 0.1)
+                : Colors.transparent,
+            border: Border.all(
+              color: borderColor,
+              width: 0.5,
+            ),
           ),
-        ),
         child: Padding(
           // Internal padding for content - reduced to move date numbers closer to corner
           padding: const EdgeInsets.all(4.0),
@@ -378,36 +401,91 @@ class _CalendarViewState extends State<_CalendarView> {
                 ),
               ),
 
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
 
-              // Event preview space - placeholder for future implementation
-              // This space allows for 2-3 event indicator bars
+              // Event indicators with titles
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // TODO: Replace with actual event indicators when events are implemented
-                    // Example format:
-                    // - Small colored bars (3-4px height) with event titles
-                    // - Maximum 3 events shown, "+X more" indicator
-                    // - Different colors per calendar/event type
-
-                    // Placeholder to demonstrate space available
-                    // Remove these when implementing actual events
-                    if (day.day % 5 == 0)
-                      Container(
-                        height: 4,
-                        margin: const EdgeInsets.only(bottom: 2),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(2),
+                    if (hasEvents) ...[
+                      // Show up to 2 event titles, then "+X more" indicator
+                      if (events.length <= 2)
+                        ...events.map(
+                          (event) => Container(
+                            height: 16,
+                            margin: const EdgeInsets.only(bottom: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(
+                              event.title,
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w500,
+                                color: colorScheme.onPrimary,
+                                height: 1.0,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                      else ...[
+                        // Show first 2 events
+                        ...events.take(2).map(
+                          (event) => Container(
+                            height: 16,
+                            margin: const EdgeInsets.only(bottom: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(
+                              event.title,
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w500,
+                                color: colorScheme.onPrimary,
+                                height: 1.0,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ),
-                      ),
+                        // "+X more" indicator
+                        Container(
+                          height: 14,
+                          margin: const EdgeInsets.only(bottom: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: Text(
+                            '+${events.length - 2} more',
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onPrimaryContainer,
+                              height: 1.0,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.clip,
+                          ),
+                        ),
+                      ],
+                    ],
                   ],
                 ),
               ),
             ],
           ),
+        ),
         ),
       ),
     );

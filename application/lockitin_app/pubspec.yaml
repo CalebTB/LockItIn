@@ -42,7 +42,6 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # Assets (uncomment when you add assets)
-  # assets:
-  #   - assets/images/
-  #   - assets/icons/
+  # Assets
+  assets:
+    - assets/lockitin_events/lockitin-holiday-events.json
