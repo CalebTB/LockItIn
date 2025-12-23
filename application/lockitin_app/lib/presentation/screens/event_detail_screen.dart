@@ -277,12 +277,14 @@ class EventDetailScreen extends StatelessWidget {
                 isAllDay
                     ? DateFormat('EEEE, MMMM d, yyyy').format(event.startTime)
                     : DateFormat('EEEE, MMMM d, yyyy · h:mm a').format(event.startTime),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: colorScheme.onSurface,
-                  ),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: colorScheme.onSurface,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
+            ),
             ],
           ),
 
@@ -307,9 +309,11 @@ class EventDetailScreen extends StatelessWidget {
                       ? DateFormat('EEEE, MMMM d, yyyy').format(event.endTime)
                       : DateFormat('EEEE, MMMM d, yyyy · h:mm a').format(event.endTime),
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     color: colorScheme.onSurface,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
