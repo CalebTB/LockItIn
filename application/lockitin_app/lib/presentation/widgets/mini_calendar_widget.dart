@@ -48,7 +48,6 @@ class MiniCalendarWidget extends StatelessWidget {
               );
             }).toList(),
           ),
-          const SizedBox(height: 8),
 
           // Calendar grid
           GridView.builder(
