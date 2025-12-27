@@ -13,6 +13,17 @@
 -- Last updated: December 27, 2025
 
 -- ============================================================================
+-- RESET (uncomment to drop and recreate everything)
+-- ============================================================================
+
+-- Drop existing objects to start fresh
+DROP FUNCTION IF EXISTS get_friends(UUID);
+DROP FUNCTION IF EXISTS get_pending_requests(UUID);
+DROP FUNCTION IF EXISTS are_friends(UUID, UUID);
+DROP TABLE IF EXISTS friendships;
+DROP TYPE IF EXISTS friendship_status;
+
+-- ============================================================================
 -- FRIENDSHIPS TABLE
 -- ============================================================================
 
