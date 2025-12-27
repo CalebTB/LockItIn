@@ -88,4 +88,32 @@ class CalendarUtils {
         return AppColors.categoryOther;
     }
   }
+
+  /// Get icon for event category
+  static IconData getCategoryIcon(EventCategory category) {
+    switch (category) {
+      case EventCategory.work:
+        return Icons.work;
+      case EventCategory.holiday:
+        return Icons.celebration;
+      case EventCategory.friend:
+        return Icons.people;
+      case EventCategory.other:
+        return Icons.event;
+    }
+  }
+
+  /// Check if event is all-day (spans midnight to end of day)
+  /// An event is considered all-day if:
+  /// - It starts at 00:00 and ends at 23:59, OR
+  /// - Duration is exactly 24 hours or more
+  static bool isAllDayEvent(EventModel event) {
+    final duration = event.endTime.difference(event.startTime);
+    final isExactly24Hours = duration.inHours == 24 || duration.inDays >= 1;
+    final startsMidnight = event.startTime.hour == 0 && event.startTime.minute == 0;
+    final endsMidnight = event.endTime.hour == 0 && event.endTime.minute == 0;
+    final endsEndOfDay = event.endTime.hour == 23 && event.endTime.minute == 59;
+
+    return isExactly24Hours || (startsMidnight && endsMidnight) || (startsMidnight && endsEndOfDay);
+  }
 }

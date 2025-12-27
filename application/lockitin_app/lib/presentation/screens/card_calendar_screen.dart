@@ -59,18 +59,6 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
     _scrollToSelectedDay();
   }
 
-  void _previousMonth() {
-    setState(() {
-      _selectedDate = DateTime(_selectedDate.year, _selectedDate.month - 1, 1);
-    });
-  }
-
-  void _nextMonth() {
-    setState(() {
-      _selectedDate = DateTime(_selectedDate.year, _selectedDate.month + 1, 1);
-    });
-  }
-
   /// Handle event creation with dual-write to native calendar and Supabase
   Future<void> _handleCreateEvent(CalendarProvider provider) async {
     // Navigate to event creation screen with selected date
@@ -168,7 +156,6 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final provider = context.watch<CalendarProvider>();
-    final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: colorScheme.surface.withValues(alpha: 0.95),
@@ -647,7 +634,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
-                    _getCategoryIcon(event.category),
+                    CalendarUtils.getCategoryIcon(event.category),
                     color: Colors.white,
                     size: 24,
                   ),
@@ -732,20 +719,6 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
         ),
       ),
     );
-  }
-
-  /// Get icon for event category
-  IconData _getCategoryIcon(EventCategory category) {
-    switch (category) {
-      case EventCategory.work:
-        return Icons.work;
-      case EventCategory.holiday:
-        return Icons.celebration;
-      case EventCategory.friend:
-        return Icons.people;
-      case EventCategory.other:
-        return Icons.event;
-    }
   }
 
   /// Calculate total events by category for current month

@@ -67,4 +67,16 @@ class PrivacyColors {
         return Icons.remove_red_eye_outlined;
     }
   }
+
+  /// Get privacy background color (for badges)
+  static Color getPrivacyBackgroundColor(EventVisibility visibility) {
+    switch (visibility) {
+      case EventVisibility.private:
+        return Colors.red.shade100;
+      case EventVisibility.sharedWithName:
+        return Colors.green.shade100;
+      case EventVisibility.busyOnly:
+        return Colors.orange.shade100;
+    }
+  }
 }

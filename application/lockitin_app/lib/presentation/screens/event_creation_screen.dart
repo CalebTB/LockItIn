@@ -448,35 +448,37 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        Column(
-          children: EventVisibility.values.map((visibility) {
-            final isSelected = _visibility == visibility;
-            return RadioListTile<EventVisibility>(
-              value: visibility,
-              groupValue: _visibility,
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _visibility = value);
-                }
-              },
-              title: Text(
-                _getVisibilityLabel(visibility),
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+        RadioGroup<EventVisibility>(
+          groupValue: _visibility,
+          onChanged: (value) {
+            if (value != null) {
+              setState(() => _visibility = value);
+            }
+          },
+          child: Column(
+            children: EventVisibility.values.map((visibility) {
+              final isSelected = _visibility == visibility;
+              return RadioListTile<EventVisibility>(
+                value: visibility,
+                title: Text(
+                  _getVisibilityLabel(visibility),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  ),
                 ),
-              ),
-              subtitle: Text(
-                _getVisibilityDescription(visibility),
-                style: TextStyle(
-                  fontSize: 13,
-                  color: colorScheme.onSurface.withValues(alpha: 0.6),
+                subtitle: Text(
+                  _getVisibilityDescription(visibility),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
                 ),
-              ),
-              activeColor: colorScheme.primary,
-              contentPadding: EdgeInsets.zero,
-            );
-          }).toList(),
+                activeColor: colorScheme.primary,
+                contentPadding: EdgeInsets.zero,
+              );
+            }).toList(),
+          ),
         ),
       ],
     );

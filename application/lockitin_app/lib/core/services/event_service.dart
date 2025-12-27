@@ -21,7 +21,21 @@ class EventServiceException implements Exception {
 
 /// Service for managing events with dual-write to native calendar and Supabase
 /// Handles synchronization between Apple Calendar/Google Calendar and Supabase database
+///
+/// Uses singleton pattern - access via [EventService.instance] or constructor
 class EventService {
+  // Singleton instance
+  static final EventService _instance = EventService._internal();
+
+  /// Access the singleton instance
+  static EventService get instance => _instance;
+
+  /// Factory constructor returns singleton
+  factory EventService() => _instance;
+
+  /// Private internal constructor
+  EventService._internal();
+
   final CalendarManager _calendarManager = CalendarManager();
 
   /// Create event in both native calendar and Supabase

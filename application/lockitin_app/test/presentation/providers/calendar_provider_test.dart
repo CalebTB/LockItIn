@@ -205,24 +205,6 @@ void main() {
   });
 
   group('CalendarProvider - Event Parsing and Indexing', () {
-    // Helper to create test events
-    EventModel createTestEvent({
-      required String id,
-      required DateTime startTime,
-      required String title,
-      int durationMinutes = 60,
-    }) {
-      return EventModel(
-        id: id,
-        userId: 'test_user',
-        title: title,
-        startTime: startTime,
-        endTime: startTime.add(Duration(minutes: durationMinutes)),
-        visibility: EventVisibility.private,
-        createdAt: DateTime.now(),
-      );
-    }
-
     test('should generate correct date keys for event indexing', () {
       final provider = CalendarProvider();
 

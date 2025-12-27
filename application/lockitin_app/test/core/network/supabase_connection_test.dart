@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lockitin_app/core/network/supabase_client.dart';
 import 'package:lockitin_app/core/utils/supabase_test_utils.dart';
@@ -21,8 +22,8 @@ void main() {
       try {
         await SupabaseClientManager.initialize();
       } catch (e) {
-        print('Supabase initialization failed: $e');
-        print('This is expected if running without proper setup');
+        debugPrint('Supabase initialization failed: $e');
+        debugPrint('This is expected if running without proper setup');
       }
     });
 
@@ -47,22 +48,22 @@ void main() {
       final result = await SupabaseTestUtils.testConnection();
       // This might fail if not connected to internet or Supabase is down
       // Don't enforce this in automated tests
-      print('Connection test result: $result');
+      debugPrint('Connection test result: $result');
     }, skip: 'Manual verification only');
 
     test('Events table test', () async {
       final result = await SupabaseTestUtils.testEventsTable();
-      print('Events table test result: $result');
+      debugPrint('Events table test result: $result');
     }, skip: 'Manual verification only');
 
     test('Authentication test', () async {
       final result = await SupabaseTestUtils.testAuth();
-      print('Authentication test result: $result');
+      debugPrint('Authentication test result: $result');
     }, skip: 'Manual verification only');
 
     test('Insert/Delete test', () async {
       final result = await SupabaseTestUtils.testInsertAndDelete();
-      print('Insert/Delete test result: $result');
+      debugPrint('Insert/Delete test result: $result');
     }, skip: 'Manual verification only');
   });
 
@@ -71,19 +72,19 @@ void main() {
       try {
         await SupabaseClientManager.initialize();
       } catch (e) {
-        print('Initialization error: $e');
+        debugPrint('Initialization error: $e');
       }
 
       SupabaseTestUtils.printConfigInfo();
-      print('');
+      debugPrint('');
 
       final results = await SupabaseTestUtils.runAllTests();
 
       // Print results
-      print('');
-      print('Test Results:');
+      debugPrint('');
+      debugPrint('Test Results:');
       results.forEach((test, passed) {
-        print('  $test: ${passed ? "✅ PASS" : "❌ FAIL"}');
+        debugPrint('  $test: ${passed ? "✅ PASS" : "❌ FAIL"}');
       });
     }, skip: 'Manual verification only - enable this to run full diagnostics');
   });
