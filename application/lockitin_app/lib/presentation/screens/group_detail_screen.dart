@@ -64,20 +64,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     super.dispose();
   }
 
-  /// Get heatmap color based on availability ratio
-  Color _getHeatmapColor(int available, int total) {
-    if (total == 0) return _rose950;
-    final ratio = available / total;
-    if (ratio >= 1.0) return _orange400; // 100% - Perfect (gradient effect handled separately)
-    if (ratio >= 0.875) return _rose400;
-    if (ratio >= 0.75) return _rose500;
-    if (ratio >= 0.625) return _rose600;
-    if (ratio >= 0.5) return _rose700;
-    if (ratio >= 0.375) return _rose800;
-    if (ratio >= 0.25) return _rose900;
-    return _rose950;
-  }
-
   /// Get text color for heatmap cell - always white for readability
   Color _getHeatmapTextColor(int available, int total) {
     return Colors.white;
@@ -419,8 +405,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     final available = _getAvailabilityForDay(calendarProvider, date);
                     final isSelected = _selectedDay == dayNumber &&
                         month.month == _focusedMonth.month;
-                    final bgColor = _getHeatmapColor(available, totalMembers);
                     final textColor = _getHeatmapTextColor(available, totalMembers);
+
+                    // Check if fully available (use gradient) or busy (solid color)
+                    final isFullyAvailable = available == totalMembers && totalMembers > 0;
 
                     return GestureDetector(
                       onTap: () {
@@ -432,7 +420,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
                         decoration: BoxDecoration(
-                          color: bgColor,
+                          // Use gradient for available, solid color for busy
+                          gradient: isFullyAvailable
+                              ? const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [_rose400, _orange400],
+                                )
+                              : null,
+                          color: isFullyAvailable ? null : _rose950,
                           borderRadius: BorderRadius.circular(8),
                           border: isSelected
                               ? Border.all(color: _orange400, width: 2)
