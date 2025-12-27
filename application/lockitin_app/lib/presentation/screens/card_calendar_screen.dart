@@ -3,7 +3,9 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/calendar_provider.dart';
 import '../../data/models/event_model.dart';
+import '../../core/services/event_service.dart';
 import '../../utils/calendar_utils.dart';
+import 'event_creation_screen.dart';
 import 'event_detail_screen.dart';
 
 /// Card-based calendar view with horizontal day selector
@@ -69,6 +71,99 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
     });
   }
 
+  /// Handle event creation with dual-write to native calendar and Supabase
+  Future<void> _handleCreateEvent(CalendarProvider provider) async {
+    // Navigate to event creation screen with selected date
+    final result = await Navigator.of(context).push<EventModel>(
+      MaterialPageRoute(
+        builder: (context) => EventCreationScreen(initialDate: _selectedDate),
+      ),
+    );
+
+    // If user canceled, return early
+    if (result == null || !mounted) return;
+
+    // Show loading dialog
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Saving event...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    try {
+      // Create event using EventService (dual-write)
+      final eventService = EventService();
+      final savedEvent = await eventService.createEvent(result);
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Add event to provider for immediate UI update
+      provider.addEvent(savedEvent);
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Event "${savedEvent.title}" created successfully'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } on EventServiceException catch (e) {
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create event: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -122,9 +217,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
 
       // Floating Action Button
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Navigate to create event screen
-        },
+        onPressed: () => _handleCreateEvent(provider),
         backgroundColor: colorScheme.primary,
         child: const Icon(Icons.add, size: 28),
       ),
