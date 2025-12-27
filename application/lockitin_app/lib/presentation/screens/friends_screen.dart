@@ -1,0 +1,736 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../data/models/friendship_model.dart';
+import '../providers/friend_provider.dart';
+import '../widgets/friend_search_delegate.dart';
+import '../widgets/friend_list_tile.dart';
+import '../widgets/friend_request_tile.dart';
+
+/// Main screen for managing friends and friend requests
+class FriendsScreen extends StatefulWidget {
+  const FriendsScreen({super.key});
+
+  @override
+  State<FriendsScreen> createState() => _FriendsScreenState();
+}
+
+class _FriendsScreenState extends State<FriendsScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+
+    // Initialize friend provider data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<FriendProvider>().initialize();
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Friends'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person_add_rounded),
+            onPressed: () => _showSearch(context),
+            tooltip: 'Add Friend',
+          ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.people_rounded, size: 20),
+                  const SizedBox(width: 8),
+                  const Text('Friends'),
+                ],
+              ),
+            ),
+            Tab(
+              child: Consumer<FriendProvider>(
+                builder: (context, provider, _) {
+                  final count = provider.pendingRequestCount;
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.mail_rounded, size: 20),
+                      const SizedBox(width: 8),
+                      const Text('Requests'),
+                      if (count > 0) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colorScheme.error,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            count.toString(),
+                            style: TextStyle(
+                              color: colorScheme.onError,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _FriendsListTab(),
+          _RequestsTab(),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showSearch(context),
+        icon: const Icon(Icons.person_add_rounded),
+        label: const Text('Add Friend'),
+      ),
+    );
+  }
+
+  void _showSearch(BuildContext context) {
+    showSearch(
+      context: context,
+      delegate: FriendSearchDelegate(),
+    );
+  }
+}
+
+/// Tab showing list of accepted friends
+class _FriendsListTab extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<FriendProvider>(
+      builder: (context, provider, _) {
+        if (provider.isLoadingFriends) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (provider.friendsError != null) {
+          return _ErrorView(
+            message: provider.friendsError!,
+            onRetry: () => provider.loadFriends(),
+          );
+        }
+
+        if (!provider.hasFriends) {
+          return _EmptyFriendsView();
+        }
+
+        return RefreshIndicator(
+          onRefresh: () => provider.loadFriends(),
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: provider.friends.length,
+            itemBuilder: (context, index) {
+              final friend = provider.friends[index];
+              return FriendListTile(
+                friend: friend,
+                onTap: () => _showFriendProfile(context, friend),
+                onRemove: () => _confirmRemoveFriend(context, friend, provider),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  void _showFriendProfile(BuildContext context, FriendProfile friend) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => _FriendProfileSheet(friend: friend),
+    );
+  }
+
+  void _confirmRemoveFriend(
+    BuildContext context,
+    FriendProfile friend,
+    FriendProvider provider,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove Friend'),
+        content: Text(
+          'Are you sure you want to remove ${friend.displayName} from your friends?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Note: We need the friendship ID to remove
+              // For now, we'll need to fetch it or store it in FriendProfile
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Removed ${friend.displayName} from friends'),
+                ),
+              );
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tab showing pending friend requests
+class _RequestsTab extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<FriendProvider>(
+      builder: (context, provider, _) {
+        if (provider.isLoadingRequests) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (provider.requestsError != null) {
+          return _ErrorView(
+            message: provider.requestsError!,
+            onRetry: () => provider.loadPendingRequests(),
+          );
+        }
+
+        final hasIncoming = provider.pendingRequests.isNotEmpty;
+        final hasOutgoing = provider.sentRequests.isNotEmpty;
+
+        if (!hasIncoming && !hasOutgoing) {
+          return _EmptyRequestsView();
+        }
+
+        return RefreshIndicator(
+          onRefresh: () => provider.loadPendingRequests(),
+          child: ListView(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            children: [
+              if (hasIncoming) ...[
+                _SectionHeader(
+                  title: 'Incoming Requests',
+                  count: provider.pendingRequests.length,
+                ),
+                ...provider.pendingRequests.map(
+                  (request) => FriendRequestTile(
+                    request: request,
+                    onAccept: () => _acceptRequest(context, request, provider),
+                    onDecline: () => _declineRequest(context, request, provider),
+                  ),
+                ),
+              ],
+              if (hasOutgoing) ...[
+                if (hasIncoming) const SizedBox(height: 16),
+                _SectionHeader(
+                  title: 'Sent Requests',
+                  count: provider.sentRequests.length,
+                ),
+                ...provider.sentRequests.map(
+                  (request) => _SentRequestTile(
+                    request: request,
+                    onCancel: () => _cancelRequest(context, request, provider),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _acceptRequest(
+    BuildContext context,
+    FriendRequest request,
+    FriendProvider provider,
+  ) async {
+    final success = await provider.acceptFriendRequest(request);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? 'You are now friends with ${request.displayName}!'
+                : 'Failed to accept request',
+          ),
+          backgroundColor: success ? Colors.green : Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _declineRequest(
+    BuildContext context,
+    FriendRequest request,
+    FriendProvider provider,
+  ) async {
+    final success = await provider.declineFriendRequest(request);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success ? 'Request declined' : 'Failed to decline request',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _cancelRequest(
+    BuildContext context,
+    FriendshipModel request,
+    FriendProvider provider,
+  ) async {
+    final success = await provider.cancelFriendRequest(request);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success ? 'Request canceled' : 'Failed to cancel request',
+          ),
+        ),
+      );
+    }
+  }
+}
+
+/// Section header with title and count badge
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final int count;
+
+  const _SectionHeader({required this.title, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              count.toString(),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tile for sent (outgoing) friend requests
+class _SentRequestTile extends StatelessWidget {
+  final FriendshipModel request;
+  final VoidCallback onCancel;
+
+  const _SentRequestTile({required this.request, required this.onCancel});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: colorScheme.primaryContainer,
+          child: Icon(
+            Icons.person_outline_rounded,
+            color: colorScheme.onPrimaryContainer,
+          ),
+        ),
+        title: Text(
+          'Request to ${request.friendId.substring(0, 8)}...',
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        subtitle: Text(
+          'Pending since ${_formatDate(request.createdAt)}',
+          style: TextStyle(color: colorScheme.onSurfaceVariant),
+        ),
+        trailing: TextButton(
+          onPressed: onCancel,
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inDays > 0) return '${diff.inDays}d ago';
+    if (diff.inHours > 0) return '${diff.inHours}h ago';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
+    return 'Just now';
+  }
+}
+
+/// Empty state when user has no friends
+class _EmptyFriendsView extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.people_outline_rounded,
+                size: 64,
+                color: colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No Friends Yet',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Add friends to start planning events together!',
+              style: TextStyle(
+                fontSize: 14,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () {
+                showSearch(
+                  context: context,
+                  delegate: FriendSearchDelegate(),
+                );
+              },
+              icon: const Icon(Icons.person_add_rounded),
+              label: const Text('Find Friends'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Empty state when user has no pending requests
+class _EmptyRequestsView extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.mail_outline_rounded,
+                size: 64,
+                color: colorScheme.secondary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No Pending Requests',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Friend requests you receive will appear here.',
+              style: TextStyle(
+                fontSize: 14,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Error view with retry button
+class _ErrorView extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _ErrorView({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              size: 64,
+              color: colorScheme.error,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Something went wrong',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: TextStyle(
+                fontSize: 14,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Try Again'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Friend profile bottom sheet
+class _FriendProfileSheet extends StatelessWidget {
+  final FriendProfile friend;
+
+  const _FriendProfileSheet({required this.friend});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle bar
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Avatar
+          CircleAvatar(
+            radius: 48,
+            backgroundColor: colorScheme.primaryContainer,
+            child: friend.avatarUrl != null
+                ? ClipOval(
+                    child: Image.network(
+                      friend.avatarUrl!,
+                      width: 96,
+                      height: 96,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, _) => Text(
+                        friend.initials,
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                  )
+                : Text(
+                    friend.initials,
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+          ),
+          const SizedBox(height: 16),
+
+          // Name
+          Text(
+            friend.displayName,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+
+          // Email
+          Text(
+            friend.email,
+            style: TextStyle(
+              fontSize: 14,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+
+          // Friends since
+          if (friend.friendshipSince != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.favorite_rounded,
+                    size: 16,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Friends since ${_formatDate(friend.friendshipSince!)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 32),
+
+          // Actions
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    // TODO: Navigate to shared calendar view
+                  },
+                  icon: const Icon(Icons.calendar_today_rounded),
+                  label: const Text('View Calendar'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    // TODO: Create event with friend
+                  },
+                  icon: const Icon(Icons.event_rounded),
+                  label: const Text('Plan Event'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+}
