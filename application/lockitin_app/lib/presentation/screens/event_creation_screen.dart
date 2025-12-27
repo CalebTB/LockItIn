@@ -472,16 +472,8 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
       createdAt: DateTime.now(),
     );
 
-    // TODO: Save event to database/provider
-    // For now, just pop with the event
+    // Return the event to the caller (calendar screen will add it to provider)
     Navigator.of(context).pop(event);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Event created successfully'),
-        backgroundColor: Colors.green,
-      ),
-    );
   }
 
   /// Get visibility label

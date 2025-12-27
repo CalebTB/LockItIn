@@ -231,4 +231,33 @@ class CalendarProvider extends ChangeNotifier {
   Future<void> refreshEvents() async {
     await _loadEvents();
   }
+
+  /// Add a new event to the calendar
+  void addEvent(EventModel event) {
+    final dateKey = _dateKey(event.startTime);
+
+    if (_eventsByDate.containsKey(dateKey)) {
+      _eventsByDate[dateKey]!.add(event);
+      // Sort events by start time
+      _eventsByDate[dateKey]!.sort((a, b) => a.startTime.compareTo(b.startTime));
+    } else {
+      _eventsByDate[dateKey] = [event];
+    }
+
+    notifyListeners();
+  }
+
+  /// Remove an event from the calendar
+  void removeEvent(String eventId, DateTime eventDate) {
+    final dateKey = _dateKey(eventDate);
+
+    if (_eventsByDate.containsKey(dateKey)) {
+      _eventsByDate[dateKey]!.removeWhere((event) => event.id == eventId);
+      if (_eventsByDate[dateKey]!.isEmpty) {
+        _eventsByDate.remove(dateKey);
+      }
+    }
+
+    notifyListeners();
+  }
 }
