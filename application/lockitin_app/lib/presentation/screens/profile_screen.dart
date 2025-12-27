@@ -411,7 +411,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onChanged: (value) {
                           context.read<SettingsProvider>().setColorBlindPalette(value);
                         },
-                        activeColor: colorScheme.primary,
+                        activeTrackColor: colorScheme.primary.withValues(alpha: 0.5),
                       ),
                     ),
                     const SizedBox(height: 24),

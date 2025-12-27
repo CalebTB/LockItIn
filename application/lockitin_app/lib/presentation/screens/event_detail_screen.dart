@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/event_model.dart';
 import '../../core/services/event_service.dart';
+import '../../utils/calendar_utils.dart';
+import '../../utils/privacy_colors.dart';
 import '../providers/calendar_provider.dart';
 import 'event_creation_screen.dart';
 
@@ -163,25 +165,25 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
   /// Build privacy badge showing event visibility setting
   Widget _buildPrivacyBadge(BuildContext context, ColorScheme colorScheme) {
-    final privacyInfo = _getPrivacyInfo(_currentEvent.visibility);
+    final visibility = _currentEvent.visibility;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: privacyInfo['color'] as Color,
+        color: PrivacyColors.getPrivacyBackgroundColor(visibility),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            privacyInfo['icon'] as IconData,
+            PrivacyColors.getPrivacyIcon(visibility),
             size: 18,
             color: colorScheme.onPrimaryContainer,
           ),
           const SizedBox(width: 6),
           Text(
-            privacyInfo['label'] as String,
+            PrivacyColors.getPrivacyLabel(visibility),
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -191,30 +193,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         ],
       ),
     );
-  }
-
-  /// Get privacy badge icon, label, and color based on visibility
-  Map<String, dynamic> _getPrivacyInfo(EventVisibility visibility) {
-    switch (visibility) {
-      case EventVisibility.private:
-        return {
-          'icon': Icons.lock,
-          'label': 'Private',
-          'color': Colors.red.shade100,
-        };
-      case EventVisibility.sharedWithName:
-        return {
-          'icon': Icons.people,
-          'label': 'Shared with Details',
-          'color': Colors.green.shade100,
-        };
-      case EventVisibility.busyOnly:
-        return {
-          'icon': Icons.visibility_off,
-          'label': 'Busy Only',
-          'color': Colors.orange.shade100,
-        };
-    }
   }
 
   /// Build an information section with icon, title, and content
@@ -266,8 +244,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
   /// Build date and time content with formatting
   Widget _buildDateTimeContent(BuildContext context, ColorScheme colorScheme) {
-    final isAllDay = _isAllDayEvent(_currentEvent);
-    final isSameDay = _isSameDay(_currentEvent.startTime, _currentEvent.endTime);
+    final isAllDay = CalendarUtils.isAllDayEvent(_currentEvent);
+    final isSameDay = CalendarUtils.isSameDay(_currentEvent.startTime, _currentEvent.endTime);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -405,21 +383,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         ),
       ],
     );
-  }
-
-  /// Check if event is all-day (spans exactly 24 hours or midnight to midnight)
-  bool _isAllDayEvent(EventModel event) {
-    final duration = event.endTime.difference(event.startTime);
-    final isExactly24Hours = duration.inHours == 24 || duration.inDays >= 1;
-    final startsMidnight = event.startTime.hour == 0 && event.startTime.minute == 0;
-    final endsMidnight = event.endTime.hour == 0 && event.endTime.minute == 0;
-
-    return isExactly24Hours || (startsMidnight && endsMidnight);
-  }
-
-  /// Check if two dates are on the same day
-  bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
   /// Handle edit button press - navigate to edit screen

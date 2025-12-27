@@ -12,7 +12,6 @@ void main() {
       // Create an event that started 1 hour ago
       final now = DateTime.now();
       final pastStartTime = now.subtract(const Duration(hours: 1));
-      final pastEndTime = now.add(const Duration(hours: 1));
 
       // This event should be rejected because start time is in the past
       expect(pastStartTime.isBefore(now), true,
