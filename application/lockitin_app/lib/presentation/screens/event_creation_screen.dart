@@ -36,7 +36,12 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
   late TimeOfDay _startTime;
   late TimeOfDay _endTime;
   EventVisibility _visibility = EventVisibility.sharedWithName;
+  EventCategory _category = EventCategory.other;
+  String _emoji = '🎯'; // Default emoji
   bool _isAllDay = false;
+
+  // Available emojis for selection
+  static const List<String> _availableEmojis = ['🎯', '💻', '🦃', '🎮', '🎉'];
 
   @override
   void initState() {
@@ -53,6 +58,8 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
       _startTime = TimeOfDay.fromDateTime(event.startTime);
       _endTime = TimeOfDay.fromDateTime(event.endTime);
       _visibility = event.visibility;
+      _category = event.category;
+      _emoji = event.emoji ?? _getDefaultEmoji(event.category);
       // Check if it's an all-day event (starts at midnight and ends at 23:59)
       _isAllDay = event.startTime.hour == 0 &&
                   event.startTime.minute == 0 &&
@@ -128,6 +135,16 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
                 return null;
               },
             ),
+
+            const SizedBox(height: 20),
+
+            // Category picker
+            _buildCategoryPicker(colorScheme),
+
+            const SizedBox(height: 20),
+
+            // Emoji picker
+            _buildEmojiPicker(colorScheme),
 
             const SizedBox(height: 20),
 
@@ -652,6 +669,8 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
         endTime: endDateTime,
         location: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
         visibility: _visibility,
+        category: _category,
+        emoji: _emoji,
         updatedAt: DateTime.now(),
       );
     } else {
@@ -666,6 +685,8 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
         endTime: endDateTime,
         location: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
         visibility: _visibility,
+        category: _category,
+        emoji: _emoji,
         nativeCalendarId: null,
         createdAt: DateTime.now(),
       );
@@ -696,6 +717,177 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
         return 'Friends can see event name and time';
       case EventVisibility.busyOnly:
         return 'Friends see you\'re busy without details';
+    }
+  }
+
+  /// Build category picker
+  Widget _buildCategoryPicker(ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Category',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: colorScheme.onSurface.withValues(alpha: 0.7),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: EventCategory.values.map((category) {
+            final isSelected = _category == category;
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  right: category != EventCategory.other ? 8 : 0,
+                ),
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _category = category;
+                      // Update emoji to match category default
+                      _emoji = _getDefaultEmoji(category);
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? _getCategoryColor(category).withValues(alpha: 0.2)
+                          : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected
+                            ? _getCategoryColor(category)
+                            : colorScheme.onSurface.withValues(alpha: 0.1),
+                        width: isSelected ? 2 : 1,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          _getDefaultEmoji(category),
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _getCategoryLabel(category),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                            color: isSelected
+                                ? _getCategoryColor(category)
+                                : colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  /// Build emoji picker
+  Widget _buildEmojiPicker(ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Icon',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: colorScheme.onSurface.withValues(alpha: 0.7),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: _availableEmojis.map((emoji) {
+            final isSelected = _emoji == emoji;
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  right: emoji != _availableEmojis.last ? 8 : 0,
+                ),
+                child: InkWell(
+                  onTap: () => setState(() => _emoji = emoji),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? colorScheme.primary.withValues(alpha: 0.1)
+                          : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected
+                            ? colorScheme.primary
+                            : colorScheme.onSurface.withValues(alpha: 0.1),
+                        width: isSelected ? 2 : 1,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        emoji,
+                        style: const TextStyle(fontSize: 24),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  /// Get default emoji for a category
+  String _getDefaultEmoji(EventCategory category) {
+    switch (category) {
+      case EventCategory.work:
+        return '💻';
+      case EventCategory.holiday:
+        return '🦃';
+      case EventCategory.friend:
+        return '🎮';
+      case EventCategory.other:
+        return '🎯';
+    }
+  }
+
+  /// Get category label
+  String _getCategoryLabel(EventCategory category) {
+    switch (category) {
+      case EventCategory.work:
+        return 'Work';
+      case EventCategory.holiday:
+        return 'Holiday';
+      case EventCategory.friend:
+        return 'Friend';
+      case EventCategory.other:
+        return 'Other';
+    }
+  }
+
+  /// Get category color for UI
+  Color _getCategoryColor(EventCategory category) {
+    switch (category) {
+      case EventCategory.work:
+        return const Color(0xFF14B8A6); // Teal
+      case EventCategory.holiday:
+        return const Color(0xFFF97316); // Orange
+      case EventCategory.friend:
+        return const Color(0xFF8B5CF6); // Violet
+      case EventCategory.other:
+        return const Color(0xFFEC4899); // Pink
     }
   }
 }
