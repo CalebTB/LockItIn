@@ -229,7 +229,7 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
   Widget _buildGroupsTab() {
     return Consumer<GroupProvider>(
       builder: (context, groupProvider, child) {
-        if (groupProvider.isLoadingGroups) {
+        if (groupProvider.isLoadingGroups && groupProvider.groups.isEmpty) {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(32),
@@ -240,22 +240,26 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
           );
         }
 
-        if (groupProvider.groupsError != null) {
+        if (groupProvider.groupsError != null && groupProvider.groups.isEmpty) {
           return _buildErrorState(groupProvider.groupsError!, isGroups: true);
         }
 
-        if (groupProvider.groups.isEmpty) {
-          return _buildEmptyState();
-        }
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: Column(
-            children: [
-              ...groupProvider.groups.asMap().entries.map(
-                  (entry) => _buildGroupTile(context, entry.value, entry.key)),
-            ],
-          ),
+        return RefreshIndicator(
+          onRefresh: () => groupProvider.refresh(),
+          color: _rose400,
+          backgroundColor: _rose950,
+          child: groupProvider.groups.isEmpty
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [_buildEmptyState()],
+                )
+              : ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                  itemCount: groupProvider.groups.length,
+                  itemBuilder: (context, index) =>
+                      _buildGroupTile(context, groupProvider.groups[index], index),
+                ),
         );
       },
     );
@@ -264,7 +268,7 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
   Widget _buildInvitesTab() {
     return Consumer<GroupProvider>(
       builder: (context, provider, child) {
-        if (provider.isLoadingInvites) {
+        if (provider.isLoadingInvites && provider.pendingInvites.isEmpty) {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(32),
@@ -275,23 +279,26 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
           );
         }
 
-        if (provider.invitesError != null) {
+        if (provider.invitesError != null && provider.pendingInvites.isEmpty) {
           return _buildErrorState(provider.invitesError!, isGroups: false);
         }
 
-        if (provider.pendingInvites.isEmpty) {
-          return _buildEmptyInvitesState();
-        }
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-          child: Column(
-            children: provider.pendingInvites
-                .asMap()
-                .entries
-                .map((entry) => _buildInviteTile(context, entry.value, entry.key))
-                .toList(),
-          ),
+        return RefreshIndicator(
+          onRefresh: () => provider.loadPendingInvites(),
+          color: _rose400,
+          backgroundColor: _rose950,
+          child: provider.pendingInvites.isEmpty
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [_buildEmptyInvitesState()],
+                )
+              : ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                  itemCount: provider.pendingInvites.length,
+                  itemBuilder: (context, index) =>
+                      _buildInviteTile(context, provider.pendingInvites[index], index),
+                ),
         );
       },
     );
