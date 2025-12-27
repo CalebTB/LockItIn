@@ -78,13 +78,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     return _rose950;
   }
 
-  /// Get text color for heatmap cell
+  /// Get text color for heatmap cell - always white for readability
   Color _getHeatmapTextColor(int available, int total) {
-    if (total == 0) return _rose400;
-    final ratio = available / total;
-    if (ratio >= 0.5) return Colors.white;
-    if (ratio >= 0.25) return _rose200;
-    return _rose300;
+    return Colors.white;
   }
 
   void _previousMonth() {
@@ -466,7 +462,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               '$available/$totalMembers',
                               style: TextStyle(
                                 fontSize: 9,
-                                color: textColor.withValues(alpha: 0.7),
+                                fontWeight: FontWeight.w500,
+                                color: textColor,
                               ),
                             ),
                           ],
