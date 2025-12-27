@@ -7,6 +7,7 @@ import '../../data/models/event_model.dart';
 import '../../utils/calendar_utils.dart';
 import 'day_detail_screen.dart';
 import 'card_calendar_screen.dart';
+import 'event_creation_screen.dart';
 
 /// Calendar screen showing custom month grid view with horizontal swipe navigation
 /// Uses CalendarProvider for state management and caching
@@ -259,6 +260,35 @@ class _CalendarViewState extends State<_CalendarView> {
               ),
             ),
           ],
+        ),
+      ),
+      floatingActionButton: Consumer<CalendarProvider>(
+        builder: (context, provider, _) => FloatingActionButton(
+          onPressed: () async {
+            final result = await Navigator.of(context).push<EventModel>(
+              MaterialPageRoute(
+                builder: (context) => const EventCreationScreen(),
+              ),
+            );
+
+            // If an event was created, add it to the provider
+            if (result != null) {
+              provider.addEvent(result);
+
+              // Show success message
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Event "${result.title}" created successfully'),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
+            }
+          },
+          backgroundColor: colorScheme.primary,
+          child: const Icon(Icons.add, size: 28),
         ),
       ),
     );
