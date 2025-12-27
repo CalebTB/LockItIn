@@ -124,7 +124,7 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
     required Color shadowColor,
     required VoidCallback onTap,
   }) {
-    final double distance = 48.0 * (index + 1);
+    final double distance = 52.0 * (index + 1);
 
     return AnimatedBuilder(
       animation: _expandAnimation,
@@ -132,7 +132,7 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
         final progress = _expandAnimation.value;
         return Positioned(
           right: 4, // Keep buttons aligned to the right
-          bottom: 52 + (distance * progress),
+          bottom: 4 + (distance * progress),
           child: Opacity(
             opacity: progress,
             child: Transform.scale(
