@@ -5,6 +5,7 @@ import '../providers/calendar_provider.dart';
 import '../../domain/models/calendar_month.dart';
 import '../../utils/calendar_utils.dart';
 import 'day_detail_screen.dart';
+import 'event_creation_screen.dart';
 
 /// Calendar screen showing custom month grid view with horizontal swipe navigation
 /// Uses CalendarProvider for state management and caching
@@ -237,6 +238,17 @@ class _CalendarViewState extends State<_CalendarView> {
             ),
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const EventCreationScreen(),
+            ),
+          );
+        },
+        backgroundColor: colorScheme.primary,
+        child: const Icon(Icons.add, size: 28),
       ),
     );
   }
