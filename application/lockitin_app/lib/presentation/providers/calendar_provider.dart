@@ -3,7 +3,7 @@ import '../../domain/models/calendar_month.dart';
 import '../../utils/calendar_utils.dart';
 import '../../data/models/event_model.dart';
 import '../../core/services/calendar_manager.dart';
-import '../../core/services/holiday_service.dart';
+import '../../core/services/event_service.dart';
 import '../../core/services/test_events_service.dart';
 import '../../core/utils/logger.dart';
 
@@ -27,6 +27,9 @@ class CalendarProvider extends ChangeNotifier {
 
   /// Calendar manager for native calendar access
   final CalendarManager _calendarManager = CalendarManager();
+
+  /// Event service for Supabase sync
+  final EventService _eventService = EventService();
 
   /// Loading state for events
   bool _isLoadingEvents = false;
@@ -149,9 +152,10 @@ class CalendarProvider extends ChangeNotifier {
       final startDate = DateTime(now.year, now.month - 1, now.day);
       final endDate = DateTime(now.year, now.month + 2, now.day);
 
-      final holidays = await HolidayService.getHolidaysInRange(startDate, endDate);
-      allEvents.addAll(holidays);
-      Logger.info('Loaded ${holidays.length} holidays');
+      // DISABLED: Holidays disabled since we now sync from iOS Calendar
+      // final holidays = await HolidayService.getHolidaysInRange(startDate, endDate);
+      // allEvents.addAll(holidays);
+      // Logger.info('Loaded ${holidays.length} holidays');
 
       // Load test events for development (if enabled)
       if (TestEventsService.enableTestEvents) {
@@ -160,23 +164,46 @@ class CalendarProvider extends ChangeNotifier {
         Logger.info('Loaded ${testEvents.length} test events');
       }
 
+      // Fetch events from Supabase (user-specific, RLS-protected)
+      final supabaseEvents = await _eventService.fetchEventsFromSupabase(
+        startDate: startDate,
+        endDate: endDate,
+      );
+      allEvents.addAll(supabaseEvents);
+      Logger.info('Loaded ${supabaseEvents.length} events from Supabase');
+
+      // Track native calendar IDs from Supabase to avoid duplicates
+      final nativeCalendarIds = supabaseEvents
+          .where((e) => e.nativeCalendarId != null)
+          .map((e) => e.nativeCalendarId!)
+          .toSet();
+
       // Check permission for native calendar events
       final permission = await _calendarManager.checkPermission();
 
       if (permission == CalendarPermissionStatus.granted) {
         // Fetch events from native calendar
-        final events = await _calendarManager.fetchEvents(
+        final nativeEvents = await _calendarManager.fetchEvents(
           startDate: startDate,
           endDate: endDate,
         );
 
-        allEvents.addAll(events);
-        Logger.info('Loaded ${events.length} events from native calendar');
+        // Filter out events that are already in Supabase (avoid duplicates)
+        final newNativeEvents = nativeEvents.where((event) {
+          return event.nativeCalendarId == null ||
+              !nativeCalendarIds.contains(event.nativeCalendarId);
+        }).toList();
+
+        allEvents.addAll(newNativeEvents);
+        Logger.info(
+          'Loaded ${newNativeEvents.length} new events from native calendar '
+          '(${nativeEvents.length - newNativeEvents.length} duplicates filtered)',
+        );
       } else {
-        Logger.info('Calendar permission not granted, showing holidays only');
+        Logger.info('Calendar permission not granted, showing Supabase events only');
       }
 
-      // Index all events (holidays + native calendar events) by date
+      // Index all events (Supabase + native calendar events) by date
       _indexEventsByDate(allEvents);
 
       _isLoadingEvents = false;

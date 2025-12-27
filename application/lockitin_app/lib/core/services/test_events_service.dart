@@ -332,5 +332,5 @@ class TestEventsService {
 
   /// Check if test events should be loaded
   /// Set this to true during development, false for production
-  static const bool enableTestEvents = true;
+  static const bool enableTestEvents = false;
 }

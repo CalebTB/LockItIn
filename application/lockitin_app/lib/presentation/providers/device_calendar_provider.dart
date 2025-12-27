@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../../core/services/calendar_manager.dart';
+import '../../core/services/event_service.dart';
 import '../../core/utils/logger.dart';
 import '../../data/models/event_model.dart';
 
@@ -7,6 +8,7 @@ import '../../data/models/event_model.dart';
 /// Handles permission requests, event fetching, and calendar sync
 class DeviceCalendarProvider extends ChangeNotifier {
   final CalendarManager _calendarManager = CalendarManager();
+  final EventService _eventService = EventService();
 
   List<EventModel> _events = [];
   CalendarPermissionStatus _permissionStatus =
@@ -91,12 +93,40 @@ class DeviceCalendarProvider extends ChangeNotifier {
         'Fetching events from ${startDate.toIso8601String()} to ${endDate.toIso8601String()}',
       );
 
-      _events = await _calendarManager.fetchEvents(
+      final allEvents = <EventModel>[];
+
+      // Fetch from Supabase (user-specific, RLS-protected)
+      final supabaseEvents = await _eventService.fetchEventsFromSupabase(
+        startDate: startDate,
+        endDate: endDate,
+      );
+      allEvents.addAll(supabaseEvents);
+      Logger.info('Fetched ${supabaseEvents.length} events from Supabase');
+
+      // Track native calendar IDs to avoid duplicates
+      final nativeCalendarIds = supabaseEvents
+          .where((e) => e.nativeCalendarId != null)
+          .map((e) => e.nativeCalendarId!)
+          .toSet();
+
+      // Fetch from native calendar
+      final nativeEvents = await _calendarManager.fetchEvents(
         startDate: startDate,
         endDate: endDate,
       );
 
-      Logger.info('Fetched ${_events.length} events from device calendar');
+      // Filter out duplicates
+      final newNativeEvents = nativeEvents.where((event) {
+        return event.nativeCalendarId == null ||
+            !nativeCalendarIds.contains(event.nativeCalendarId);
+      }).toList();
+
+      allEvents.addAll(newNativeEvents);
+
+      Logger.info('Fetched ${nativeEvents.length} events from native calendar');
+      Logger.info('Total events after deduplication: ${allEvents.length}');
+
+      _events = allEvents;
     } catch (e) {
       Logger.error('Failed to fetch events: $e');
 

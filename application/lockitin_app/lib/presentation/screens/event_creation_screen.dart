@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../../data/models/event_model.dart';
+import '../providers/auth_provider.dart';
 
 /// Event creation screen with form for all event fields
 /// Includes title, date/time pickers, location, notes, and privacy settings
@@ -594,10 +597,26 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
       return;
     }
 
+    // Get authenticated user ID
+    final authProvider = context.read<AuthProvider>();
+    final userId = authProvider.currentUser?.id;
+
+    if (userId == null) {
+      // User not authenticated - this shouldn't happen but handle gracefully
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('You must be logged in to create events'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+      return;
+    }
+
     // Create event model
+    const uuid = Uuid();
     final event = EventModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      userId: 'current-user',
+      id: uuid.v4(),
+      userId: userId,
       title: _titleController.text.trim(),
       description: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
       startTime: startDateTime,
