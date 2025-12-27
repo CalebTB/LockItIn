@@ -8,24 +8,20 @@ class AppColors {
   AppColors._();
 
   // ===== Primary Brand Colors =====
+  // Option 1: Trust & Privacy Color Scheme
+  // Deep Blue + Purple + Coral for trustworthy, friendly, sophisticated brand
 
   /// Main brand color - used for primary actions, headers, and key UI elements
-  /// Originally: Color.fromARGB(255, 88, 169, 255) (iOS Blue)
-  /// You can change this single value to update the primary color throughout the app
-  static const Color primary = Color(0xFF5AA9FF); // Light Blue
-
-  /// Alternative primary colors you can swap in:
-  // static const Color primary = Color(0xFF6366F1); // Indigo
-  // static const Color primary = Color(0xFF8B5CF6); // Purple
-  // static const Color primary = Color(0xFF10B981); // Green
-  // static const Color primary = Color(0xFFEF4444); // Red
-  // static const Color primary = Color(0xFFF59E0B); // Amber
+  /// Deep Blue conveys trust, reliability, and privacy (perfect for Shadow Calendar)
+  static const Color primary = Color(0xFF2563EB); // Deep Blue
 
   /// Secondary brand color - used for accents and secondary actions
-  static const Color secondary = Color(0xFF818CF8); // Light Purple
+  /// Purple adds social warmth and differentiates from corporate blues
+  static const Color secondary = Color(0xFF8B5CF6); // Purple
 
-  /// Tertiary brand color - used for additional accents
-  static const Color tertiary = Color(0xFFF472B6); // Pink
+  /// Tertiary brand color - used for celebration, confirmations, and warm moments
+  /// Warm Coral for joy and celebration (event confirmations, success states)
+  static const Color tertiary = Color(0xFFFB923C); // Warm Coral
 
   // ===== Avatar Colors =====
 
@@ -45,7 +41,25 @@ class AppColors {
   static const Color warning = Color(0xFFF59E0B); // Amber
 
   /// Info color - for informational messages
-  static const Color info = Color(0xFF3B82F6); // Blue
+  static const Color info = Color(0xFF2563EB); // Deep Blue (matches primary)
+
+  // ===== Event Category Colors =====
+
+  /// Work events - Teal (professional, productive, bridges blue → green)
+  /// Derived from primary Deep Blue while maintaining "work" semantics
+  static const Color categoryWork = Color(0xFF14B8A6); // Teal-500
+
+  /// Holiday events - Warm Coral (celebration, matches brand tertiary)
+  /// Uses brand tertiary color directly - perfect semantic fit
+  static const Color categoryHoliday = Color(0xFFFB923C); // Warm Coral (tertiary)
+
+  /// Friend events - Purple (social, matches brand secondary)
+  /// Uses brand secondary color directly - already perfect
+  static const Color categoryFriend = Color(0xFF8B5CF6); // Purple (secondary)
+
+  /// Other events - Slate Blue (neutral, derived from primary)
+  /// Cooler, more premium than yellow - cohesive with Deep Blue brand
+  static const Color categoryOther = Color(0xFF64748B); // Slate-500
 
   // ===== Neutral Colors =====
 

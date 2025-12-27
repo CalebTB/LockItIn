@@ -36,6 +36,10 @@ class CalendarManager {
       Logger.info('Calendar permission result: $result');
 
       return _parsePermissionStatus(result);
+    } on MissingPluginException {
+      Logger.warning('Platform channel not implemented - calendar integration not available');
+      // Return denied when platform channel isn't implemented
+      return CalendarPermissionStatus.denied;
     } on PlatformException catch (e) {
       Logger.error('Failed to request calendar permission: ${e.message}');
       throw CalendarAccessException(
@@ -49,6 +53,10 @@ class CalendarManager {
     try {
       final String result = await _channel.invokeMethod('checkPermission');
       return _parsePermissionStatus(result);
+    } on MissingPluginException {
+      Logger.warning('Platform channel not implemented - using test events mode');
+      // Return notDetermined when platform channel isn't implemented
+      return CalendarPermissionStatus.notDetermined;
     } on PlatformException catch (e) {
       Logger.error('Failed to check calendar permission: ${e.message}');
       throw CalendarAccessException(
@@ -89,6 +97,9 @@ class CalendarManager {
       return result.map((eventData) {
         return _parseNativeEvent(eventData as Map<dynamic, dynamic>);
       }).toList();
+    } on MissingPluginException {
+      Logger.warning('Platform channel not implemented - returning empty event list');
+      return [];
     } on PlatformException catch (e) {
       Logger.error('Failed to fetch events: ${e.message}');
 
