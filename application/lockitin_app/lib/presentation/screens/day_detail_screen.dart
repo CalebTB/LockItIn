@@ -3,14 +3,15 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/event_model.dart';
 import '../../utils/privacy_colors.dart';
+import '../providers/calendar_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/day_timeline_view.dart';
 import 'event_detail_screen.dart';
 
 /// Day detail screen showing all events for a selected date
+/// Reads events from CalendarProvider to stay in sync with updates/deletes
 class DayDetailScreen extends StatelessWidget {
   final DateTime selectedDate;
-  final List<EventModel> events;
 
   // ═══════════════════════════════════════════════════════════════════════
   // PRIVACY INDICATOR DESIGN OPTIONS
@@ -23,12 +24,14 @@ class DayDetailScreen extends StatelessWidget {
   const DayDetailScreen({
     super.key,
     required this.selectedDate,
-    required this.events,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    // Watch CalendarProvider for live updates when events are added/edited/deleted
+    final calendarProvider = context.watch<CalendarProvider>();
+    final events = calendarProvider.getEventsForDay(selectedDate);
 
     return Scaffold(
       backgroundColor: colorScheme.surface,

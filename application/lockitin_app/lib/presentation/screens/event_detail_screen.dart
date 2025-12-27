@@ -1,17 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../data/models/event_model.dart';
+import '../../core/services/event_service.dart';
+import '../providers/calendar_provider.dart';
+import 'event_creation_screen.dart';
 
 /// Event detail screen showing complete information for a single event
 /// Displays title, date/time, location, notes, privacy settings
-/// Includes Edit and Delete buttons (UI only for now)
-class EventDetailScreen extends StatelessWidget {
+/// Includes Edit and Delete buttons with full sync functionality
+class EventDetailScreen extends StatefulWidget {
   final EventModel event;
 
   const EventDetailScreen({
     super.key,
     required this.event,
   });
+
+  @override
+  State<EventDetailScreen> createState() => _EventDetailScreenState();
+}
+
+class _EventDetailScreenState extends State<EventDetailScreen> {
+  final EventService _eventService = EventService();
+  late EventModel _currentEvent;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentEvent = widget.event;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,42 +57,28 @@ class EventDetailScreen extends StatelessWidget {
           // Edit button
           IconButton(
             icon: Icon(Icons.edit_outlined, color: colorScheme.primary),
-            onPressed: () {
-              // TODO: Navigate to edit screen when implemented
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Edit functionality coming soon'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
+            onPressed: _isLoading ? null : _handleEdit,
             tooltip: 'Edit event',
           ),
           // Delete button
           IconButton(
             icon: Icon(Icons.delete_outline, color: colorScheme.error),
-            onPressed: () {
-              // TODO: Show delete confirmation dialog when implemented
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Delete functionality coming soon'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
+            onPressed: _isLoading ? null : _handleDelete,
             tooltip: 'Delete event',
           ),
           const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Event Title
             Text(
-              event.title,
+              _currentEvent.title,
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
@@ -90,7 +95,7 @@ class EventDetailScreen extends StatelessWidget {
             const SizedBox(height: 24),
 
             // Location (if available) - Left aligned, no box
-            if (event.location != null && event.location!.isNotEmpty)
+            if (_currentEvent.location != null && _currentEvent.location!.isNotEmpty)
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -102,7 +107,7 @@ class EventDetailScreen extends StatelessWidget {
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(
-                      event.location!,
+                      _currentEvent.location!,
                       style: TextStyle(
                         fontSize: 15,
                         color: colorScheme.onSurface.withValues(alpha: 0.8),
@@ -114,7 +119,7 @@ class EventDetailScreen extends StatelessWidget {
                 ],
               ),
 
-            if (event.location != null && event.location!.isNotEmpty)
+            if (_currentEvent.location != null && _currentEvent.location!.isNotEmpty)
               const SizedBox(height: 12),
 
             // Date & Time Section
@@ -129,14 +134,14 @@ class EventDetailScreen extends StatelessWidget {
             const SizedBox(height: 20),
 
             // Notes/Description Section (if available)
-            if (event.description != null && event.description!.isNotEmpty)
+            if (_currentEvent.description != null && _currentEvent.description!.isNotEmpty)
               _buildInfoSection(
                 context,
                 colorScheme,
                 icon: Icons.notes,
                 title: 'Notes',
                 content: Text(
-                  event.description!,
+                  _currentEvent.description!,
                   style: TextStyle(
                     fontSize: 16,
                     color: colorScheme.onSurface,
@@ -145,7 +150,7 @@ class EventDetailScreen extends StatelessWidget {
                 ),
               ),
 
-            if (event.description != null && event.description!.isNotEmpty)
+            if (_currentEvent.description != null && _currentEvent.description!.isNotEmpty)
               const SizedBox(height: 20),
 
             // Metadata Section
@@ -158,7 +163,7 @@ class EventDetailScreen extends StatelessWidget {
 
   /// Build privacy badge showing event visibility setting
   Widget _buildPrivacyBadge(BuildContext context, ColorScheme colorScheme) {
-    final privacyInfo = _getPrivacyInfo(event.visibility);
+    final privacyInfo = _getPrivacyInfo(_currentEvent.visibility);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -261,8 +266,8 @@ class EventDetailScreen extends StatelessWidget {
 
   /// Build date and time content with formatting
   Widget _buildDateTimeContent(BuildContext context, ColorScheme colorScheme) {
-    final isAllDay = _isAllDayEvent(event);
-    final isSameDay = _isSameDay(event.startTime, event.endTime);
+    final isAllDay = _isAllDayEvent(_currentEvent);
+    final isSameDay = _isSameDay(_currentEvent.startTime, _currentEvent.endTime);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,8 +288,8 @@ class EventDetailScreen extends StatelessWidget {
             Expanded(
               child: Text(
                 isAllDay
-                    ? DateFormat('EEEE, MMMM d, yyyy').format(event.startTime)
-                    : DateFormat('EEEE, MMMM d, yyyy · h:mm a').format(event.startTime),
+                    ? DateFormat('EEEE, MMMM d, yyyy').format(_currentEvent.startTime)
+                    : DateFormat('EEEE, MMMM d, yyyy · h:mm a').format(_currentEvent.startTime),
                 style: TextStyle(
                   fontSize: 14,
                   color: colorScheme.onSurface,
@@ -314,8 +319,8 @@ class EventDetailScreen extends StatelessWidget {
               Expanded(
                 child: Text(
                   isAllDay
-                      ? DateFormat('EEEE, MMMM d, yyyy').format(event.endTime)
-                      : DateFormat('EEEE, MMMM d, yyyy · h:mm a').format(event.endTime),
+                      ? DateFormat('EEEE, MMMM d, yyyy').format(_currentEvent.endTime)
+                      : DateFormat('EEEE, MMMM d, yyyy · h:mm a').format(_currentEvent.endTime),
                   style: TextStyle(
                     fontSize: 14,
                     color: colorScheme.onSurface,
@@ -364,14 +369,14 @@ class EventDetailScreen extends StatelessWidget {
           _buildMetadataRow(
             colorScheme,
             'Created',
-            DateFormat('MMM d, yyyy · h:mm a').format(event.createdAt),
+            DateFormat('MMM d, yyyy · h:mm a').format(_currentEvent.createdAt),
           ),
-          if (event.updatedAt != null) ...[
+          if (_currentEvent.updatedAt != null) ...[
             const SizedBox(height: 6),
             _buildMetadataRow(
               colorScheme,
               'Last Updated',
-              DateFormat('MMM d, yyyy · h:mm a').format(event.updatedAt!),
+              DateFormat('MMM d, yyyy · h:mm a').format(_currentEvent.updatedAt!),
             ),
           ],
         ],
@@ -415,5 +420,144 @@ class EventDetailScreen extends StatelessWidget {
   /// Check if two dates are on the same day
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  /// Handle edit button press - navigate to edit screen
+  Future<void> _handleEdit() async {
+    // Capture provider reference before async gap
+    final calendarProvider = context.read<CalendarProvider>();
+
+    final updatedEvent = await Navigator.of(context).push<EventModel>(
+      MaterialPageRoute(
+        builder: (context) => EventCreationScreen(
+          eventToEdit: _currentEvent,
+        ),
+      ),
+    );
+
+    if (updatedEvent == null || !mounted) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Update in both native calendar and Supabase
+      // EventService handles the case where native calendar sync fails gracefully
+      final savedEvent = await _eventService.updateEvent(updatedEvent);
+
+      // Update local state
+      calendarProvider.updateEvent(_currentEvent, savedEvent);
+
+      setState(() {
+        _currentEvent = savedEvent;
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Event updated successfully'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } on EventServiceException catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update event: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Handle delete button press - show confirmation and delete
+  Future<void> _handleDelete() async {
+    final colorScheme = Theme.of(context).colorScheme;
+    // Capture provider reference before async gap
+    final calendarProvider = context.read<CalendarProvider>();
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Event'),
+        content: Text(
+          'Are you sure you want to delete "${_currentEvent.title}"?\n\n'
+          'This will remove the event from your calendar and cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: colorScheme.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Delete from both native calendar and Supabase
+      await _eventService.deleteEvent(_currentEvent);
+
+      // Remove from calendar provider
+      calendarProvider.removeEvent(_currentEvent.id, _currentEvent.startTime);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Event deleted successfully'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Navigate back to calendar
+        Navigator.of(context).pop();
+      }
+    } on EventServiceException catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: colorScheme.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete event: $e'),
+            backgroundColor: colorScheme.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 }

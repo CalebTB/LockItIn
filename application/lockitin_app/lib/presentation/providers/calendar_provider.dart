@@ -287,4 +287,30 @@ class CalendarProvider extends ChangeNotifier {
 
     notifyListeners();
   }
+
+  /// Update an existing event in the calendar
+  /// Handles date changes by moving the event between date keys
+  void updateEvent(EventModel oldEvent, EventModel updatedEvent) {
+    final oldDateKey = _dateKey(oldEvent.startTime);
+    final newDateKey = _dateKey(updatedEvent.startTime);
+
+    // Remove from old date
+    if (_eventsByDate.containsKey(oldDateKey)) {
+      _eventsByDate[oldDateKey]!.removeWhere((event) => event.id == oldEvent.id);
+      if (_eventsByDate[oldDateKey]!.isEmpty) {
+        _eventsByDate.remove(oldDateKey);
+      }
+    }
+
+    // Add to new date
+    if (_eventsByDate.containsKey(newDateKey)) {
+      _eventsByDate[newDateKey]!.add(updatedEvent);
+      // Sort events by start time
+      _eventsByDate[newDateKey]!.sort((a, b) => a.startTime.compareTo(b.startTime));
+    } else {
+      _eventsByDate[newDateKey] = [updatedEvent];
+    }
+
+    notifyListeners();
+  }
 }
