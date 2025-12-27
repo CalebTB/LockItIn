@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/settings_provider.dart';
 import 'auth/login_screen.dart';
 
 /// Profile screen for viewing and editing user profile
@@ -369,6 +370,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                             ),
                     ),
+
+                  // Settings Section (when not editing)
+                  if (!_isEditing) ...[
+                    const SizedBox(height: 32),
+                    Text(
+                      'Accessibility',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(
+                          color: colorScheme.onSurface.withValues(alpha: 0.1),
+                        ),
+                      ),
+                      child: SwitchListTile(
+                        title: const Text(
+                          'Color-Blind Friendly Colors',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        subtitle: const Text(
+                          'Use colors optimized for color blindness',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                        secondary: Icon(
+                          Icons.palette_outlined,
+                          color: colorScheme.primary,
+                        ),
+                        value: context.watch<SettingsProvider>().useColorBlindPalette,
+                        onChanged: (value) {
+                          context.read<SettingsProvider>().setColorBlindPalette(value);
+                        },
+                        activeColor: colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
 
                   // Logout Button (when not editing)
                   if (!_isEditing)

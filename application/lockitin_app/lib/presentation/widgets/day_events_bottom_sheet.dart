@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/event_model.dart';
+import '../../utils/calendar_utils.dart';
 
 /// Bottom sheet showing all events for a selected day
 /// Displays event list with times, titles, and optional descriptions
@@ -188,7 +189,7 @@ class DayEventsBottomSheet extends StatelessWidget {
               width: 4,
               height: 48,
               decoration: BoxDecoration(
-                color: colorScheme.primary,
+                color: CalendarUtils.getCategoryColor(event.category),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),

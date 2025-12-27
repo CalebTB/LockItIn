@@ -5,6 +5,7 @@ import 'core/utils/logger.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/device_calendar_provider.dart';
+import 'presentation/providers/settings_provider.dart';
 import 'presentation/screens/splash_screen.dart';
 
 void main() async {
@@ -31,6 +32,9 @@ class LockItInApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Settings Provider (load settings on app start)
+        ChangeNotifierProvider(create: (_) => SettingsProvider()..loadSettings()),
+
         // Authentication Provider
         ChangeNotifierProvider(create: (_) => AuthProvider()),
 

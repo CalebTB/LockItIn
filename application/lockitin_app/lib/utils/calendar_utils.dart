@@ -1,3 +1,7 @@
+import 'package:flutter/material.dart';
+import '../data/models/event_model.dart';
+import '../core/theme/app_colors.dart';
+
 /// Calendar utility functions for date calculations and formatting
 class CalendarUtils {
   /// Private constructor to prevent instantiation
@@ -68,5 +72,20 @@ class CalendarUtils {
       days,
       (i) => DateTime(start.year, start.month, start.day + i),
     );
+  }
+
+  /// Get color for event category
+  /// Work = Green, Holiday = Red, Friend = Purple, Other = Yellow
+  static Color getCategoryColor(EventCategory category) {
+    switch (category) {
+      case EventCategory.work:
+        return AppColors.categoryWork;
+      case EventCategory.holiday:
+        return AppColors.categoryHoliday;
+      case EventCategory.friend:
+        return AppColors.categoryFriend;
+      case EventCategory.other:
+        return AppColors.categoryOther;
+    }
   }
 }
