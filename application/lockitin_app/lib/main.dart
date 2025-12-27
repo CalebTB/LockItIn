@@ -6,6 +6,7 @@ import 'core/theme/app_theme.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/calendar_provider.dart';
 import 'presentation/providers/device_calendar_provider.dart';
+import 'presentation/providers/friend_provider.dart';
 import 'presentation/providers/settings_provider.dart';
 import 'presentation/screens/splash_screen.dart';
 
@@ -45,9 +46,8 @@ class LockItInApp extends StatelessWidget {
         // Calendar Provider (calendar state, events, navigation)
         ChangeNotifierProvider(create: (_) => CalendarProvider()),
 
-        // Add more providers here as you build features:
-        // ChangeNotifierProvider(create: (_) => GroupsProvider()),
-        // etc.
+        // Friend Provider (friend system state management)
+        ChangeNotifierProvider(create: (_) => FriendProvider()),
       ],
       child: MaterialApp(
         title: 'LockItIn',

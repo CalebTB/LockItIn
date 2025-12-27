@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import 'profile_screen.dart';
 import 'calendar_screen.dart';
 import 'device_calendar_screen.dart';
+import 'friends_screen.dart';
 
 /// Home screen (placeholder - will be built during Sprint 1)
 class HomeScreen extends StatelessWidget {
@@ -246,8 +247,15 @@ class HomeScreen extends StatelessWidget {
                             _FeatureCard(
                               icon: Icons.group_rounded,
                               title: 'Groups & Friends',
-                              subtitle: 'Coming in Sprint 2',
+                              subtitle: 'Manage connections',
                               color: colorScheme.secondary,
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const FriendsScreen(),
+                                  ),
+                                );
+                              },
                             ),
                             _FeatureCard(
                               icon: Icons.how_to_vote_rounded,
