@@ -5,6 +5,7 @@ import '../providers/group_provider.dart';
 
 /// Bottom sheet displaying user's groups with navigation
 /// Shows list of groups with emoji icons and member counts
+/// Includes invites tab for pending group invitations
 /// Styled with Sunset Coral Dark theme
 class GroupsBottomSheet extends StatefulWidget {
   final VoidCallback onClose;
@@ -38,6 +39,9 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
   static const Color _emerald500 = Color(0xFF10B981);
   static const Color _cyan500 = Color(0xFF06B6D4);
   static const Color _slate950 = Color(0xFF020617);
+
+  // Tab selection: 0 = Groups, 1 = Invites
+  int _selectedTab = 0;
 
   @override
   void initState() {
@@ -95,7 +99,7 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
             ),
           ),
 
-          // Header
+          // Header with close button
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 8, 8),
             child: Row(
@@ -122,45 +126,169 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
             ),
           ),
 
-          // Groups list
-          Flexible(
+          // Tab selector
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
             child: Consumer<GroupProvider>(
-              builder: (context, groupProvider, child) {
-                if (groupProvider.isLoadingGroups) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: CircularProgressIndicator(
-                        color: _rose400,
-                      ),
-                    ),
-                  );
-                }
-
-                if (groupProvider.groupsError != null) {
-                  return _buildErrorState(groupProvider.groupsError!);
-                }
-
-                if (groupProvider.groups.isEmpty) {
-                  return _buildEmptyState();
-                }
-
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-                  child: Column(
-                    children: [
-                      ...groupProvider.groups.asMap().entries.map((entry) =>
-                          _buildGroupTile(context, entry.value, entry.key)),
-                      const SizedBox(height: 12),
-                      _buildCreateGroupButton(),
-                    ],
+              builder: (context, provider, _) => Row(
+                children: [
+                  _buildTabButton(
+                    label: 'My Groups',
+                    isSelected: _selectedTab == 0,
+                    onTap: () => setState(() => _selectedTab = 0),
+                    badge: null,
                   ),
-                );
-              },
+                  const SizedBox(width: 8),
+                  _buildTabButton(
+                    label: 'Invites',
+                    isSelected: _selectedTab == 1,
+                    onTap: () => setState(() => _selectedTab = 1),
+                    badge: provider.pendingInviteCount > 0
+                        ? provider.pendingInviteCount
+                        : null,
+                  ),
+                ],
+              ),
             ),
+          ),
+
+          // Content based on selected tab
+          Flexible(
+            child: _selectedTab == 0 ? _buildGroupsTab() : _buildInvitesTab(),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTabButton({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    int? badge,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? _rose500.withValues(alpha: 0.2)
+                : _rose900.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? _rose400 : _rose500.withValues(alpha: 0.2),
+              width: isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected ? _rose50 : _rose300.withValues(alpha: 0.7),
+                ),
+              ),
+              if (badge != null) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _rose500,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    badge.toString(),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupsTab() {
+    return Consumer<GroupProvider>(
+      builder: (context, groupProvider, child) {
+        if (groupProvider.isLoadingGroups) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: CircularProgressIndicator(
+                color: _rose400,
+              ),
+            ),
+          );
+        }
+
+        if (groupProvider.groupsError != null) {
+          return _buildErrorState(groupProvider.groupsError!, isGroups: true);
+        }
+
+        if (groupProvider.groups.isEmpty) {
+          return _buildEmptyState();
+        }
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+          child: Column(
+            children: [
+              ...groupProvider.groups.asMap().entries.map(
+                  (entry) => _buildGroupTile(context, entry.value, entry.key)),
+              const SizedBox(height: 12),
+              _buildCreateGroupButton(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInvitesTab() {
+    return Consumer<GroupProvider>(
+      builder: (context, provider, child) {
+        if (provider.isLoadingInvites) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: CircularProgressIndicator(
+                color: _rose400,
+              ),
+            ),
+          );
+        }
+
+        if (provider.invitesError != null) {
+          return _buildErrorState(provider.invitesError!, isGroups: false);
+        }
+
+        if (provider.pendingInvites.isEmpty) {
+          return _buildEmptyInvitesState();
+        }
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+          child: Column(
+            children: provider.pendingInvites
+                .asMap()
+                .entries
+                .map((entry) => _buildInviteTile(context, entry.value, entry.key))
+                .toList(),
+          ),
+        );
+      },
     );
   }
 
@@ -207,7 +335,48 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
     );
   }
 
-  Widget _buildErrorState(String error) {
+  Widget _buildEmptyInvitesState() {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _rose900.withValues(alpha: 0.3),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.mail_outline_rounded,
+              size: 48,
+              color: _rose300.withValues(alpha: 0.4),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No Pending Invites',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: _rose200,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'When someone invites you to a group, it will appear here',
+            style: TextStyle(
+              fontSize: 14,
+              color: _rose300.withValues(alpha: 0.5),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String error, {required bool isGroups}) {
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -220,7 +389,7 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Failed to load groups',
+            isGroups ? 'Failed to load groups' : 'Failed to load invites',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -229,7 +398,13 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
           ),
           const SizedBox(height: 8),
           TextButton(
-            onPressed: () => context.read<GroupProvider>().refresh(),
+            onPressed: () {
+              if (isGroups) {
+                context.read<GroupProvider>().refresh();
+              } else {
+                context.read<GroupProvider>().loadPendingInvites();
+              }
+            },
             child: Text(
               'Try Again',
               style: TextStyle(color: _rose400),
@@ -339,6 +514,178 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
     );
   }
 
+  Widget _buildInviteTile(BuildContext context, GroupInvite invite, int index) {
+    final gradientColors = _getGradientColors(index);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            _rose900.withValues(alpha: 0.5),
+            _rose900.withValues(alpha: 0.3),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _rose500.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                // Emoji container with gradient
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: gradientColors,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: gradientColors[1].withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(
+                      invite.groupEmoji,
+                      style: const TextStyle(fontSize: 26),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+
+                // Invite info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        invite.groupName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: _rose50,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Invited by ${invite.inviterName}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: _rose300.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _handleDeclineInvite(context, invite),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _rose300,
+                      side: BorderSide(color: _rose500.withValues(alpha: 0.3)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    child: const Text('Decline'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _handleAcceptInvite(context, invite),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _emerald500,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    child: const Text('Accept'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleAcceptInvite(
+      BuildContext context, GroupInvite invite) async {
+    final provider = context.read<GroupProvider>();
+    final success = await provider.acceptInvite(invite.id);
+
+    if (context.mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Joined "${invite.groupName}"'),
+            backgroundColor: _emerald500,
+          ),
+        );
+        // Switch to groups tab to show new group
+        setState(() => _selectedTab = 0);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(provider.actionError ?? 'Failed to accept invite'),
+            backgroundColor: _rose500,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleDeclineInvite(
+      BuildContext context, GroupInvite invite) async {
+    final provider = context.read<GroupProvider>();
+    final success = await provider.declineInvite(invite.id);
+
+    if (context.mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Declined invite to "${invite.groupName}"'),
+            backgroundColor: _rose400,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(provider.actionError ?? 'Failed to decline invite'),
+            backgroundColor: _rose500,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildCreateGroupButton() {
     return Material(
       color: Colors.transparent,
@@ -386,7 +733,20 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
     final nameController = TextEditingController();
     String selectedEmoji = '👥';
 
-    final emojis = ['👥', '🎉', '🎮', '📚', '🏃', '🍕', '🎵', '⚽', '🎬', '✈️', '🎂', '🦃'];
+    final emojis = [
+      '👥',
+      '🎉',
+      '🎮',
+      '📚',
+      '🏃',
+      '🍕',
+      '🎵',
+      '⚽',
+      '🎬',
+      '✈️',
+      '🎂',
+      '🦃'
+    ];
 
     showDialog(
       context: context,
@@ -425,28 +785,32 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: emojis.map((emoji) => GestureDetector(
-                  onTap: () => setDialogState(() => selectedEmoji = emoji),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: selectedEmoji == emoji
-                          ? _rose500.withValues(alpha: 0.3)
-                          : _rose900.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: selectedEmoji == emoji
-                            ? _rose400
-                            : _rose500.withValues(alpha: 0.2),
-                        width: selectedEmoji == emoji ? 2 : 1,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(emoji, style: const TextStyle(fontSize: 24)),
-                    ),
-                  ),
-                )).toList(),
+                children: emojis
+                    .map((emoji) => GestureDetector(
+                          onTap: () =>
+                              setDialogState(() => selectedEmoji = emoji),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: selectedEmoji == emoji
+                                  ? _rose500.withValues(alpha: 0.3)
+                                  : _rose900.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: selectedEmoji == emoji
+                                    ? _rose400
+                                    : _rose500.withValues(alpha: 0.2),
+                                width: selectedEmoji == emoji ? 2 : 1,
+                              ),
+                            ),
+                            child: Center(
+                              child:
+                                  Text(emoji, style: const TextStyle(fontSize: 24)),
+                            ),
+                          ),
+                        ))
+                    .toList(),
               ),
               const SizedBox(height: 16),
               // Name field
@@ -468,11 +832,13 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
                   fillColor: _rose900.withValues(alpha: 0.3),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: _rose500.withValues(alpha: 0.2)),
+                    borderSide:
+                        BorderSide(color: _rose500.withValues(alpha: 0.2)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: _rose500.withValues(alpha: 0.2)),
+                    borderSide:
+                        BorderSide(color: _rose500.withValues(alpha: 0.2)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -523,7 +889,8 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(provider.actionError ?? 'Failed to create group'),
+                                content: Text(
+                                    provider.actionError ?? 'Failed to create group'),
                                 backgroundColor: _rose500,
                               ),
                             );

@@ -18,15 +18,20 @@ class GroupProvider extends ChangeNotifier {
   /// Members of the currently selected group
   List<GroupMemberProfile> _selectedGroupMembers = [];
 
+  /// Pending group invites for the current user
+  List<GroupInvite> _pendingInvites = [];
+
   /// Loading states
   bool _isLoadingGroups = false;
   bool _isLoadingMembers = false;
+  bool _isLoadingInvites = false;
   bool _isCreatingGroup = false;
   bool _isUpdatingGroup = false;
 
   /// Error states
   String? _groupsError;
   String? _membersError;
+  String? _invitesError;
   String? _actionError;
 
   /// Whether initial data has been loaded
@@ -39,14 +44,17 @@ class GroupProvider extends ChangeNotifier {
   List<GroupModel> get groups => _groups;
   GroupModel? get selectedGroup => _selectedGroup;
   List<GroupMemberProfile> get selectedGroupMembers => _selectedGroupMembers;
+  List<GroupInvite> get pendingInvites => _pendingInvites;
 
   bool get isLoadingGroups => _isLoadingGroups;
   bool get isLoadingMembers => _isLoadingMembers;
+  bool get isLoadingInvites => _isLoadingInvites;
   bool get isCreatingGroup => _isCreatingGroup;
   bool get isUpdatingGroup => _isUpdatingGroup;
 
   String? get groupsError => _groupsError;
   String? get membersError => _membersError;
+  String? get invitesError => _invitesError;
   String? get actionError => _actionError;
 
   bool get isInitialized => _isInitialized;
@@ -54,19 +62,28 @@ class GroupProvider extends ChangeNotifier {
   /// Total count of groups
   int get groupCount => _groups.length;
 
+  /// Total count of pending invites
+  int get pendingInviteCount => _pendingInvites.length;
+
   /// Check if user has any groups
   bool get hasGroups => _groups.isNotEmpty;
+
+  /// Check if user has pending invites
+  bool get hasPendingInvites => _pendingInvites.isNotEmpty;
 
   // ============================================================================
   // Initialization
   // ============================================================================
 
-  /// Initialize the provider and load groups
+  /// Initialize the provider and load groups + invites
   /// Skips if already initialized - use [refresh] to force reload
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    await loadGroups();
+    await Future.wait([
+      loadGroups(),
+      loadPendingInvites(),
+    ]);
     _isInitialized = true;
   }
 
@@ -95,6 +112,24 @@ class GroupProvider extends ChangeNotifier {
   /// Refresh groups (force reload)
   Future<void> refresh() async {
     await loadGroups();
+  }
+
+  /// Load pending group invites for the current user
+  Future<void> loadPendingInvites() async {
+    _isLoadingInvites = true;
+    _invitesError = null;
+    notifyListeners();
+
+    try {
+      _pendingInvites = await _groupService.getPendingInvites();
+      Logger.info('Loaded ${_pendingInvites.length} pending invites');
+    } catch (e) {
+      _invitesError = e.toString();
+      Logger.error('Failed to load pending invites: $e');
+    } finally {
+      _isLoadingInvites = false;
+      notifyListeners();
+    }
   }
 
   /// Select a group and load its members
@@ -407,6 +442,92 @@ class GroupProvider extends ChangeNotifier {
     } catch (e) {
       _actionError = e.toString();
       Logger.error('Failed to transfer ownership: $e');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // ============================================================================
+  // Invite Operations
+  // ============================================================================
+
+  /// Invite a user to a group
+  Future<bool> inviteUser({
+    required String groupId,
+    required String userId,
+  }) async {
+    _actionError = null;
+
+    try {
+      await _groupService.inviteUser(groupId: groupId, userId: userId);
+      Logger.info('Invited user $userId to group $groupId');
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _actionError = e.toString();
+      Logger.error('Failed to invite user: $e');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Accept a group invite
+  Future<bool> acceptInvite(String inviteId) async {
+    _actionError = null;
+
+    try {
+      await _groupService.acceptInvite(inviteId);
+
+      // Remove from pending invites
+      _pendingInvites.removeWhere((i) => i.id == inviteId);
+
+      // Reload groups to include the new group
+      await loadGroups();
+
+      Logger.info('Accepted invite $inviteId');
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _actionError = e.toString();
+      Logger.error('Failed to accept invite: $e');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Decline a group invite
+  Future<bool> declineInvite(String inviteId) async {
+    _actionError = null;
+
+    try {
+      await _groupService.declineInvite(inviteId);
+
+      // Remove from pending invites
+      _pendingInvites.removeWhere((i) => i.id == inviteId);
+
+      Logger.info('Declined invite $inviteId');
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _actionError = e.toString();
+      Logger.error('Failed to decline invite: $e');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Cancel a pending invite (for group admins)
+  Future<bool> cancelInvite(String inviteId) async {
+    _actionError = null;
+
+    try {
+      await _groupService.cancelInvite(inviteId);
+      Logger.info('Cancelled invite $inviteId');
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _actionError = e.toString();
+      Logger.error('Failed to cancel invite: $e');
       notifyListeners();
       return false;
     }

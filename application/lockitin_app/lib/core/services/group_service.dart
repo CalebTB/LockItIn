@@ -547,6 +547,207 @@ class GroupService {
   }
 
   // ============================================================================
+  // Invite Operations
+  // ============================================================================
+
+  /// Invite a user to a group
+  ///
+  /// Only owners and admins can invite users
+  Future<void> inviteUser({
+    required String groupId,
+    required String userId,
+  }) async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw GroupServiceException('User not authenticated');
+      }
+
+      // Check permission
+      final canManage = await _canManageGroup(groupId, currentUserId);
+      if (!canManage) {
+        throw GroupServiceException('You do not have permission to invite users');
+      }
+
+      // Check if user is already a member
+      final existingMember = await _getMembership(groupId, userId);
+      if (existingMember != null) {
+        throw GroupServiceException('User is already a member of this group');
+      }
+
+      // Check if invite already exists
+      final existingInvite = await SupabaseClientManager.client
+          .from('group_invites')
+          .select()
+          .eq('group_id', groupId)
+          .eq('invited_user_id', userId)
+          .maybeSingle();
+
+      if (existingInvite != null) {
+        throw GroupServiceException('User has already been invited');
+      }
+
+      Logger.info('Inviting user $userId to group $groupId');
+
+      await SupabaseClientManager.client.from('group_invites').insert({
+        'group_id': groupId,
+        'invited_user_id': userId,
+        'invited_by': currentUserId,
+      });
+
+      Logger.info('Invite sent successfully');
+    } catch (e) {
+      if (e is GroupServiceException) rethrow;
+      Logger.error('Failed to invite user: $e');
+      throw GroupServiceException('Failed to invite user: $e');
+    }
+  }
+
+  /// Accept a group invite
+  ///
+  /// Adds the user as a member and deletes the invite
+  Future<GroupMemberModel> acceptInvite(String inviteId) async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw GroupServiceException('User not authenticated');
+      }
+
+      Logger.info('Accepting invite: $inviteId');
+
+      // Get the invite
+      final invite = await SupabaseClientManager.client
+          .from('group_invites')
+          .select()
+          .eq('id', inviteId)
+          .eq('invited_user_id', currentUserId)
+          .maybeSingle();
+
+      if (invite == null) {
+        throw GroupServiceException('Invite not found or not for you');
+      }
+
+      final groupId = invite['group_id'] as String;
+
+      // Add user as member
+      final memberResponse = await SupabaseClientManager.client
+          .from('group_members')
+          .insert({
+            'group_id': groupId,
+            'user_id': currentUserId,
+            'role': 'member',
+          })
+          .select()
+          .single();
+
+      // Delete the invite
+      await SupabaseClientManager.client
+          .from('group_invites')
+          .delete()
+          .eq('id', inviteId);
+
+      Logger.info('Invite accepted, now a member of group $groupId');
+      return GroupMemberModel.fromJson(memberResponse);
+    } catch (e) {
+      if (e is GroupServiceException) rethrow;
+      Logger.error('Failed to accept invite: $e');
+      throw GroupServiceException('Failed to accept invite: $e');
+    }
+  }
+
+  /// Decline a group invite
+  Future<void> declineInvite(String inviteId) async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw GroupServiceException('User not authenticated');
+      }
+
+      Logger.info('Declining invite: $inviteId');
+
+      await SupabaseClientManager.client
+          .from('group_invites')
+          .delete()
+          .eq('id', inviteId)
+          .eq('invited_user_id', currentUserId);
+
+      Logger.info('Invite declined');
+    } catch (e) {
+      if (e is GroupServiceException) rethrow;
+      Logger.error('Failed to decline invite: $e');
+      throw GroupServiceException('Failed to decline invite: $e');
+    }
+  }
+
+  /// Cancel a pending invite (for admins/owners)
+  Future<void> cancelInvite(String inviteId) async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw GroupServiceException('User not authenticated');
+      }
+
+      // Get the invite to check permission
+      final invite = await SupabaseClientManager.client
+          .from('group_invites')
+          .select()
+          .eq('id', inviteId)
+          .maybeSingle();
+
+      if (invite == null) {
+        throw GroupServiceException('Invite not found');
+      }
+
+      final groupId = invite['group_id'] as String;
+
+      // Check permission
+      final canManage = await _canManageGroup(groupId, currentUserId);
+      if (!canManage) {
+        throw GroupServiceException('You do not have permission to cancel invites');
+      }
+
+      Logger.info('Canceling invite: $inviteId');
+
+      await SupabaseClientManager.client
+          .from('group_invites')
+          .delete()
+          .eq('id', inviteId);
+
+      Logger.info('Invite canceled');
+    } catch (e) {
+      if (e is GroupServiceException) rethrow;
+      Logger.error('Failed to cancel invite: $e');
+      throw GroupServiceException('Failed to cancel invite: $e');
+    }
+  }
+
+  /// Get all pending invites for the current user
+  Future<List<GroupInvite>> getPendingInvites() async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw GroupServiceException('User not authenticated');
+      }
+
+      Logger.info('Fetching pending group invites');
+
+      final response = await SupabaseClientManager.client
+          .rpc('get_pending_group_invites', params: {'user_uuid': currentUserId});
+
+      final invites = (response as List)
+          .map((json) => GroupInvite.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      Logger.info('Fetched ${invites.length} pending invites');
+      return invites;
+    } catch (e) {
+      if (e is GroupServiceException) rethrow;
+      Logger.error('Failed to fetch pending invites: $e');
+      throw GroupServiceException('Failed to fetch pending invites: $e');
+    }
+  }
+
+  // ============================================================================
   // Helper Methods
   // ============================================================================
 

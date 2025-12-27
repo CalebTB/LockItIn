@@ -70,6 +70,22 @@ CREATE TABLE IF NOT EXISTS group_members (
 );
 
 -- ============================================================================
+-- GROUP_INVITES TABLE
+-- ============================================================================
+
+-- Create group_invites table for pending invitations
+CREATE TABLE IF NOT EXISTS group_invites (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  invited_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  invited_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+
+  -- Constraints
+  CONSTRAINT unique_group_invite UNIQUE(group_id, invited_user_id)
+);
+
+-- ============================================================================
 -- INDEXES for Performance
 -- ============================================================================
 
@@ -84,6 +100,12 @@ CREATE INDEX IF NOT EXISTS idx_groups_created_by ON groups(created_by);
 
 -- Composite index for role-based queries (e.g., find all admins)
 CREATE INDEX IF NOT EXISTS idx_group_members_role ON group_members(group_id, role);
+
+-- Index for finding all invites for a user
+CREATE INDEX IF NOT EXISTS idx_group_invites_user_id ON group_invites(invited_user_id);
+
+-- Index for finding all invites for a group
+CREATE INDEX IF NOT EXISTS idx_group_invites_group_id ON group_invites(group_id);
 
 -- ============================================================================
 -- ROW LEVEL SECURITY
@@ -224,6 +246,59 @@ USING (
 );
 
 -- ============================================================================
+-- GROUP_INVITES RLS POLICIES
+-- ============================================================================
+
+-- Enable RLS on group_invites table
+ALTER TABLE group_invites ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Invited users can see their invites; group members can see group's invites
+CREATE POLICY "Users can view relevant invites"
+ON group_invites
+FOR SELECT
+USING (
+  -- User can see invites sent to them
+  invited_user_id = auth.uid()
+  OR
+  -- Group members can see pending invites for their group
+  EXISTS (
+    SELECT 1 FROM group_members gm
+    WHERE gm.group_id = group_invites.group_id
+    AND gm.user_id = auth.uid()
+  )
+);
+
+-- Policy: Owners and admins can create invites
+CREATE POLICY "Owners and admins can invite"
+ON group_invites
+FOR INSERT
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM group_members gm
+    WHERE gm.group_id = group_invites.group_id
+    AND gm.user_id = auth.uid()
+    AND gm.role IN ('owner', 'admin')
+  )
+);
+
+-- Policy: Invited user can delete (decline); inviters can cancel
+CREATE POLICY "Users can decline or cancel invites"
+ON group_invites
+FOR DELETE
+USING (
+  -- Invited user can decline
+  invited_user_id = auth.uid()
+  OR
+  -- Owners/admins can cancel invites
+  EXISTS (
+    SELECT 1 FROM group_members gm
+    WHERE gm.group_id = group_invites.group_id
+    AND gm.user_id = auth.uid()
+    AND gm.role IN ('owner', 'admin')
+  )
+);
+
+-- ============================================================================
 -- HELPER FUNCTIONS
 -- ============================================================================
 
@@ -318,6 +393,35 @@ BEGIN
   WHERE group_id = group_uuid AND user_id = user_uuid;
 
   RETURN user_role;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get all pending group invites for a user
+CREATE OR REPLACE FUNCTION get_pending_group_invites(user_uuid UUID)
+RETURNS TABLE (
+  invite_id UUID,
+  group_id UUID,
+  group_name VARCHAR(100),
+  group_emoji VARCHAR(10),
+  invited_by UUID,
+  inviter_name TEXT,
+  invited_at TIMESTAMP WITH TIME ZONE
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    gi.id as invite_id,
+    gi.group_id,
+    g.name as group_name,
+    g.emoji as group_emoji,
+    gi.invited_by,
+    u.full_name as inviter_name,
+    gi.created_at as invited_at
+  FROM group_invites gi
+  JOIN groups g ON g.id = gi.group_id
+  JOIN users u ON u.id = gi.invited_by
+  WHERE gi.invited_user_id = user_uuid
+  ORDER BY gi.created_at DESC;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
