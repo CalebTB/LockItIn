@@ -8,6 +8,14 @@ enum EventVisibility {
   busyOnly, // Groups see "busy" block without details
 }
 
+/// Event category for color coding and organization
+enum EventCategory {
+  work, // Work-related events (green)
+  holiday, // Holidays and special occasions (red)
+  friend, // Social events with friends (purple)
+  other, // Everything else (yellow)
+}
+
 /// Event model matching Supabase events table
 class EventModel extends Equatable {
   final String id;
@@ -18,6 +26,7 @@ class EventModel extends Equatable {
   final DateTime endTime;
   final String? location;
   final EventVisibility visibility;
+  final EventCategory category;
   final String? nativeCalendarId; // iOS EventKit or Android CalendarContract ID
   final DateTime createdAt;
   final DateTime? updatedAt;
@@ -31,6 +40,7 @@ class EventModel extends Equatable {
     required this.endTime,
     this.location,
     required this.visibility,
+    this.category = EventCategory.other,
     this.nativeCalendarId,
     required this.createdAt,
     this.updatedAt,
@@ -47,6 +57,9 @@ class EventModel extends Equatable {
       endTime: DateTime.parse(json['end_time'] as String),
       location: json['location'] as String?,
       visibility: _visibilityFromString(json['visibility'] as String),
+      category: json['category'] != null
+          ? _categoryFromString(json['category'] as String)
+          : EventCategory.other,
       nativeCalendarId: json['native_calendar_id'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] != null
@@ -66,6 +79,7 @@ class EventModel extends Equatable {
       'end_time': endTime.toIso8601String(),
       'location': location,
       'visibility': _visibilityToString(visibility),
+      'category': _categoryToString(category),
       'native_calendar_id': nativeCalendarId,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
@@ -98,6 +112,36 @@ class EventModel extends Equatable {
     }
   }
 
+  /// Convert category enum to string
+  static String _categoryToString(EventCategory category) {
+    switch (category) {
+      case EventCategory.work:
+        return 'work';
+      case EventCategory.holiday:
+        return 'holiday';
+      case EventCategory.friend:
+        return 'friend';
+      case EventCategory.other:
+        return 'other';
+    }
+  }
+
+  /// Convert string to category enum
+  static EventCategory _categoryFromString(String category) {
+    switch (category.toLowerCase()) {
+      case 'work':
+        return EventCategory.work;
+      case 'holiday':
+        return EventCategory.holiday;
+      case 'friend':
+        return EventCategory.friend;
+      case 'other':
+        return EventCategory.other;
+      default:
+        return EventCategory.other;
+    }
+  }
+
   /// Create a copy with updated fields
   EventModel copyWith({
     String? id,
@@ -108,6 +152,7 @@ class EventModel extends Equatable {
     DateTime? endTime,
     String? location,
     EventVisibility? visibility,
+    EventCategory? category,
     String? nativeCalendarId,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -121,6 +166,7 @@ class EventModel extends Equatable {
       endTime: endTime ?? this.endTime,
       location: location ?? this.location,
       visibility: visibility ?? this.visibility,
+      category: category ?? this.category,
       nativeCalendarId: nativeCalendarId ?? this.nativeCalendarId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -137,6 +183,7 @@ class EventModel extends Equatable {
         endTime,
         location,
         visibility,
+        category,
         nativeCalendarId,
         createdAt,
         updatedAt,

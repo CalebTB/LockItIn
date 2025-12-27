@@ -27,6 +27,12 @@ class DeviceCalendarProvider extends ChangeNotifier {
     try {
       _permissionStatus = await _calendarManager.checkPermission();
       Logger.info('Calendar permission status: $_permissionStatus');
+
+      // If platform channel isn't implemented, show a helpful message
+      if (_permissionStatus == CalendarPermissionStatus.notDetermined) {
+        _errorMessage = 'Native calendar integration coming soon! Use test events for now.';
+      }
+
       notifyListeners();
     } catch (e) {
       Logger.error('Failed to check calendar permission: $e');

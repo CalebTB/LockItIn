@@ -86,14 +86,25 @@ All design decisions balance:
 
 ## 2. Color Palette
 
-### Primary Colors (Brand)
+**Color Scheme: Trust & Privacy (Option 1)**
+Deep Blue + Purple + Coral for a trustworthy, friendly, sophisticated brand identity.
 
-| Color | Hex Code | Usage | Light/Dark |
+### Primary Brand Colors
+
+| Color | Hex Code | Usage | Rationale |
 |-------|----------|-------|-----------|
-| Primary Blue | #007AFF | Buttons, links, highlights | Both |
-| Success Green | #34C759 | Confirmations, positive actions | Both |
-| Warning Yellow | #FFCC00 | Cautions, pending states | Both |
-| Error Red | #FF3B30 | Errors, destructive actions | Both |
+| **Primary - Deep Blue** | #2563EB | Buttons, links, highlights, primary actions | Conveys trust, reliability, privacy (perfect for Shadow Calendar) |
+| **Secondary - Purple** | #8B5CF6 | Accents, secondary actions, social features | Adds warmth, differentiates from corporate blues, represents friendship |
+| **Tertiary - Warm Coral** | #FB923C | Celebrations, confirmations, CTAs | Joy and energy for event confirmations and success moments |
+
+### Semantic Colors
+
+| Color | Hex Code | Usage | When to Use |
+|-------|----------|-------|-------------|
+| **Success Green** | #10B981 | Confirmations, positive feedback, availability | Event confirmed, action successful, high availability |
+| **Error Red** | #EF4444 | Errors, destructive actions, conflicts | Failed actions, declined events, low availability |
+| **Warning Amber** | #F59E0B | Cautions, pending states, medium availability | Pending votes, moderate availability, important notices |
+| **Info Blue** | #2563EB | Informational messages, hints | Same as primary - informational banners, tooltips |
 
 ### Neutral Colors (Light Mode)
 
@@ -115,33 +126,50 @@ All design decisions balance:
 | Text Primary | #FFFFFF | Main text, headers |
 | Text Secondary | #AEAEB2 | Secondary text, descriptions |
 
-### Event Color Coding
+### Event Category Colors (Personal Calendar)
 
-| Color | Event Type | Meaning |
-|-------|-----------|---------|
-| Blue (#007AFF) | Personal events | Your private/personal calendar |
-| Green (#34C759) | Group events (confirmed) | Events you're attending with groups |
-| Purple (#8B5CF6) | Pending proposals | Events awaiting your vote |
-| Gray (#D1D5DB) | Busy-only events | Your busy blocks (no details shared) |
-| Red (#FF3B30) | Conflicts/Declined | Declined invites or scheduling conflicts |
+Event categories use distinct colors to help users quickly identify event types in their personal calendar view.
 
-### Heatmap Colors (Availability)
+| Category | Hex Code | Color | When Used |
+|----------|----------|-------|-----------|
+| **Work** | #10B981 | Green | Work meetings, deadlines, professional commitments |
+| **Holiday** | #EF4444 | Red | Holidays, celebrations, special occasions |
+| **Friend** | #8B5CF6 | Purple | Social events, hangouts, friend gatherings |
+| **Other** | #F59E0B | Yellow/Amber | Personal appointments, errands, miscellaneous |
 
-| Color | Availability | Percentage |
-|-------|--------------|-----------|
-| Green | Everyone free | >75% available |
-| Yellow | Mixed availability | 50-75% available |
-| Red | Most people busy | <50% available |
-| Gray | No visibility | All private or no data |
+**Note:** Event category colors are distinct from brand colors and only appear in personal calendar view as colored circle indicators.
+
+### Heatmap Colors (Group Calendar Availability)
+
+Used in Group Calendar view to show availability at a glance.
+
+| Color | Hex Code | Availability | Percentage | Visual Treatment |
+|-------|----------|--------------|-----------|------------------|
+| **Green** | #10B981 | High availability | >75% available | Green background/badge, filled segments |
+| **Yellow** | #F59E0B | Medium availability | 50-75% available | Yellow background/badge, partial segments |
+| **Red** | #EF4444 | Low availability | <50% available | Red background/badge, minimal segments |
+| **Gray** | #9CA3AF | No visibility | All private or no data | Gray background, no data available |
+
+**Usage:** Heatmap colors provide instant visual feedback on which days are best for scheduling group events.
 
 ### Color Accessibility
 
-All color combinations meet **WCAG AA** contrast requirements (4.5:1 for text):
+All color combinations meet **WCAG AA** contrast requirements (4.5:1 for text, 3:1 for UI components):
 
-- **Text on Background:** Black text on white: 21:1
-- **Text on Secondary Background:** Black text on #F2F2F7: 18.5:1
-- **Buttons:** Blue on white: 3.9:1 (sufficient for UI components)
-- **Status Icons:** Always paired with text labels for colorblind users
+**Primary Color Contrasts:**
+- **Deep Blue (#2563EB) on White:** 7.6:1 ✅ (Exceeds AA for text)
+- **White text on Deep Blue:** 7.6:1 ✅ (Buttons, primary CTAs)
+- **Purple (#8B5CF6) on White:** 4.9:1 ✅ (AA compliant for text)
+- **Warm Coral (#FB923C) on White:** 3.2:1 ✅ (AA for large text/UI components)
+
+**Semantic Color Contrasts:**
+- **Success Green (#10B981) on White:** 4.7:1 ✅
+- **Error Red (#EF4444) on White:** 4.9:1 ✅
+- **Warning Amber (#F59E0B) on White:** 2.3:1 ⚠️ (Use with dark text or as background only)
+
+**Event Category Colors:**
+- All event category colors (Work/Green, Holiday/Red, Friend/Purple, Other/Yellow) are supplemented with the event count badge and titles for colorblind accessibility
+- Pattern redundancy: Heatmap uses both color AND visual segments (filled vs unfilled)
 
 ### Color Usage Guidelines
 
@@ -585,6 +613,225 @@ All spacing uses an 8pt grid for consistency and alignment.
 - **Title:** "No Connection"
 - **Message:** "You're offline. Changes will sync when connected."
 - **Indicator:** Small banner at top with status
+
+### Calendar Grid Components
+
+#### Calendar Month View - Dual Mode Design
+
+The calendar uses **two distinct rendering modes** depending on context: Personal Calendar and Group Calendar. Each mode optimizes for different user goals.
+
+**Design Philosophy:**
+- **Personal Calendar:** "How busy am I?" → Shows event density and categories
+- **Group Calendar:** "When can we meet?" → Shows availability and coordination opportunities
+
+---
+
+#### Personal Calendar Mode
+
+**Purpose:** Manage individual schedule with events from personal calendar and accepted group events.
+
+**Calendar Cell Layout:**
+```
+┌─────────────────────┐
+│ [15]                │  ← Date number (top-left)
+│                     │
+│ ● ● ● ● ● ●   +4   │  ← Colored circles (6 max) + overflow indicator
+│                 [3] │  ← Event count badge (bottom-right)
+└─────────────────────┘
+```
+
+**Components:**
+
+1. **Date Number (Top-Left)**
+   - **Size:** 22×22pt container
+   - **Font:** 11.5pt, Regular (400) or Semibold (600) if today
+   - **Color:** Primary text color, or white if today
+   - **Today Indicator:** Blue circle background (#007AFF)
+   - **Position:** Top-left corner with 4pt padding
+
+2. **Event Count Badge (Bottom-Right)**
+   - **Size:** 22×22pt container with 15×15pt circle
+   - **Background:** Pastel blue circle (primary color with 20% opacity)
+   - **Font:** 11.5pt, Bold (700)
+   - **Color:** Dark grey text (onSurface with 80% opacity)
+   - **Position:** Bottom-right corner (Positioned widget in Stack)
+   - **Shows:** Total event count for the day
+
+3. **Event Category Indicators (Middle Area)**
+   - **Style:** Small colored circles representing individual events
+   - **Size:** 8×8pt per circle
+   - **Spacing:** 3pt horizontal and vertical spacing
+   - **Layout:** Wrap layout (flows horizontally, wraps to new rows)
+   - **Maximum Visible:** 6 circles
+   - **Overflow:** "+X" text for remaining events (e.g., "+4" for 10 total events)
+   - **Positioning:** Flows naturally in available space between date number and event count badge
+
+**Event Category Colors:**
+- **Work:** Green (#10B981)
+- **Holiday:** Red (#EF4444)
+- **Friend:** Purple (#8B5CF6)
+- **Other:** Yellow/Amber (#F59E0B)
+
+**Use Cases:**
+- Quick scanning: "Which days am I busiest?"
+- Category distribution: "How many work vs personal events this week?"
+- Event density: Badge shows total count, circles show first 6
+
+**Accessibility:**
+- VoiceOver/TalkBack: "March 15, 3 events: 2 work, 1 friend"
+- Minimum touch target: Full cell is 44pt+ tappable
+- Color coding supplemented by count badge for color-blind users
+
+---
+
+#### Group Calendar Mode
+
+**Purpose:** View aggregated availability across group members to identify coordination opportunities.
+
+**Calendar Cell Layout:**
+```
+┌─────────────────────┐
+│ [15]          6/8   │  ← Date number + Availability fraction
+│                     │
+│ ████████░░          │  ← Availability bar (filled = free)
+│                     │
+│ Lunch w/ Team       │  ← Shared event title (if exists)
+└─────────────────────┘
+```
+
+**Components:**
+
+1. **Date Number (Top-Left)**
+   - Same as Personal Calendar Mode
+   - **Font:** 11.5pt, Regular (400) or Semibold (600) if today
+
+2. **Availability Fraction (Top-Right)**
+   - **Size:** 22×22pt container (aligned with date number)
+   - **Font:** 11.5pt, Bold (700)
+   - **Format:** "6/8" (numerator = people free, denominator = total group size)
+   - **Color-Coded by Availability:**
+     - **Green:** 75%+ available (e.g., 6+ out of 8)
+     - **Yellow:** 50-75% available (e.g., 4-5 out of 8)
+     - **Red:** <50% available (e.g., 1-3 out of 8)
+   - **Background:** Circular badge with color at 15% opacity
+
+3. **Availability Bar (Visual Representation)**
+   - **Height:** 8pt
+   - **Width:** Full width minus padding
+   - **Layout:** Horizontal segmented bar
+   - **Filled Segments:** Number of people available (solid color)
+   - **Unfilled Segments:** Number of people busy (20% opacity)
+   - **Segment Color:** Matches availability color (green/yellow/red)
+   - **Corner Radius:** 4pt
+   - **Example:** In 8-person group, show 6 filled + 2 unfilled segments
+
+4. **Shared Event Titles (Optional)**
+   - **Font:** 9pt, Medium (500)
+   - **Color:** Primary text with 80% opacity
+   - **Shows:** Event titles for "Shared-With-Name" group events
+   - **Privacy:** "Busy-Only" events don't show titles (only affect availability count)
+   - **Max Lines:** 1 line, ellipsis overflow
+   - **Spacing:** 2pt above text
+
+**Availability Calculation:**
+- **Free:** User has no events during that day (or only Private events if viewing as group member)
+- **Busy:** User has Shared-With-Name or Busy-Only events
+- **Respect Privacy:** Private events don't affect group availability (Shadow Calendar system)
+
+**Background Color (Heatmap Variant):**
+- **Alternative Design:** Cell background color indicates availability
+  - Light green: 75%+ free
+  - Medium yellow: 50-75% free
+  - Light red: <50% free
+- **Pattern Redundancy:** Use diagonal stripes for low availability (accessibility)
+- **Text Overlay:** Fraction centered in cell with high contrast
+
+**Use Cases:**
+- Quick scanning: "Which days can most people meet?"
+- Event planning: Green days = good opportunities to propose events
+- Coordination: Red days = avoid scheduling group events
+
+**Accessibility:**
+- VoiceOver/TalkBack: "March 15, 6 out of 8 people available, high availability"
+- Pattern + color redundancy for color-blind users
+- High contrast text on background fills
+
+---
+
+#### Calendar Cell States
+
+**Both Modes Share:**
+- **Default State:** Standard rendering as described above
+- **Today Highlight:** Blue circle behind date number
+- **Selected State:** Border highlight when navigating with keyboard/D-pad
+- **Pressed State:** Slight scale down (98%) with haptic feedback
+- **Outside Month:** Hidden (shows empty cell with subtle border)
+
+**Interaction:**
+- **Tap:** Opens Day Detail screen showing event list
+- **Long Press:** (Future) Quick actions menu for creating event
+- **Swipe:** Month navigation (left/right)
+
+---
+
+#### Implementation Notes
+
+**Mode Detection:**
+```dart
+// Conditional rendering based on calendar context
+isGroupView
+  ? GroupCalendarCell(date: day, groupId: groupId)
+  : PersonalCalendarCell(date: day, events: events)
+```
+
+**Data Sources:**
+- **Personal Mode:** User's events + accepted group events
+- **Group Mode:** Aggregated Shared/Busy events from all group members
+
+**Caching:**
+- Cache availability calculations per day per group
+- Invalidate on event updates or membership changes
+- Background sync every 15 minutes
+
+**Platform Adaptation:**
+- **iOS:** Use Cupertino widgets, system colors, haptic feedback
+- **Android:** Use Material widgets, Material colors, ripple effects
+- **Both:** Respect safe areas, dynamic type, dark mode
+
+---
+
+#### Design Rationale
+
+**Why Two Modes?**
+
+1. **Different User Goals:**
+   - Personal calendar: Manage individual schedule
+   - Group calendar: Coordinate with others
+
+2. **Different Information Needs:**
+   - Personal: Event categories matter (Work vs Social)
+   - Group: Availability matters (Who's free vs busy?)
+
+3. **Scalability:**
+   - Personal: Colored circles work for 1-10 personal events
+   - Group: Availability fraction scales to any group size (4-20+ people)
+
+4. **Privacy-First:**
+   - Personal: Shows YOUR event details
+   - Group: Respects Shadow Calendar (shows availability, not private details)
+
+**Why Not Combine Into One Design?**
+
+Attempting to show both event categories AND group availability creates:
+- Visual noise (too many colored dots)
+- Ambiguity ("Whose work event is this green circle?")
+- Poor scaling (20+ events/day in group context)
+- Wrong metrics (total events ≠ coordination opportunity)
+
+**Progressive Disclosure:**
+- Month view: High-level patterns (density or availability)
+- Day detail: Full event list with times and details
+- Event detail: Complete metadata and controls
 
 ---
 

@@ -24,7 +24,8 @@
       "Bash(./gradlew clean:*)",
       "Bash(flutter build:*)",
       "Bash(gh label list:*)",
-      "Bash(gh pr view:*)"
+      "Bash(gh pr view:*)",
+      "Bash(gh:*)"
     ],
     "deny": [],
     "ask": []
