@@ -182,29 +182,44 @@ class _FriendsListTab extends StatelessWidget {
   ) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Remove Friend'),
         content: Text(
           'Are you sure you want to remove ${friend.displayName} from your friends?',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Note: We need the friendship ID to remove
-              // For now, we'll need to fetch it or store it in FriendProfile
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Removed ${friend.displayName} from friends'),
-                ),
-              );
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              if (friend.friendshipId == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Unable to remove friend - missing friendship ID'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+              final success = await provider.removeFriend(friend, friend.friendshipId!);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? 'Removed ${friend.displayName} from friends'
+                          : 'Failed to remove friend',
+                    ),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                  ),
+                );
+              }
             },
             style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(dialogContext).colorScheme.error,
             ),
             child: const Text('Remove'),
           ),

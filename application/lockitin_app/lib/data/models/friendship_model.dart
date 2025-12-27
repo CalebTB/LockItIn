@@ -138,6 +138,7 @@ class FriendshipModel extends Equatable {
 /// Simplified user profile model for friend display
 class FriendProfile extends Equatable {
   final String id;
+  final String? friendshipId; // ID of the friendship record (for deletion)
   final String? fullName;
   final String email;
   final String? avatarUrl;
@@ -145,6 +146,7 @@ class FriendProfile extends Equatable {
 
   const FriendProfile({
     required this.id,
+    this.friendshipId,
     this.fullName,
     required this.email,
     this.avatarUrl,
@@ -155,6 +157,7 @@ class FriendProfile extends Equatable {
   factory FriendProfile.fromJson(Map<String, dynamic> json) {
     return FriendProfile(
       id: json['friend_id'] as String,
+      friendshipId: json['friendship_id'] as String?,
       fullName: json['full_name'] as String?,
       email: json['email'] as String,
       avatarUrl: json['avatar_url'] as String?,
@@ -190,7 +193,7 @@ class FriendProfile extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, fullName, email, avatarUrl, friendshipSince];
+  List<Object?> get props => [id, friendshipId, fullName, email, avatarUrl, friendshipSince];
 }
 
 /// Model for pending friend request with requester info

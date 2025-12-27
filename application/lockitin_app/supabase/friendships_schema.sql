@@ -92,12 +92,12 @@ FOR UPDATE
 USING (auth.uid() = user_id OR auth.uid() = friend_id)
 WITH CHECK (auth.uid() = user_id OR auth.uid() = friend_id);
 
--- Policy: Users can delete/cancel their own friend requests
--- Only the requester (user_id) can delete
-CREATE POLICY "Users can delete own friend requests"
+-- Policy: Users can delete friendships they're involved in
+-- Either party can delete (cancel pending request or remove friend)
+CREATE POLICY "Users can delete own friendships"
 ON friendships
 FOR DELETE
-USING (auth.uid() = user_id);
+USING (auth.uid() = user_id OR auth.uid() = friend_id);
 
 -- ============================================================================
 -- HELPER FUNCTIONS
@@ -105,10 +105,11 @@ USING (auth.uid() = user_id);
 
 -- Function to get all accepted friends for a user
 CREATE OR REPLACE FUNCTION get_friends(user_uuid UUID)
-RETURNS TABLE (friend_id UUID, full_name TEXT, email TEXT, avatar_url TEXT, friendship_since TIMESTAMP WITH TIME ZONE) AS $$
+RETURNS TABLE (friendship_id UUID, friend_id UUID, full_name TEXT, email TEXT, avatar_url TEXT, friendship_since TIMESTAMP WITH TIME ZONE) AS $$
 BEGIN
   RETURN QUERY
   SELECT
+    f.id as friendship_id,
     CASE
       WHEN f.user_id = user_uuid THEN f.friend_id
       ELSE f.user_id
