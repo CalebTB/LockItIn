@@ -170,7 +170,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
             icon: const Icon(Icons.chevron_left, size: 28),
-            color: _rose200,
+            color: Colors.white,
           ),
 
           // Group emoji
@@ -223,7 +223,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   '${widget.group.memberCount} members',
                   style: TextStyle(
                     fontSize: 14,
-                    color: _rose300.withValues(alpha: 0.6),
+                    color: Colors.white,
                   ),
                 ),
               ],
@@ -234,7 +234,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           IconButton(
             onPressed: () => _showMembersSheet(context),
             icon: const Icon(Icons.people_rounded, size: 22),
-            color: _rose200,
+            color: Colors.white,
           ),
         ],
       ),
@@ -294,7 +294,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             'Availability',
             style: TextStyle(
               fontSize: 12,
-              color: _rose300.withValues(alpha: 0.6),
+              color: Colors.white,
             ),
           ),
           Row(
@@ -303,7 +303,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 'Less',
                 style: TextStyle(
                   fontSize: 11,
-                  color: _rose300.withValues(alpha: 0.6),
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(width: 4),
@@ -322,7 +322,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 'More',
                 style: TextStyle(
                   fontSize: 11,
-                  color: _rose300.withValues(alpha: 0.6),
+                  color: Colors.white,
                 ),
               ),
             ],
@@ -386,7 +386,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
-                                  color: _rose300.withValues(alpha: 0.6),
+                                  color: Colors.white,
                                 ),
                               ),
                             ),
@@ -504,14 +504,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.5,
-                      color: _rose300.withValues(alpha: 0.6),
+                      color: Colors.white,
                     ),
                   ),
                   Text(
                     '${widget.group.memberCount} people',
                     style: TextStyle(
                       fontSize: 11,
-                      color: _rose300.withValues(alpha: 0.6),
+                      color: Colors.white,
                     ),
                   ),
                 ],
@@ -581,7 +581,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         '+${members.length - 6}',
                         style: TextStyle(
                           fontSize: 13,
-                          color: _rose300.withValues(alpha: 0.6),
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -591,10 +591,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   // Invite button
                   TextButton.icon(
                     onPressed: () => _showInviteFlow(context),
-                    icon: Icon(Icons.person_add_rounded, size: 18, color: _rose300),
+                    icon: Icon(Icons.person_add_rounded, size: 18, color: Colors.white),
                     label: Text(
                       'Invite',
-                      style: TextStyle(color: _rose300),
+                      style: TextStyle(color: Colors.white),
                     ),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -650,7 +650,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               fontSize: 11,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.5,
-              color: _rose300.withValues(alpha: 0.6),
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 10),
@@ -768,7 +768,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         '$available/$totalMembers members available',
                         style: TextStyle(
                           fontSize: 14,
-                          color: _rose300.withValues(alpha: 0.6),
+                          color: Colors.white,
                         ),
                       ),
                     ],
@@ -877,14 +877,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                         Icon(
                                           Icons.access_time,
                                           size: 12,
-                                          color: _rose300.withValues(alpha: 0.6),
+                                          color: Colors.white,
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
                                           'All day', // Placeholder
                                           style: TextStyle(
                                             fontSize: 12,
-                                            color: _rose300.withValues(alpha: 0.6),
+                                            color: Colors.white,
                                           ),
                                         ),
                                       ],
