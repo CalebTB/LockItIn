@@ -150,24 +150,28 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- GROUPS RLS POLICIES
 -- ============================================================================
 
--- Policy: Users can view groups they are a member of
+-- Policy: Users can view groups they are a member of OR created
 CREATE POLICY "Users can view groups they belong to"
 ON groups
 FOR SELECT
+TO authenticated
 USING (
   auth_is_group_member(id, auth.uid())
+  OR created_by = auth.uid()
 );
 
 -- Policy: Any authenticated user can create a group
 CREATE POLICY "Authenticated users can create groups"
 ON groups
 FOR INSERT
+TO authenticated
 WITH CHECK (auth.uid() = created_by);
 
 -- Policy: Owners and admins can update groups
 CREATE POLICY "Owners and admins can update groups"
 ON groups
 FOR UPDATE
+TO authenticated
 USING (
   auth_has_group_role(id, auth.uid(), ARRAY['owner', 'admin']::group_member_role[])
 )
@@ -179,6 +183,7 @@ WITH CHECK (
 CREATE POLICY "Only owners can delete groups"
 ON groups
 FOR DELETE
+TO authenticated
 USING (
   auth_has_group_role(id, auth.uid(), ARRAY['owner']::group_member_role[])
 );
@@ -191,6 +196,7 @@ USING (
 CREATE POLICY "Users can view group members"
 ON group_members
 FOR SELECT
+TO authenticated
 USING (
   auth_is_group_member(group_id, auth.uid())
 );
@@ -199,6 +205,7 @@ USING (
 CREATE POLICY "Owners and admins can add members"
 ON group_members
 FOR INSERT
+TO authenticated
 WITH CHECK (
   -- Allow adding self (when creating a group)
   (user_id = auth.uid())
@@ -211,6 +218,7 @@ WITH CHECK (
 CREATE POLICY "Owners can update roles"
 ON group_members
 FOR UPDATE
+TO authenticated
 USING (
   auth_has_group_role(group_id, auth.uid(), ARRAY['owner']::group_member_role[])
 )
@@ -222,6 +230,7 @@ WITH CHECK (
 CREATE POLICY "Members can leave or be removed"
 ON group_members
 FOR DELETE
+TO authenticated
 USING (
   -- User can remove themselves (leave)
   user_id = auth.uid()
@@ -241,6 +250,7 @@ ALTER TABLE group_invites ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view relevant invites"
 ON group_invites
 FOR SELECT
+TO authenticated
 USING (
   -- User can see invites sent to them
   invited_user_id = auth.uid()
@@ -253,6 +263,7 @@ USING (
 CREATE POLICY "Owners and admins can invite"
 ON group_invites
 FOR INSERT
+TO authenticated
 WITH CHECK (
   auth_has_group_role(group_id, auth.uid(), ARRAY['owner', 'admin']::group_member_role[])
 );
@@ -261,6 +272,7 @@ WITH CHECK (
 CREATE POLICY "Users can decline or cancel invites"
 ON group_invites
 FOR DELETE
+TO authenticated
 USING (
   -- Invited user can decline
   invited_user_id = auth.uid()

@@ -1,11 +1,13 @@
 -- Fix Groups RLS Policies
--- Run this script in Supabase SQL Editor to fix the infinite recursion
--- and ensure all policies work correctly
+-- Run this script in Supabase SQL Editor to fix RLS issues
+--
+-- The main fix: SELECT policy now allows creators to see their group
+-- before they're added as a member (needed for INSERT...RETURNING)
 --
 -- Last updated: December 27, 2025
 
 -- ============================================================================
--- STEP 1: Drop existing policies (they may have recursion issues)
+-- STEP 1: Drop existing policies
 -- ============================================================================
 
 DROP POLICY IF EXISTS "Users can view groups they belong to" ON groups;
@@ -54,27 +56,29 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- STEP 3: Create GROUPS table policies
 -- ============================================================================
 
--- Policy: Users can view groups they are a member of
+-- Policy: Users can view groups they are a member of OR created
+-- The "OR created_by = auth.uid()" allows SELECT after INSERT before member record exists
 CREATE POLICY "Users can view groups they belong to"
 ON groups
 FOR SELECT
+TO authenticated
 USING (
   auth_is_group_member(id, auth.uid())
+  OR created_by = auth.uid()
 );
 
 -- Policy: Any authenticated user can create a group
 CREATE POLICY "Authenticated users can create groups"
 ON groups
 FOR INSERT
-WITH CHECK (
-  auth.uid() IS NOT NULL
-  AND auth.uid() = created_by
-);
+TO authenticated
+WITH CHECK (auth.uid() = created_by);
 
 -- Policy: Owners and admins can update groups
 CREATE POLICY "Owners and admins can update groups"
 ON groups
 FOR UPDATE
+TO authenticated
 USING (
   auth_has_group_role(id, auth.uid(), ARRAY['owner', 'admin']::group_member_role[])
 )
@@ -86,6 +90,7 @@ WITH CHECK (
 CREATE POLICY "Only owners can delete groups"
 ON groups
 FOR DELETE
+TO authenticated
 USING (
   auth_has_group_role(id, auth.uid(), ARRAY['owner']::group_member_role[])
 );
@@ -98,6 +103,7 @@ USING (
 CREATE POLICY "Users can view group members"
 ON group_members
 FOR SELECT
+TO authenticated
 USING (
   auth_is_group_member(group_id, auth.uid())
 );
@@ -106,6 +112,7 @@ USING (
 CREATE POLICY "Owners and admins can add members"
 ON group_members
 FOR INSERT
+TO authenticated
 WITH CHECK (
   -- Allow adding self (when creating a group or accepting invite)
   (user_id = auth.uid())
@@ -118,6 +125,7 @@ WITH CHECK (
 CREATE POLICY "Owners can update roles"
 ON group_members
 FOR UPDATE
+TO authenticated
 USING (
   auth_has_group_role(group_id, auth.uid(), ARRAY['owner']::group_member_role[])
 )
@@ -129,6 +137,7 @@ WITH CHECK (
 CREATE POLICY "Members can leave or be removed"
 ON group_members
 FOR DELETE
+TO authenticated
 USING (
   -- User can remove themselves (leave)
   user_id = auth.uid()
@@ -145,6 +154,7 @@ USING (
 CREATE POLICY "Users can view relevant invites"
 ON group_invites
 FOR SELECT
+TO authenticated
 USING (
   -- User can see invites sent to them
   invited_user_id = auth.uid()
@@ -157,6 +167,7 @@ USING (
 CREATE POLICY "Owners and admins can invite"
 ON group_invites
 FOR INSERT
+TO authenticated
 WITH CHECK (
   auth_has_group_role(group_id, auth.uid(), ARRAY['owner', 'admin']::group_member_role[])
 );
@@ -165,6 +176,7 @@ WITH CHECK (
 CREATE POLICY "Users can decline or cancel invites"
 ON group_invites
 FOR DELETE
+TO authenticated
 USING (
   -- Invited user can decline
   invited_user_id = auth.uid()
@@ -178,7 +190,7 @@ USING (
 -- ============================================================================
 
 -- Check policies were created
-SELECT tablename, policyname, cmd
+SELECT tablename, policyname, cmd, roles
 FROM pg_policies
 WHERE tablename IN ('groups', 'group_members', 'group_invites')
 ORDER BY tablename, policyname;
