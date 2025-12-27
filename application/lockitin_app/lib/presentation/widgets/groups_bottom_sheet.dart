@@ -153,9 +153,16 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
           ),
 
           // Content based on selected tab
-          Flexible(
+          Expanded(
             child: _selectedTab == 0 ? _buildGroupsTab() : _buildInvitesTab(),
           ),
+
+          // Create group button fixed at bottom (only on Groups tab)
+          if (_selectedTab == 0)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: _buildCreateGroupButton(),
+            ),
         ],
       ),
     );
@@ -242,13 +249,11 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
         }
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           child: Column(
             children: [
               ...groupProvider.groups.asMap().entries.map(
                   (entry) => _buildGroupTile(context, entry.value, entry.key)),
-              const SizedBox(height: 12),
-              _buildCreateGroupButton(),
             ],
           ),
         );
@@ -293,44 +298,44 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
   }
 
   Widget _buildEmptyState() {
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: _rose900.withValues(alpha: 0.3),
-              shape: BoxShape.circle,
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _rose900.withValues(alpha: 0.3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.group_outlined,
+                size: 48,
+                color: _rose300.withValues(alpha: 0.4),
+              ),
             ),
-            child: Icon(
-              Icons.group_outlined,
-              size: 48,
-              color: _rose300.withValues(alpha: 0.4),
+            const SizedBox(height: 16),
+            Text(
+              'No Groups Yet',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: _rose200,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No Groups Yet',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: _rose200,
+            const SizedBox(height: 4),
+            Text(
+              'Create a group to start planning events together',
+              style: TextStyle(
+                fontSize: 14,
+                color: _rose300.withValues(alpha: 0.5),
+              ),
+              textAlign: TextAlign.center,
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Create a group to start planning events together',
-            style: TextStyle(
-              fontSize: 14,
-              color: _rose300.withValues(alpha: 0.5),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          _buildCreateGroupButton(),
-        ],
+          ],
+        ),
       ),
     );
   }
