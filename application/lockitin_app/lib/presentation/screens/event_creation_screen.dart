@@ -22,15 +22,18 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
   final _locationController = TextEditingController();
   final _notesController = TextEditingController();
 
-  late DateTime _selectedDate;
+  late DateTime _startDate;
+  late DateTime _endDate;
   late TimeOfDay _startTime;
   late TimeOfDay _endTime;
   EventVisibility _visibility = EventVisibility.sharedWithName;
+  bool _isAllDay = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedDate = widget.initialDate ?? DateTime.now();
+    _startDate = widget.initialDate ?? DateTime.now();
+    _endDate = _startDate; // Default to same day
     _startTime = TimeOfDay.now();
     _endTime = TimeOfDay(hour: (_startTime.hour + 1) % 24, minute: _startTime.minute);
   }
@@ -99,33 +102,60 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
 
             const SizedBox(height: 20),
 
-            // Date picker
-            _buildDatePicker(colorScheme),
-
-            const SizedBox(height: 20),
-
-            // Time pickers
+            // Date pickers (start and end)
             Row(
               children: [
                 Expanded(
-                  child: _buildTimePicker(
+                  child: _buildDatePicker(
                     colorScheme,
-                    label: 'Start Time',
-                    time: _startTime,
-                    onTap: () => _selectStartTime(context),
+                    label: 'Start Date',
+                    date: _startDate,
+                    onTap: () => _selectStartDate(context),
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: _buildTimePicker(
+                  child: _buildDatePicker(
                     colorScheme,
-                    label: 'End Time',
-                    time: _endTime,
-                    onTap: () => _selectEndTime(context),
+                    label: 'End Date',
+                    date: _endDate,
+                    onTap: () => _selectEndDate(context),
                   ),
                 ),
               ],
             ),
+
+            const SizedBox(height: 20),
+
+            // All Day checkbox
+            _buildAllDayCheckbox(colorScheme),
+
+            if (!_isAllDay) ...[
+              const SizedBox(height: 20),
+
+              // Time pickers
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildTimePicker(
+                      colorScheme,
+                      label: 'Start Time',
+                      time: _startTime,
+                      onTap: () => _selectStartTime(context),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildTimePicker(
+                      colorScheme,
+                      label: 'End Time',
+                      time: _endTime,
+                      onTap: () => _selectEndTime(context),
+                    ),
+                  ),
+                ],
+              ),
+            ],
 
             const SizedBox(height: 20),
 
@@ -224,12 +254,17 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
   }
 
   /// Build date picker field
-  Widget _buildDatePicker(ColorScheme colorScheme) {
+  Widget _buildDatePicker(
+    ColorScheme colorScheme, {
+    required String label,
+    required DateTime date,
+    required VoidCallback onTap,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Date',
+          label,
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -238,10 +273,10 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
         ),
         const SizedBox(height: 8),
         InkWell(
-          onTap: () => _selectDate(context),
+          onTap: onTap,
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
             decoration: BoxDecoration(
               color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(12),
@@ -254,15 +289,17 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
               children: [
                 Icon(
                   Icons.calendar_today,
-                  size: 20,
+                  size: 18,
                   color: colorScheme.primary,
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: colorScheme.onSurface,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    DateFormat('MMM d, yyyy').format(date),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: colorScheme.onSurface,
+                    ),
                   ),
                 ),
               ],
@@ -328,6 +365,46 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     );
   }
 
+  /// Build All Day checkbox
+  Widget _buildAllDayCheckbox(ColorScheme colorScheme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colorScheme.onSurface.withValues(alpha: 0.1),
+          width: 1,
+        ),
+      ),
+      child: CheckboxListTile(
+        value: _isAllDay,
+        onChanged: (value) {
+          setState(() {
+            _isAllDay = value ?? false;
+          });
+        },
+        title: Text(
+          'All Day',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: _isAllDay ? FontWeight.w600 : FontWeight.w500,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        subtitle: Text(
+          _isAllDay ? 'Event lasts all day' : 'Specify start and end times',
+          style: TextStyle(
+            fontSize: 13,
+            color: colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+        activeColor: colorScheme.primary,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        controlAffinity: ListTileControlAffinity.leading,
+      ),
+    );
+  }
+
   /// Build privacy settings picker
   Widget _buildPrivacyPicker(ColorScheme colorScheme) {
     return Column(
@@ -376,17 +453,40 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     );
   }
 
-  /// Select date
-  Future<void> _selectDate(BuildContext context) async {
+  /// Select start date
+  Future<void> _selectStartDate(BuildContext context) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
+      initialDate: _startDate.isBefore(today) ? today : _startDate,
+      firstDate: today, // Cannot select past dates
       lastDate: DateTime(2030),
     );
 
-    if (picked != null && picked != _selectedDate) {
-      setState(() => _selectedDate = picked);
+    if (picked != null && picked != _startDate) {
+      setState(() {
+        _startDate = picked;
+        // If end date is before new start date, update it
+        if (_endDate.isBefore(_startDate)) {
+          _endDate = _startDate;
+        }
+      });
+    }
+  }
+
+  /// Select end date
+  Future<void> _selectEndDate(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate.isBefore(_startDate) ? _startDate : _endDate,
+      firstDate: _startDate, // End date must be on or after start date
+      lastDate: DateTime(2030),
+    );
+
+    if (picked != null && picked != _endDate) {
+      setState(() => _endDate = picked);
     }
   }
 
@@ -400,13 +500,17 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     if (picked != null && picked != _startTime) {
       setState(() {
         _startTime = picked;
-        // Auto-adjust end time if it's before start time
-        if (_endTime.hour < _startTime.hour ||
-            (_endTime.hour == _startTime.hour && _endTime.minute <= _startTime.minute)) {
-          _endTime = TimeOfDay(
-            hour: (_startTime.hour + 1) % 24,
-            minute: _startTime.minute,
-          );
+        // Only auto-adjust end time if same day and end time is before start time
+        if (_startDate.year == _endDate.year &&
+            _startDate.month == _endDate.month &&
+            _startDate.day == _endDate.day) {
+          if (_endTime.hour < _startTime.hour ||
+              (_endTime.hour == _startTime.hour && _endTime.minute <= _startTime.minute)) {
+            _endTime = TimeOfDay(
+              hour: (_startTime.hour + 1) % 24,
+              minute: _startTime.minute,
+            );
+          }
         }
       });
     }
@@ -431,28 +535,60 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     }
 
     // Combine date and time
-    final startDateTime = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-      _startTime.hour,
-      _startTime.minute,
-    );
+    final startDateTime = _isAllDay
+        ? DateTime(_startDate.year, _startDate.month, _startDate.day, 0, 0)
+        : DateTime(
+            _startDate.year,
+            _startDate.month,
+            _startDate.day,
+            _startTime.hour,
+            _startTime.minute,
+          );
 
-    final endDateTime = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-      _endTime.hour,
-      _endTime.minute,
-    );
+    final endDateTime = _isAllDay
+        ? DateTime(_endDate.year, _endDate.month, _endDate.day, 23, 59)
+        : DateTime(
+            _endDate.year,
+            _endDate.month,
+            _endDate.day,
+            _endTime.hour,
+            _endTime.minute,
+          );
+
+    // Validate event is not in the past (skip for all-day events on current day)
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // For all-day events, only check if start date is before today
+    if (_isAllDay) {
+      if (_startDate.isBefore(today)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Cannot create events in the past'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+        return;
+      }
+    } else {
+      // For timed events, check exact start time
+      if (startDateTime.isBefore(now)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Cannot create events in the past'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+        return;
+      }
+    }
 
     // Validate end time is after start time
     if (endDateTime.isBefore(startDateTime) || endDateTime.isAtSameMomentAs(startDateTime)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('End time must be after start time'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('End time must be after start time'),
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
       return;
