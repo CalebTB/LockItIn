@@ -16,7 +16,7 @@ class FriendProvider extends ChangeNotifier {
   List<FriendRequest> _pendingRequests = [];
 
   /// List of sent friend requests (outgoing)
-  List<FriendshipModel> _sentRequests = [];
+  List<SentRequest> _sentRequests = [];
 
   /// Search results for user search
   List<FriendProfile> _searchResults = [];
@@ -36,13 +36,16 @@ class FriendProvider extends ChangeNotifier {
   /// Current search query
   String _searchQuery = '';
 
+  /// Whether initial data has been loaded
+  bool _isInitialized = false;
+
   // ============================================================================
   // Getters
   // ============================================================================
 
   List<FriendProfile> get friends => _friends;
   List<FriendRequest> get pendingRequests => _pendingRequests;
-  List<FriendshipModel> get sentRequests => _sentRequests;
+  List<SentRequest> get sentRequests => _sentRequests;
   List<FriendProfile> get searchResults => _searchResults;
 
   bool get isLoadingFriends => _isLoadingFriends;
@@ -70,12 +73,21 @@ class FriendProvider extends ChangeNotifier {
   // Initialization
   // ============================================================================
 
+  /// Whether the provider has been initialized with data
+  bool get isInitialized => _isInitialized;
+
   /// Initialize the provider and load initial data
+  /// Skips if already initialized - use [refresh] to force reload
   Future<void> initialize() async {
+    // Skip if already initialized to prevent duplicate API calls
+    if (_isInitialized) return;
+
     await Future.wait([
       loadFriends(),
       loadPendingRequests(),
     ]);
+
+    _isInitialized = true;
   }
 
   // ============================================================================
@@ -113,7 +125,7 @@ class FriendProvider extends ChangeNotifier {
       ]);
 
       _pendingRequests = results[0] as List<FriendRequest>;
-      _sentRequests = results[1] as List<FriendshipModel>;
+      _sentRequests = results[1] as List<SentRequest>;
 
       Logger.info(
         'Loaded ${_pendingRequests.length} pending requests, '
@@ -184,8 +196,9 @@ class FriendProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final request = await _friendService.sendFriendRequest(friendId);
-      _sentRequests.add(request);
+      await _friendService.sendFriendRequest(friendId);
+      // Reload sent requests to get the complete data with recipient info
+      _sentRequests = await _friendService.getSentRequests();
       Logger.info('Friend request sent to: $friendId');
       notifyListeners();
       return true;
@@ -253,16 +266,16 @@ class FriendProvider extends ChangeNotifier {
   }
 
   /// Cancel a sent friend request
-  Future<bool> cancelFriendRequest(FriendshipModel request) async {
+  Future<bool> cancelFriendRequest(SentRequest request) async {
     _actionError = null;
 
     try {
-      await _friendService.cancelFriendRequest(request.id);
+      await _friendService.cancelFriendRequest(request.requestId);
 
       // Remove from sent requests
-      _sentRequests.removeWhere((r) => r.id == request.id);
+      _sentRequests.removeWhere((r) => r.requestId == request.requestId);
 
-      Logger.info('Canceled friend request: ${request.id}');
+      Logger.info('Canceled friend request: ${request.requestId}');
       notifyListeners();
       return true;
     } catch (e) {
@@ -328,7 +341,7 @@ class FriendProvider extends ChangeNotifier {
 
   /// Check if a friend request has been sent to this user
   bool hasSentRequestTo(String userId) {
-    return _sentRequests.any((r) => r.friendId == userId);
+    return _sentRequests.any((r) => r.recipientId == userId);
   }
 
   /// Check if a friend request has been received from this user

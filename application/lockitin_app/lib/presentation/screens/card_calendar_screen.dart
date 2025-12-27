@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/calendar_provider.dart';
-import '../../data/models/event_model.dart';
-import '../../utils/calendar_utils.dart';
+import '../providers/friend_provider.dart';
 import '../widgets/mini_calendar_widget.dart';
 import '../widgets/upcoming_event_card.dart';
 import '../widgets/expandable_fab.dart';
@@ -25,13 +24,17 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
   late DateTime _selectedDate;
   late DateTime _focusedMonth;
   bool _fabOpen = false;
-  String? _activeSheet; // 'groups' | 'friends' | 'newEvent' | null
 
   @override
   void initState() {
     super.initState();
     _selectedDate = DateTime.now();
     _focusedMonth = DateTime(_selectedDate.year, _selectedDate.month);
+
+    // Initialize FriendProvider for notification badge
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<FriendProvider>().initialize();
+    });
   }
 
   void _toggleFab() {
@@ -49,14 +52,40 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
   void _showSheet(String sheet) {
     setState(() {
       _fabOpen = false;
-      _activeSheet = sheet;
     });
+
+    // Use modal bottom sheet with animations and swipe-to-dismiss
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      builder: (context) => _buildSheetContent(sheet),
+    );
   }
 
-  void _closeSheet() {
-    setState(() {
-      _activeSheet = null;
-    });
+  Widget _buildSheetContent(String sheet) {
+    switch (sheet) {
+      case 'groups':
+        return GroupsBottomSheet(
+          onClose: () => Navigator.of(context).pop(),
+          onCreateGroup: () {
+            Navigator.of(context).pop();
+            // TODO: Navigate to group creation
+          },
+        );
+      case 'friends':
+        return FriendsBottomSheet(
+          onClose: () => Navigator.of(context).pop(),
+        );
+      case 'newEvent':
+        return NewEventBottomSheet(
+          onClose: () => Navigator.of(context).pop(),
+          initialDate: _selectedDate,
+        );
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   void _selectDate(DateTime date) {
@@ -78,39 +107,6 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
     });
   }
 
-  /// Get event indicators for the mini calendar
-  Map<int, List<Color>> _getEventIndicators(CalendarProvider provider) {
-    final indicators = <int, List<Color>>{};
-    final daysInMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
-
-    for (int day = 1; day <= daysInMonth; day++) {
-      final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
-      final events = provider.getEventsForDay(date);
-      if (events.isNotEmpty) {
-        indicators[day] = events
-            .map((e) => CalendarUtils.getCategoryColor(e.category))
-            .take(3)
-            .toList();
-      }
-    }
-    return indicators;
-  }
-
-  /// Get upcoming events (next 7 days)
-  List<EventModel> _getUpcomingEvents(CalendarProvider provider) {
-    final upcoming = <EventModel>[];
-    final now = DateTime.now();
-
-    for (int i = 0; i < 14; i++) {
-      final date = DateTime(now.year, now.month, now.day + i);
-      final events = provider.getEventsForDay(date);
-      upcoming.addAll(events);
-    }
-
-    // Sort by start time and take top 5
-    upcoming.sort((a, b) => a.startTime.compareTo(b.startTime));
-    return upcoming.take(5).toList();
-  }
 
   // Sunset Coral Dark Theme Colors
   static const Color _rose950 = Color(0xFF4C0519);
@@ -155,7 +151,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
                         child: MiniCalendarWidget(
                           selectedDate: _selectedDate,
                           focusedMonth: _focusedMonth,
-                          eventIndicators: _getEventIndicators(provider),
+                          eventIndicators: provider.getEventIndicatorsForMonth(_focusedMonth),
                           onDateSelected: _selectDate,
                         ),
                       ),
@@ -189,33 +185,21 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
           Positioned(
             right: 16,
             bottom: 24,
-            child: ExpandableFab(
-              isOpen: _fabOpen,
-              onToggle: _toggleFab,
-              onGroupsPressed: () => _showSheet('groups'),
-              onFriendsPressed: () => _showSheet('friends'),
-              onNewEventPressed: () => _showSheet('newEvent'),
+            // Use Selector to only rebuild when badge count changes
+            child: Selector<FriendProvider, int>(
+              selector: (_, provider) => provider.pendingRequests.length,
+              builder: (context, pendingCount, _) {
+                return ExpandableFab(
+                  isOpen: _fabOpen,
+                  onToggle: _toggleFab,
+                  onGroupsPressed: () => _showSheet('groups'),
+                  onFriendsPressed: () => _showSheet('friends'),
+                  onNewEventPressed: () => _showSheet('newEvent'),
+                  pendingFriendRequests: pendingCount,
+                );
+              },
             ),
           ),
-
-          // Bottom sheets
-          if (_activeSheet != null) ...[
-            // Backdrop
-            GestureDetector(
-              onTap: _closeSheet,
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.6),
-              ),
-            ),
-
-            // Sheet content
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: _buildActiveSheet(),
-            ),
-          ],
         ],
       ),
       ),
@@ -400,7 +384,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
   }
 
   Widget _buildUpcomingEventsSection(BuildContext context, CalendarProvider provider) {
-    final upcomingEvents = _getUpcomingEvents(provider);
+    final upcomingEvents = provider.getUpcomingEvents();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -478,27 +462,4 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
     );
   }
 
-  Widget _buildActiveSheet() {
-    switch (_activeSheet) {
-      case 'groups':
-        return GroupsBottomSheet(
-          onClose: _closeSheet,
-          onCreateGroup: () {
-            _closeSheet();
-            // TODO: Navigate to group creation
-          },
-        );
-      case 'friends':
-        return FriendsBottomSheet(
-          onClose: _closeSheet,
-        );
-      case 'newEvent':
-        return NewEventBottomSheet(
-          onClose: _closeSheet,
-          initialDate: _selectedDate,
-        );
-      default:
-        return const SizedBox.shrink();
-    }
-  }
 }

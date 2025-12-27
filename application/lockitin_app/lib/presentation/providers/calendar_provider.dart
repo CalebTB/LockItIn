@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import '../../domain/models/calendar_month.dart';
 import '../../utils/calendar_utils.dart';
 import '../../data/models/event_model.dart';
@@ -36,6 +36,15 @@ class CalendarProvider extends ChangeNotifier {
 
   /// Error state for event loading
   String? _eventLoadError;
+
+  /// Cached event indicators by month key (YYYY-MM format)
+  final Map<String, Map<int, List<Color>>> _eventIndicatorsCache = {};
+
+  /// Cached upcoming events list
+  List<EventModel>? _upcomingEventsCache;
+
+  /// Timestamp of when upcoming events cache was last computed
+  DateTime? _upcomingEventsCacheTime;
 
   /// Number of months to show backward (10 years back)
   static const int _monthsBackward = 120;
@@ -235,6 +244,9 @@ class CalendarProvider extends ChangeNotifier {
     for (final dateKey in _eventsByDate.keys) {
       _eventsByDate[dateKey]!.sort((a, b) => a.startTime.compareTo(b.startTime));
     }
+
+    // Invalidate computed caches since event data changed
+    _invalidateEventCaches();
   }
 
   /// Generate date key for event indexing (YYYY-MM-DD)
@@ -271,6 +283,7 @@ class CalendarProvider extends ChangeNotifier {
       _eventsByDate[dateKey] = [event];
     }
 
+    _invalidateEventCaches();
     notifyListeners();
   }
 
@@ -285,6 +298,7 @@ class CalendarProvider extends ChangeNotifier {
       }
     }
 
+    _invalidateEventCaches();
     notifyListeners();
   }
 
@@ -311,6 +325,86 @@ class CalendarProvider extends ChangeNotifier {
       _eventsByDate[newDateKey] = [updatedEvent];
     }
 
+    _invalidateEventCaches();
     notifyListeners();
+  }
+
+  // ============================================================================
+  // Cached Computations (Performance Optimization)
+  // ============================================================================
+
+  /// Get event indicators for a specific month (cached)
+  /// Returns Map<dayOfMonth, List<Color>> for dots on mini calendar
+  Map<int, List<Color>> getEventIndicatorsForMonth(DateTime month) {
+    final monthKey = '${month.year}-${month.month.toString().padLeft(2, '0')}';
+
+    // Return cached value if available
+    if (_eventIndicatorsCache.containsKey(monthKey)) {
+      return _eventIndicatorsCache[monthKey]!;
+    }
+
+    // Compute indicators for this month
+    final indicators = <int, List<Color>>{};
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+
+    for (int day = 1; day <= daysInMonth; day++) {
+      final date = DateTime(month.year, month.month, day);
+      final events = getEventsForDay(date);
+      if (events.isNotEmpty) {
+        indicators[day] = events
+            .map((e) => CalendarUtils.getCategoryColor(e.category))
+            .take(3)
+            .toList();
+      }
+    }
+
+    // Cache the result
+    _eventIndicatorsCache[monthKey] = indicators;
+    return indicators;
+  }
+
+  /// Get upcoming events for the next 14 days (cached)
+  /// Returns top 5 events sorted by start time
+  List<EventModel> getUpcomingEvents() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // Check if cache is still valid (same day)
+    if (_upcomingEventsCache != null && _upcomingEventsCacheTime != null) {
+      final cacheDay = DateTime(
+        _upcomingEventsCacheTime!.year,
+        _upcomingEventsCacheTime!.month,
+        _upcomingEventsCacheTime!.day,
+      );
+      if (cacheDay == today) {
+        return _upcomingEventsCache!;
+      }
+    }
+
+    // Compute upcoming events
+    final upcoming = <EventModel>[];
+
+    for (int i = 0; i < 14; i++) {
+      final date = DateTime(now.year, now.month, now.day + i);
+      final events = getEventsForDay(date);
+      upcoming.addAll(events);
+    }
+
+    // Sort by start time and take top 5
+    upcoming.sort((a, b) => a.startTime.compareTo(b.startTime));
+    final result = upcoming.take(5).toList();
+
+    // Cache the result
+    _upcomingEventsCache = result;
+    _upcomingEventsCacheTime = now;
+
+    return result;
+  }
+
+  /// Invalidate all event caches (called when events change)
+  void _invalidateEventCaches() {
+    _eventIndicatorsCache.clear();
+    _upcomingEventsCache = null;
+    _upcomingEventsCacheTime = null;
   }
 }

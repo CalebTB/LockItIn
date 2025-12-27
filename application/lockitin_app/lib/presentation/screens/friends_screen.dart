@@ -330,7 +330,7 @@ class _RequestsTab extends StatelessWidget {
 
   Future<void> _cancelRequest(
     BuildContext context,
-    FriendshipModel request,
+    SentRequest request,
     FriendProvider provider,
   ) async {
     final success = await provider.cancelFriendRequest(request);
@@ -393,7 +393,7 @@ class _SectionHeader extends StatelessWidget {
 
 /// Tile for sent (outgoing) friend requests
 class _SentRequestTile extends StatelessWidget {
-  final FriendshipModel request;
+  final SentRequest request;
   final VoidCallback onCancel;
 
   const _SentRequestTile({required this.request, required this.onCancel});
@@ -407,17 +407,20 @@ class _SentRequestTile extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: colorScheme.primaryContainer,
-          child: Icon(
-            Icons.person_outline_rounded,
-            color: colorScheme.onPrimaryContainer,
+          child: Text(
+            request.initials,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onPrimaryContainer,
+            ),
           ),
         ),
         title: Text(
-          'Request to ${request.friendId.substring(0, 8)}...',
+          request.displayName,
           style: const TextStyle(fontWeight: FontWeight.w500),
         ),
         subtitle: Text(
-          'Pending since ${_formatDate(request.createdAt)}',
+          'Pending since ${_formatDate(request.sentAt)}',
           style: TextStyle(color: colorScheme.onSurfaceVariant),
         ),
         trailing: TextButton(

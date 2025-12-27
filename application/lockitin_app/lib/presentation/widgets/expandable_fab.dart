@@ -22,6 +22,7 @@ class ExpandableFab extends StatefulWidget {
   final VoidCallback onGroupsPressed;
   final VoidCallback onFriendsPressed;
   final VoidCallback onNewEventPressed;
+  final int pendingFriendRequests;
 
   const ExpandableFab({
     super.key,
@@ -30,6 +31,7 @@ class ExpandableFab extends StatefulWidget {
     required this.onGroupsPressed,
     required this.onFriendsPressed,
     required this.onNewEventPressed,
+    this.pendingFriendRequests = 0,
   });
 
   @override
@@ -106,6 +108,7 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
             ),
             shadowColor: ExpandableFab._pink500,
             onTap: widget.onFriendsPressed,
+            badgeCount: widget.pendingFriendRequests,
           ),
 
           // Groups Button (bottom of expanded menu) - Violet to Purple
@@ -136,6 +139,7 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
     required Gradient gradient,
     required Color shadowColor,
     required VoidCallback onTap,
+    int badgeCount = 0,
   }) {
     final double distance = 56.0 * (index + 1);
 
@@ -178,33 +182,65 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
                         ),
                       ),
                     ),
-                  // Button
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: widget.isOpen ? onTap : null,
-                      borderRadius: BorderRadius.circular(28),
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          gradient: gradient,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: shadowColor.withValues(alpha: 0.4),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
+                  // Button with optional badge
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: widget.isOpen ? onTap : null,
+                          borderRadius: BorderRadius.circular(28),
+                          child: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              gradient: gradient,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: shadowColor.withValues(alpha: 0.4),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: Icon(
-                          icon,
-                          color: Colors.white,
-                          size: 22,
+                            child: Icon(
+                              icon,
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      // Badge
+                      if (badgeCount > 0)
+                        Positioned(
+                          top: -4,
+                          right: -4,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            constraints: const BoxConstraints(
+                              minWidth: 20,
+                              minHeight: 20,
+                            ),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEF4444), // red-500
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                badgeCount > 99 ? '99+' : badgeCount.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
@@ -220,46 +256,81 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
       animation: _expandAnimation,
       builder: (context, child) {
         final isOpen = _expandAnimation.value > 0.5;
+        final showBadge = !isOpen && widget.pendingFriendRequests > 0;
         return Positioned(
           right: 0,
           bottom: 0,
-          child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: widget.onToggle,
-            borderRadius: BorderRadius.circular(28),
-            child: Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isOpen
-                      ? [ExpandableFab._rose800, ExpandableFab._rose900]
-                      : [ExpandableFab._rose500, ExpandableFab._orange500],
-                ),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: (isOpen ? ExpandableFab._rose800 : ExpandableFab._rose500)
-                        .withValues(alpha: 0.5),
-                    blurRadius: 15,
-                    offset: const Offset(0, 4),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: widget.onToggle,
+                  borderRadius: BorderRadius.circular(28),
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: isOpen
+                            ? [ExpandableFab._rose800, ExpandableFab._rose900]
+                            : [ExpandableFab._rose500, ExpandableFab._orange500],
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: (isOpen ? ExpandableFab._rose800 : ExpandableFab._rose500)
+                              .withValues(alpha: 0.5),
+                          blurRadius: 15,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Transform.rotate(
+                      angle: _expandAnimation.value * math.pi / 4,
+                      child: const Icon(
+                        Icons.add_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
                   ),
-                ],
-              ),
-              child: Transform.rotate(
-                angle: _expandAnimation.value * math.pi / 4,
-                child: const Icon(
-                  Icons.add_rounded,
-                  color: Colors.white,
-                  size: 28,
                 ),
               ),
-            ),
+              // Badge on main FAB when closed
+              if (showBadge)
+                Positioned(
+                  top: -2,
+                  right: -2,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(
+                      minWidth: 20,
+                      minHeight: 20,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEF4444), // red-500
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        widget.pendingFriendRequests > 99
+                            ? '99+'
+                            : widget.pendingFriendRequests.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
-        ),
         );
       },
     );

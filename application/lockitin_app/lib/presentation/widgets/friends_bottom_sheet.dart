@@ -43,6 +43,15 @@ class _FriendsBottomSheetState extends State<FriendsBottomSheet> {
   int _selectedTab = 0; // 0 = Friends, 1 = Pending, 2 = Sent
 
   @override
+  void initState() {
+    super.initState();
+    // Load friend data when bottom sheet opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<FriendProvider>().initialize();
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -483,7 +492,7 @@ class _FriendsBottomSheetState extends State<FriendsBottomSheet> {
   Widget _buildSentRequestTile(
     BuildContext context,
     FriendProvider provider,
-    FriendshipModel request,
+    SentRequest request,
   ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -498,35 +507,38 @@ class _FriendsBottomSheetState extends State<FriendsBottomSheet> {
       ),
       child: Row(
         children: [
-          // Avatar
+          // Avatar with initials
           Container(
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: _rose900.withValues(alpha: 0.5),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: _rose500.withValues(alpha: 0.3),
-                width: 1,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [_rose400, _orange400],
               ),
+              shape: BoxShape.circle,
             ),
-            child: const Center(
-              child: Icon(
-                Icons.person_outline_rounded,
-                color: _rose300,
-                size: 22,
+            child: Center(
+              child: Text(
+                request.initials,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
           const SizedBox(width: 12),
-          // Info
+          // Info - show recipient name
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Request sent',
-                  style: TextStyle(
+                Text(
+                  request.displayName,
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: _rose50,
@@ -619,7 +631,7 @@ class _FriendsBottomSheetState extends State<FriendsBottomSheet> {
   Future<void> _cancelRequest(
     BuildContext context,
     FriendProvider provider,
-    FriendshipModel request,
+    SentRequest request,
   ) async {
     final success = await provider.cancelFriendRequest(request);
     if (context.mounted) {
@@ -651,6 +663,7 @@ class _FriendsBottomSheetState extends State<FriendsBottomSheet> {
             // Navigate to friend profile or calendar view
             widget.onClose();
           },
+          onLongPress: () => _showFriendOptions(context, friend),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
             child: Row(
@@ -869,6 +882,162 @@ class _FriendsBottomSheetState extends State<FriendsBottomSheet> {
         return 'Busy';
       default:
         return 'Unknown';
+    }
+  }
+
+  void _showFriendOptions(BuildContext context, FriendProfile friend) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Friend info header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF60A5FA), Color(0xFF8B5CF6)],
+                        ),
+                        shape: BoxShape.circle,
+                        image: friend.avatarUrl != null
+                            ? DecorationImage(
+                                image: NetworkImage(friend.avatarUrl!),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: friend.avatarUrl == null
+                          ? Center(
+                              child: Text(
+                                friend.initials,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            friend.displayName,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
+                          Text(
+                            friend.email,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              // Remove friend option
+              ListTile(
+                leading: Icon(Icons.person_remove_rounded, color: Colors.red[400]),
+                title: const Text(
+                  'Remove Friend',
+                  style: TextStyle(color: Color(0xFFEF4444)),
+                ),
+                subtitle: Text(
+                  'They won\'t be notified',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmRemoveFriend(context, friend);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _confirmRemoveFriend(BuildContext context, FriendProfile friend) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove Friend'),
+        content: Text(
+          'Are you sure you want to remove ${friend.displayName} from your friends?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _removeFriend(context, friend);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _removeFriend(BuildContext context, FriendProfile friend) async {
+    final provider = context.read<FriendProvider>();
+    final success = await provider.removeFriend(friend, friend.friendshipId!);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? '${friend.displayName} has been removed'
+                : provider.actionError ?? 'Failed to remove friend',
+          ),
+          backgroundColor: success ? Colors.grey[700] : Colors.red,
+        ),
+      );
     }
   }
 }

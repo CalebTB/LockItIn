@@ -196,6 +196,56 @@ class FriendProfile extends Equatable {
   List<Object?> get props => [id, friendshipId, fullName, email, avatarUrl, friendshipSince];
 }
 
+/// Model for sent friend request with recipient info
+class SentRequest extends Equatable {
+  final String requestId;
+  final String recipientId;
+  final String? fullName;
+  final String email;
+  final String? avatarUrl;
+  final DateTime sentAt;
+
+  const SentRequest({
+    required this.requestId,
+    required this.recipientId,
+    this.fullName,
+    required this.email,
+    this.avatarUrl,
+    required this.sentAt,
+  });
+
+  /// Create from Supabase get_sent_requests function result
+  factory SentRequest.fromJson(Map<String, dynamic> json) {
+    return SentRequest(
+      requestId: json['request_id'] as String,
+      recipientId: json['recipient_id'] as String,
+      fullName: json['full_name'] as String?,
+      email: json['email'] as String,
+      avatarUrl: json['avatar_url'] as String?,
+      sentAt: DateTime.parse(json['sent_at'] as String),
+    );
+  }
+
+  /// Display name (full name or email if no name)
+  String get displayName => fullName?.isNotEmpty == true ? fullName! : email;
+
+  /// Initials for avatar placeholder
+  String get initials {
+    if (fullName?.isNotEmpty == true) {
+      final parts = fullName!.split(' ');
+      if (parts.length >= 2) {
+        return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+      }
+      return fullName![0].toUpperCase();
+    }
+    return email[0].toUpperCase();
+  }
+
+  @override
+  List<Object?> get props =>
+      [requestId, recipientId, fullName, email, avatarUrl, sentAt];
+}
+
 /// Model for pending friend request with requester info
 class FriendRequest extends Equatable {
   final String requestId;

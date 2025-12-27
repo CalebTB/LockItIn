@@ -1,5 +1,5 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/friendship_model.dart';
 import '../providers/friend_provider.dart';
@@ -73,6 +73,12 @@ class _SearchResults extends StatefulWidget {
 }
 
 class _SearchResultsState extends State<_SearchResults> {
+  /// Debounce timer for search - prevents API call on every keystroke
+  Timer? _debounceTimer;
+
+  /// Debounce duration in milliseconds
+  static const _debounceDuration = Duration(milliseconds: 300);
+
   @override
   void initState() {
     super.initState();
@@ -80,11 +86,20 @@ class _SearchResultsState extends State<_SearchResults> {
   }
 
   @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   void didUpdateWidget(_SearchResults oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.query != widget.query) {
-      // Defer search to avoid calling notifyListeners during build
-      SchedulerBinding.instance.addPostFrameCallback((_) {
+      // Cancel any pending search
+      _debounceTimer?.cancel();
+
+      // Debounce the search to avoid API call on every keystroke
+      _debounceTimer = Timer(_debounceDuration, () {
         if (mounted) {
           _performSearch();
         }
