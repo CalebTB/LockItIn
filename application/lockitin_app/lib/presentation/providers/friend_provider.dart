@@ -210,9 +210,10 @@ class FriendProvider extends ChangeNotifier {
       // Remove from pending requests
       _pendingRequests.removeWhere((r) => r.requestId == request.requestId);
 
-      // Add to friends list
+      // Add to friends list with friendship ID for deletion
       _friends.add(FriendProfile(
         id: request.requesterId,
+        friendshipId: friendship.id,
         fullName: request.fullName,
         email: request.email,
         avatarUrl: request.avatarUrl,
