@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/group_model.dart';
 import '../providers/group_provider.dart';
+import '../providers/calendar_provider.dart';
 
 /// Group detail screen showing group calendar with availability heatmap
 /// Adapted from CalendarScreen with Sunset Coral Dark theme
@@ -38,15 +39,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   int? _selectedDay;
   late PageController _pageController;
 
-  // Mock availability data (will be replaced with real data from backend)
-  final Map<int, int> _availabilityData = {
-    1: 3, 2: 4, 3: 5, 4: 6, 5: 4, 6: 7, 7: 8,
-    8: 5, 9: 4, 10: 3, 11: 2, 12: 4, 13: 6, 14: 7,
-    15: 6, 16: 5, 17: 4, 18: 3, 19: 5, 20: 8, 21: 8,
-    22: 7, 23: 6, 24: 5, 25: 8, 26: 7, 27: 6, 28: 8,
-    29: 5, 30: 4, 31: 6,
-  };
-
   @override
   void initState() {
     super.initState();
@@ -57,6 +49,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<GroupProvider>().selectGroup(widget.group.id);
     });
+  }
+
+  /// Check if user has any events on a specific date
+  /// Returns 0 if busy (has events), 1 if available (no events)
+  int _getAvailabilityForDay(CalendarProvider calendarProvider, DateTime date) {
+    final events = calendarProvider.getEventsForDay(date);
+    return events.isEmpty ? 1 : 0; // 1 = available, 0 = busy
   }
 
   @override
@@ -362,7 +361,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   Widget _buildCalendarGrid(DateTime month) {
-    final totalMembers = widget.group.memberCount;
+    // For now, show 0/1 based on current user's events only
+    // In the future, this will aggregate availability from all group members
+    const totalMembers = 1; // Just the current user for now
     final days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     // Calculate first day offset and days in month
@@ -371,108 +372,114 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final startWeekday = firstDayOfMonth.weekday % 7; // 0 = Sunday
     final daysInMonth = lastDayOfMonth.day;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Column(
-        children: [
-          // Day headers
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              children: days
-                  .map((day) => Expanded(
-                        child: Center(
-                          child: Text(
-                            day,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: _rose300.withValues(alpha: 0.6),
-                            ),
-                          ),
-                        ),
-                      ))
-                  .toList(),
-            ),
-          ),
-
-          // Calendar cells
-          Expanded(
-            child: GridView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7,
-                childAspectRatio: 1.0,
-                crossAxisSpacing: 4,
-                mainAxisSpacing: 4,
-              ),
-              itemCount: 42, // 6 rows * 7 days
-              itemBuilder: (context, index) {
-                final dayNumber = index - startWeekday + 1;
-
-                // Empty cell for days outside current month
-                if (dayNumber < 1 || dayNumber > daysInMonth) {
-                  return const SizedBox.shrink();
-                }
-
-                final available = _availabilityData[dayNumber] ?? 0;
-                final isSelected = _selectedDay == dayNumber &&
-                    month.month == _focusedMonth.month;
-                final bgColor = _getHeatmapColor(available, totalMembers);
-                final textColor = _getHeatmapTextColor(available, totalMembers);
-
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedDay = dayNumber;
-                      _focusedMonth = month;
-                    });
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    decoration: BoxDecoration(
-                      color: bgColor,
-                      borderRadius: BorderRadius.circular(8),
-                      border: isSelected
-                          ? Border.all(color: _orange400, width: 2)
-                          : null,
-                      boxShadow: isSelected
-                          ? [
-                              BoxShadow(
-                                color: _orange400.withValues(alpha: 0.4),
-                                blurRadius: 8,
-                                spreadRadius: 1,
+    return Consumer<CalendarProvider>(
+      builder: (context, calendarProvider, _) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Column(
+            children: [
+              // Day headers
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: days
+                      .map((day) => Expanded(
+                            child: Center(
+                              child: Text(
+                                day,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: _rose300.withValues(alpha: 0.6),
+                                ),
                               ),
-                            ]
-                          : null,
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '$dayNumber',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: textColor,
-                          ),
-                        ),
-                        Text(
-                          '$available/$totalMembers',
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: textColor.withValues(alpha: 0.7),
-                          ),
-                        ),
-                      ],
-                    ),
+                            ),
+                          ))
+                      .toList(),
+                ),
+              ),
+
+              // Calendar cells
+              Expanded(
+                child: GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    childAspectRatio: 1.0,
+                    crossAxisSpacing: 4,
+                    mainAxisSpacing: 4,
                   ),
-                );
-              },
-            ),
+                  itemCount: 42, // 6 rows * 7 days
+                  itemBuilder: (context, index) {
+                    final dayNumber = index - startWeekday + 1;
+
+                    // Empty cell for days outside current month
+                    if (dayNumber < 1 || dayNumber > daysInMonth) {
+                      return const SizedBox.shrink();
+                    }
+
+                    // Get availability based on real events
+                    final date = DateTime(month.year, month.month, dayNumber);
+                    final available = _getAvailabilityForDay(calendarProvider, date);
+                    final isSelected = _selectedDay == dayNumber &&
+                        month.month == _focusedMonth.month;
+                    final bgColor = _getHeatmapColor(available, totalMembers);
+                    final textColor = _getHeatmapTextColor(available, totalMembers);
+
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedDay = dayNumber;
+                          _focusedMonth = month;
+                        });
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          borderRadius: BorderRadius.circular(8),
+                          border: isSelected
+                              ? Border.all(color: _orange400, width: 2)
+                              : null,
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: _orange400.withValues(alpha: 0.4),
+                                    blurRadius: 8,
+                                    spreadRadius: 1,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '$dayNumber',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: textColor,
+                              ),
+                            ),
+                            Text(
+                              '$available/$totalMembers',
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: textColor.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -610,15 +617,25 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   Widget _buildBestDaysSection() {
-    final totalMembers = widget.group.memberCount;
-    // Find days where everyone or most people are available
-    final bestDays = _availabilityData.entries
-        .where((e) => e.value >= (totalMembers * 0.75).ceil())
-        .map((e) => e.key)
-        .take(4)
-        .toList();
+    return Consumer<CalendarProvider>(
+      builder: (context, calendarProvider, _) {
+        // Find days in current month where user has no events (is available)
+        final lastDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
+        final daysInMonth = lastDayOfMonth.day;
 
-    if (bestDays.isEmpty) return const SizedBox.shrink();
+        final bestDays = <int>[];
+        for (int day = 1; day <= daysInMonth && bestDays.length < 4; day++) {
+          final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+          // Only consider today or future days
+          if (date.isAfter(DateTime.now().subtract(const Duration(days: 1)))) {
+            final events = calendarProvider.getEventsForDay(date);
+            if (events.isEmpty) {
+              bestDays.add(day);
+            }
+          }
+        }
+
+        if (bestDays.isEmpty) return const SizedBox.shrink();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -684,12 +701,19 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         ],
       ),
     );
+      },
+    );
   }
 
   Widget _buildDayDetailSheet() {
-    final totalMembers = widget.group.memberCount;
-    final available = _availabilityData[_selectedDay] ?? 0;
+    // For now, just user's availability (0 = busy, 1 = available)
+    const totalMembers = 1;
     final monthName = DateFormat('MMMM').format(_focusedMonth);
+
+    return Consumer<CalendarProvider>(
+      builder: (context, calendarProvider, _) {
+        final date = DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDay ?? 1);
+        final available = _getAvailabilityForDay(calendarProvider, date);
 
     return Positioned(
       left: 0,
@@ -939,6 +963,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           ],
         ),
       ),
+    );
+      },
     );
   }
 
