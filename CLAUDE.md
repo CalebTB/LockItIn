@@ -237,6 +237,45 @@ enum EventVisibility {
 - **Do**: Lazy load groups, cache aggressively, background sync on app foreground
 - **Do**: Show cached data immediately, sync in background with pull-to-refresh
 
+### Supabase RLS Policies
+
+**Common Issue: INSERT with .select() fails due to SELECT policy**
+
+When using `.insert(...).select().single()` in Supabase (which returns the created row), you need BOTH:
+1. An INSERT policy that allows the insert
+2. A SELECT policy that allows reading the newly created row
+
+**Problem scenario (Groups table):**
+```dart
+// This requires INSERT + SELECT permissions
+await supabase.from('groups').insert({...}).select().single();
+```
+
+If your SELECT policy is:
+```sql
+-- User must be a member to see the group
+USING (auth_is_group_member(id, auth.uid()))
+```
+
+This FAILS because the user isn't a member yet - the member record is created AFTER the group!
+
+**Solution:** Add creator exception to SELECT policy:
+```sql
+CREATE POLICY "Users can view groups they belong to"
+ON groups FOR SELECT TO authenticated
+USING (
+  auth_is_group_member(id, auth.uid())
+  OR created_by = auth.uid()  -- Allow creator to see their group
+);
+```
+
+**Other RLS Tips:**
+- Always add `TO authenticated` to policies targeting logged-in users
+- Use `SECURITY DEFINER` functions to bypass RLS when checking membership (prevents infinite recursion)
+- Test with `SELECT auth.uid()` via RPC to verify JWT is working
+- If RLS fails mysteriously, try `ALTER TABLE x DISABLE ROW LEVEL SECURITY` to confirm RLS is the issue
+- Migration scripts: `supabase/fix_groups_rls.sql` contains the corrected policies
+
 ## Testing Strategy
 
 **Unit Tests (70% coverage target):**
