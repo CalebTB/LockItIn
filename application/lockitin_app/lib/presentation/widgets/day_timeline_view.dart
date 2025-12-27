@@ -205,121 +205,80 @@ class _DayTimelineViewState extends State<DayTimelineView> {
         // Calculate overlapping event groups
         final eventGroups = _calculateEventLayout(timedEvents);
 
-        return ListView.builder(
+        return SingleChildScrollView(
           controller: _scrollController,
-          itemCount: 24, // 24 hours in a day
-          itemBuilder: (context, hour) {
-            return _buildHourRow(
-              context,
-              colorScheme,
-              hour,
-              eventColumnWidth,
-              eventGroups,
-            );
-          },
+          child: SizedBox(
+            height: 24 * _hourHeight, // Total height for 24 hours
+            child: Stack(
+              children: [
+                // Hour grid (time labels and horizontal lines)
+                Column(
+                  children: List.generate(24, (hour) {
+                    return _buildHourRow(
+                      context,
+                      colorScheme,
+                      hour,
+                    );
+                  }),
+                ),
+
+                // Events layer (positioned absolutely over the grid)
+                ..._buildAllEvents(
+                  context,
+                  colorScheme,
+                  eventColumnWidth,
+                  eventGroups,
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
   }
 
-  /// Build a single hour row in the timeline
+  /// Build a single hour row in the timeline (grid background only, no events)
   Widget _buildHourRow(
     BuildContext context,
     ColorScheme colorScheme,
     int hour,
-    double eventColumnWidth,
-    List<_EventGroup> eventGroups,
   ) {
-    final now = DateTime.now();
-    final isToday = widget.selectedDate.year == now.year &&
-        widget.selectedDate.month == now.month &&
-        widget.selectedDate.day == now.day;
-    final isCurrentHour = isToday && now.hour == hour;
-
     return SizedBox(
       height: _hourHeight,
-      child: Stack(
-        children: [
-          // Row layout: Time label + Event area
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Time label (e.g., "9 AM")
-              SizedBox(
-                width: _timeColumnWidth,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 8, top: 4),
-                  child: Text(
-                    _formatHour(hour),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                    textAlign: TextAlign.right,
-                  ),
-                ),
-              ),
-              // Event area with horizontal line
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      top: BorderSide(
-                        color: colorScheme.onSurface.withValues(alpha: 0.1),
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // Current time indicator (red line) - only for today
-          if (isCurrentHour) _buildCurrentTimeIndicator(context, colorScheme, now),
-
-          // Events positioned absolutely within this hour
-          ..._buildEventsForHour(
-            context,
-            colorScheme,
-            hour,
-            eventColumnWidth,
-            eventGroups,
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Build current time indicator (red line like Apple Calendar)
-  Widget _buildCurrentTimeIndicator(
-    BuildContext context,
-    ColorScheme colorScheme,
-    DateTime now,
-  ) {
-    final minutesIntoHour = now.minute;
-    final topOffset = minutesIntoHour.toDouble(); // 1 pixel per minute
-
-    return Positioned(
-      left: _timeColumnWidth,
-      right: 0,
-      top: topOffset,
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Red dot
-          Container(
-            width: 8,
-            height: 8,
-            decoration: const BoxDecoration(
-              color: Colors.red,
-              shape: BoxShape.circle,
+          // Time label (e.g., "9 AM")
+          // Aligned exactly with the horizontal separator line
+          SizedBox(
+            width: _timeColumnWidth,
+            child: Transform.translate(
+              offset: const Offset(0, -6), // Shift up by half the text height to align with line
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text(
+                  _formatHour(hour),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    height: 1.0, // Tight line height for precise alignment
+                  ),
+                  textAlign: TextAlign.right,
+                ),
+              ),
             ),
           ),
-          // Red line
+          // Event area with horizontal line
           Expanded(
             child: Container(
-              height: _currentTimeIndicatorHeight,
-              color: Colors.red,
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: colorScheme.onSurface.withValues(alpha: 0.1),
+                    width: 1,
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -327,51 +286,81 @@ class _DayTimelineViewState extends State<DayTimelineView> {
     );
   }
 
-  /// Build events that appear within this hour
-  List<Widget> _buildEventsForHour(
+  /// Build all events positioned absolutely in the 24-hour timeline
+  List<Widget> _buildAllEvents(
     BuildContext context,
     ColorScheme colorScheme,
-    int hour,
     double eventColumnWidth,
     List<_EventGroup> eventGroups,
   ) {
     final widgets = <Widget>[];
 
+    // Add current time indicator if today
+    final now = DateTime.now();
+    final isToday = widget.selectedDate.year == now.year &&
+        widget.selectedDate.month == now.month &&
+        widget.selectedDate.day == now.day;
+
+    if (isToday) {
+      // Calculate position from midnight
+      final totalMinutes = now.hour * 60 + now.minute;
+      final topOffset = totalMinutes.toDouble();
+
+      widgets.add(
+        Positioned(
+          left: _timeColumnWidth,
+          right: 0,
+          top: topOffset,
+          child: Row(
+            children: [
+              // Red dot
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              // Red line
+              Expanded(
+                child: Container(
+                  height: _currentTimeIndicatorHeight,
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Render all events
     for (final group in eventGroups) {
       for (final eventLayout in group.events) {
         final event = eventLayout.event;
-        final startHour = event.startTime.hour;
-        final endHour = event.endTime.hour;
 
-        // Only render if event touches this hour
-        if (startHour <= hour && endHour >= hour) {
-          // Only render in the hour where event starts (to avoid duplicates)
-          if (startHour != hour) continue;
+        // Calculate vertical position from midnight (0:00)
+        final startMinutes = event.startTime.hour * 60 + event.startTime.minute;
+        final topOffset = startMinutes.toDouble();
 
-          // Calculate vertical position within this hour row
-          double topOffset = 0;
-          if (startHour == hour) {
-            topOffset = event.startTime.minute.toDouble();
-          }
+        // Calculate total height for the event
+        final totalDurationMinutes = event.endTime.difference(event.startTime).inMinutes;
+        final totalHeight = totalDurationMinutes.toDouble().clamp(_eventMinHeight, double.infinity);
 
-          // Calculate total height for multi-hour events
-          final totalDurationMinutes = event.endTime.difference(event.startTime).inMinutes;
-          final totalHeight = totalDurationMinutes.toDouble().clamp(_eventMinHeight, double.infinity);
+        // Calculate horizontal position and width based on overlap
+        final columnWidth = eventColumnWidth / group.columnCount;
+        final leftOffset = _timeColumnWidth + (eventLayout.column * columnWidth);
 
-          // Calculate horizontal position and width based on overlap
-          final columnWidth = eventColumnWidth / group.columnCount;
-          final leftOffset = _timeColumnWidth + (eventLayout.column * columnWidth);
-
-          widgets.add(
-            Positioned(
-              left: leftOffset,
-              top: topOffset,
-              width: columnWidth - 4, // 4px gap between columns
-              height: totalHeight,
-              child: _buildEventCard(context, colorScheme, event),
-            ),
-          );
-        }
+        widgets.add(
+          Positioned(
+            left: leftOffset,
+            top: topOffset,
+            width: columnWidth - 4, // 4px gap between columns
+            height: totalHeight,
+            child: _buildEventCard(context, colorScheme, event),
+          ),
+        );
       }
     }
 
@@ -386,7 +375,27 @@ class _DayTimelineViewState extends State<DayTimelineView> {
   ) {
     final privacyColor = _getPrivacyColor(context, event.visibility);
     final durationMinutes = event.endTime.difference(event.startTime).inMinutes;
+
+    // Categorize event by duration for adaptive layout
+    final isVeryShortEvent = durationMinutes < 45; // Less than 45 minutes
     final isShortEvent = durationMinutes < 60; // Less than 60 minutes
+
+    // Format time range
+    final startTime = _formatTimeShort(event.startTime);
+    final endTime = _formatTimeShort(event.endTime);
+    final timeRange = '$startTime-$endTime';
+
+    // Adaptive padding based on duration
+    // Very short events (< 45 min): Minimal padding to fit content
+    // Short events (45-60 min): Standard compact padding
+    // Long events (>= 60 min): Comfortable padding
+    final verticalPadding = isVeryShortEvent ? 2.0 : (isShortEvent ? 3.0 : 4.0);
+    final horizontalPadding = isVeryShortEvent ? 4.0 : 6.0;
+    final contentSpacing = isVeryShortEvent ? 1.0 : 2.0;
+
+    // Adaptive font sizes for very short events
+    final timeFontSize = isVeryShortEvent ? 9.0 : 10.0;
+    final titleFontSize = isVeryShortEvent ? 10.0 : (isShortEvent ? 11.0 : 13.0);
 
     return Material(
       color: privacyColor.withValues(alpha: 0.15),
@@ -404,41 +413,41 @@ class _DayTimelineViewState extends State<DayTimelineView> {
             ),
             borderRadius: BorderRadius.circular(6),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: verticalPadding,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // For short events (< 60 min): Show title and location on one line
+              // Time range - always show at top
+              Text(
+                timeRange,
+                style: TextStyle(
+                  fontSize: timeFontSize,
+                  fontWeight: FontWeight.w600,
+                  color: privacyColor,
+                  height: 1.2, // Tight line height to save space
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(height: contentSpacing),
+
+              // For short events (< 60 min): Show title and location compactly
               if (isShortEvent) ...[
-                if (event.location != null)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${event.title} • ${event.location}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: colorScheme.onSurface,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  )
-                else
-                  Text(
-                    event.title,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurface,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                Text(
+                  event.location != null ? '${event.title} • ${event.location}' : event.title,
+                  style: TextStyle(
+                    fontSize: titleFontSize,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                    height: 1.2, // Tight line height to save space
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ]
               // For longer events (>= 60 min): Show title and location on separate lines
               else ...[
@@ -446,7 +455,7 @@ class _DayTimelineViewState extends State<DayTimelineView> {
                 Text(
                   event.title,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: titleFontSize,
                     fontWeight: FontWeight.w600,
                     color: colorScheme.onSurface,
                   ),
@@ -597,6 +606,36 @@ class _DayTimelineViewState extends State<DayTimelineView> {
     if (hour < 12) return '$hour AM';
     if (hour == 12) return '12 PM';
     return '${hour - 12} PM';
+  }
+
+  /// Format time in compact format for event cards (e.g., "12:30PM", "9AM")
+  String _formatTimeShort(DateTime time) {
+    final hour = time.hour;
+    final minute = time.minute;
+
+    // Format hour
+    String hourStr;
+    String period;
+    if (hour == 0) {
+      hourStr = '12';
+      period = 'AM';
+    } else if (hour < 12) {
+      hourStr = '$hour';
+      period = 'AM';
+    } else if (hour == 12) {
+      hourStr = '12';
+      period = 'PM';
+    } else {
+      hourStr = '${hour - 12}';
+      period = 'PM';
+    }
+
+    // Only show minutes if not on the hour
+    if (minute == 0) {
+      return '$hourStr$period';
+    } else {
+      return '$hourStr:${minute.toString().padLeft(2, '0')}$period';
+    }
   }
 
   /// Get privacy color based on visibility setting

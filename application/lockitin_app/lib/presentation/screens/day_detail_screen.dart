@@ -174,11 +174,15 @@ class DayDetailScreen extends StatelessWidget {
                       color: colorScheme.primary,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      timeText,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: colorScheme.onSurface.withValues(alpha: 0.7),
+                    Flexible(
+                      child: Text(
+                        timeText,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -277,11 +281,15 @@ class DayDetailScreen extends StatelessWidget {
                             color: colorScheme.primary,
                           ),
                           const SizedBox(width: 6),
-                          Text(
-                            timeText,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: colorScheme.onSurface.withValues(alpha: 0.7),
+                          Flexible(
+                            child: Text(
+                              timeText,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: colorScheme.onSurface.withValues(alpha: 0.7),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],

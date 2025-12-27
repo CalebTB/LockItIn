@@ -6,6 +6,7 @@ import '../../domain/models/calendar_month.dart';
 import '../../data/models/event_model.dart';
 import '../../utils/calendar_utils.dart';
 import 'day_detail_screen.dart';
+import 'card_calendar_screen.dart';
 
 /// Calendar screen showing custom month grid view with horizontal swipe navigation
 /// Uses CalendarProvider for state management and caching
@@ -116,6 +117,27 @@ class _CalendarViewState extends State<_CalendarView> {
                       ),
 
                       const SizedBox(width: 12),
+
+                      // Card View Toggle
+                      Consumer<CalendarProvider>(
+                        builder: (context, provider, _) => IconButton(
+                          icon: Icon(Icons.view_agenda_rounded, color: colorScheme.primary),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => ChangeNotifierProvider.value(
+                                  value: provider,
+                                  child: const CardCalendarScreen(),
+                                ),
+                              ),
+                            );
+                          },
+                          iconSize: 24,
+                          padding: const EdgeInsets.all(12),
+                          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                          tooltip: 'Card View',
+                        ),
+                      ),
 
                       // Profile Icon
                       IconButton(
