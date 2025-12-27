@@ -118,6 +118,35 @@ ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_members ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================================
+-- HELPER FUNCTIONS FOR RLS (must be created before policies)
+-- These functions use SECURITY DEFINER to bypass RLS and prevent infinite recursion
+-- ============================================================================
+
+-- Function to check if a user is a member of a group (bypasses RLS)
+CREATE OR REPLACE FUNCTION auth_is_group_member(group_uuid UUID, user_uuid UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM group_members
+    WHERE group_id = group_uuid AND user_id = user_uuid
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to check if a user has a specific role in a group (bypasses RLS)
+CREATE OR REPLACE FUNCTION auth_has_group_role(group_uuid UUID, user_uuid UUID, required_roles group_member_role[])
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM group_members
+    WHERE group_id = group_uuid
+    AND user_id = user_uuid
+    AND role = ANY(required_roles)
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================================
 -- GROUPS RLS POLICIES
 -- ============================================================================
 
@@ -126,11 +155,7 @@ CREATE POLICY "Users can view groups they belong to"
 ON groups
 FOR SELECT
 USING (
-  EXISTS (
-    SELECT 1 FROM group_members gm
-    WHERE gm.group_id = groups.id
-    AND gm.user_id = auth.uid()
-  )
+  auth_is_group_member(id, auth.uid())
 );
 
 -- Policy: Any authenticated user can create a group
@@ -144,20 +169,10 @@ CREATE POLICY "Owners and admins can update groups"
 ON groups
 FOR UPDATE
 USING (
-  EXISTS (
-    SELECT 1 FROM group_members gm
-    WHERE gm.group_id = groups.id
-    AND gm.user_id = auth.uid()
-    AND gm.role IN ('owner', 'admin')
-  )
+  auth_has_group_role(id, auth.uid(), ARRAY['owner', 'admin']::group_member_role[])
 )
 WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM group_members gm
-    WHERE gm.group_id = groups.id
-    AND gm.user_id = auth.uid()
-    AND gm.role IN ('owner', 'admin')
-  )
+  auth_has_group_role(id, auth.uid(), ARRAY['owner', 'admin']::group_member_role[])
 );
 
 -- Policy: Only owners can delete groups
@@ -165,12 +180,7 @@ CREATE POLICY "Only owners can delete groups"
 ON groups
 FOR DELETE
 USING (
-  EXISTS (
-    SELECT 1 FROM group_members gm
-    WHERE gm.group_id = groups.id
-    AND gm.user_id = auth.uid()
-    AND gm.role = 'owner'
-  )
+  auth_has_group_role(id, auth.uid(), ARRAY['owner']::group_member_role[])
 );
 
 -- ============================================================================
@@ -182,11 +192,7 @@ CREATE POLICY "Users can view group members"
 ON group_members
 FOR SELECT
 USING (
-  EXISTS (
-    SELECT 1 FROM group_members gm
-    WHERE gm.group_id = group_members.group_id
-    AND gm.user_id = auth.uid()
-  )
+  auth_is_group_member(group_id, auth.uid())
 );
 
 -- Policy: Owners and admins can add members
@@ -198,34 +204,18 @@ WITH CHECK (
   (user_id = auth.uid())
   OR
   -- Allow owners/admins to add others
-  EXISTS (
-    SELECT 1 FROM group_members gm
-    WHERE gm.group_id = group_members.group_id
-    AND gm.user_id = auth.uid()
-    AND gm.role IN ('owner', 'admin')
-  )
+  auth_has_group_role(group_id, auth.uid(), ARRAY['owner', 'admin']::group_member_role[])
 );
 
--- Policy: Owners can update member roles; members can update their own (leave)
+-- Policy: Owners can update member roles
 CREATE POLICY "Owners can update roles"
 ON group_members
 FOR UPDATE
 USING (
-  -- Owner can update any member
-  EXISTS (
-    SELECT 1 FROM group_members gm
-    WHERE gm.group_id = group_members.group_id
-    AND gm.user_id = auth.uid()
-    AND gm.role = 'owner'
-  )
+  auth_has_group_role(group_id, auth.uid(), ARRAY['owner']::group_member_role[])
 )
 WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM group_members gm
-    WHERE gm.group_id = group_members.group_id
-    AND gm.user_id = auth.uid()
-    AND gm.role = 'owner'
-  )
+  auth_has_group_role(group_id, auth.uid(), ARRAY['owner']::group_member_role[])
 );
 
 -- Policy: Members can remove themselves; Owners/admins can remove others
@@ -237,12 +227,7 @@ USING (
   user_id = auth.uid()
   OR
   -- Owners and admins can remove others
-  EXISTS (
-    SELECT 1 FROM group_members gm
-    WHERE gm.group_id = group_members.group_id
-    AND gm.user_id = auth.uid()
-    AND gm.role IN ('owner', 'admin')
-  )
+  auth_has_group_role(group_id, auth.uid(), ARRAY['owner', 'admin']::group_member_role[])
 );
 
 -- ============================================================================
@@ -261,11 +246,7 @@ USING (
   invited_user_id = auth.uid()
   OR
   -- Group members can see pending invites for their group
-  EXISTS (
-    SELECT 1 FROM group_members gm
-    WHERE gm.group_id = group_invites.group_id
-    AND gm.user_id = auth.uid()
-  )
+  auth_is_group_member(group_id, auth.uid())
 );
 
 -- Policy: Owners and admins can create invites
@@ -273,12 +254,7 @@ CREATE POLICY "Owners and admins can invite"
 ON group_invites
 FOR INSERT
 WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM group_members gm
-    WHERE gm.group_id = group_invites.group_id
-    AND gm.user_id = auth.uid()
-    AND gm.role IN ('owner', 'admin')
-  )
+  auth_has_group_role(group_id, auth.uid(), ARRAY['owner', 'admin']::group_member_role[])
 );
 
 -- Policy: Invited user can delete (decline); inviters can cancel
@@ -290,12 +266,7 @@ USING (
   invited_user_id = auth.uid()
   OR
   -- Owners/admins can cancel invites
-  EXISTS (
-    SELECT 1 FROM group_members gm
-    WHERE gm.group_id = group_invites.group_id
-    AND gm.user_id = auth.uid()
-    AND gm.role IN ('owner', 'admin')
-  )
+  auth_has_group_role(group_id, auth.uid(), ARRAY['owner', 'admin']::group_member_role[])
 );
 
 -- ============================================================================

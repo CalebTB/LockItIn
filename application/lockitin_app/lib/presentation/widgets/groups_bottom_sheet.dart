@@ -83,7 +83,7 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
       ),
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.6,
-        minHeight: MediaQuery.of(context).size.height * 0.4,
+        minHeight: MediaQuery.of(context).size.height * 0.6,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
