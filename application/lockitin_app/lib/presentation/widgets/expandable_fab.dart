@@ -4,6 +4,19 @@ import 'dart:math' as math;
 /// Expandable floating action button with animated menu options
 /// Opens to reveal Groups, Friends, and New Event actions
 class ExpandableFab extends StatefulWidget {
+  // Sunset Coral Dark Theme Colors
+  static const Color _rose500 = Color(0xFFF43F5E);
+  static const Color _rose400 = Color(0xFFFB7185);
+  static const Color _rose800 = Color(0xFF9F1239);
+  static const Color _rose900 = Color(0xFF881337);
+  static const Color _rose950 = Color(0xFF4C0519);
+  static const Color _rose50 = Color(0xFFFFF1F2);
+  static const Color _orange500 = Color(0xFFF97316);
+  static const Color _orange600 = Color(0xFFEA580C);
+  static const Color _amber400 = Color(0xFFFBBF24);
+  static const Color _pink500 = Color(0xFFEC4899);
+  static const Color _violet400 = Color(0xFFA78BFA);
+  static const Color _purple500 = Color(0xFFA855F7);
   final bool isOpen;
   final VoidCallback onToggle;
   final VoidCallback onGroupsPressed;
@@ -67,7 +80,7 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
         alignment: Alignment.bottomRight,
         clipBehavior: Clip.none,
         children: [
-          // New Event Button (top)
+          // New Event Button (top) - Amber to Orange
           _buildExpandingAction(
             index: 2,
             icon: Icons.calendar_today_rounded,
@@ -75,13 +88,13 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF4ADE80), Color(0xFF10B981)], // green-400 to emerald-500
+              colors: [ExpandableFab._amber400, ExpandableFab._orange600],
             ),
-            shadowColor: const Color(0xFF10B981),
+            shadowColor: ExpandableFab._orange500,
             onTap: widget.onNewEventPressed,
           ),
 
-          // Friends Button (middle)
+          // Friends Button (middle) - Rose to Pink
           _buildExpandingAction(
             index: 1,
             icon: Icons.person_add_rounded,
@@ -89,13 +102,13 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF60A5FA), Color(0xFF2563EB)], // blue-400 to blue-600
+              colors: [ExpandableFab._rose400, ExpandableFab._pink500],
             ),
-            shadowColor: const Color(0xFF2563EB),
+            shadowColor: ExpandableFab._pink500,
             onTap: widget.onFriendsPressed,
           ),
 
-          // Groups Button (bottom of expanded menu)
+          // Groups Button (bottom of expanded menu) - Violet to Purple
           _buildExpandingAction(
             index: 0,
             icon: Icons.group_rounded,
@@ -103,9 +116,9 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFFA78BFA), Color(0xFF7C3AED)], // purple-400 to purple-600
+              colors: [ExpandableFab._violet400, ExpandableFab._purple500],
             ),
-            shadowColor: const Color(0xFF7C3AED),
+            shadowColor: ExpandableFab._purple500,
             onTap: widget.onGroupsPressed,
           ),
 
@@ -124,7 +137,7 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
     required Color shadowColor,
     required VoidCallback onTap,
   }) {
-    final double distance = 52.0 * (index + 1);
+    final double distance = 56.0 * (index + 1);
 
     return AnimatedBuilder(
       animation: _expandAnimation,
@@ -132,7 +145,7 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
         final progress = _expandAnimation.value;
         return Positioned(
           right: 4, // Keep buttons aligned to the right
-          bottom: 4 + (distance * progress),
+          bottom: 12 + (distance * progress),
           child: Opacity(
             opacity: progress,
             child: Transform.scale(
@@ -148,22 +161,19 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
                         margin: const EdgeInsets.only(right: 12),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                          color: ExpandableFab._rose950.withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(9999),
+                          border: Border.all(
+                            color: ExpandableFab._rose500.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
                         ),
                         child: Text(
                           label,
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: Color(0xFF374151), // gray-700
+                            color: ExpandableFab._rose50,
                           ),
                         ),
                       ),
@@ -226,15 +236,15 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: isOpen
-                      ? [const Color(0xFF4B5563), const Color(0xFF374151)] // gray-600 to gray-700
-                      : [const Color(0xFF3B82F6), const Color(0xFF2563EB)], // blue-500 to blue-600
+                      ? [ExpandableFab._rose800, ExpandableFab._rose900]
+                      : [ExpandableFab._rose500, ExpandableFab._orange500],
                 ),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: (isOpen ? const Color(0xFF4B5563) : const Color(0xFF3B82F6))
-                        .withValues(alpha: 0.4),
-                    blurRadius: 12,
+                    color: (isOpen ? ExpandableFab._rose800 : ExpandableFab._rose500)
+                        .withValues(alpha: 0.5),
+                    blurRadius: 15,
                     offset: const Offset(0, 4),
                   ),
                 ],

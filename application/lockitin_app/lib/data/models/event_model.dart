@@ -27,6 +27,7 @@ class EventModel extends Equatable {
   final String? location;
   final EventVisibility visibility;
   final EventCategory category;
+  final String? emoji; // Custom emoji for the event icon
   final String? nativeCalendarId; // iOS EventKit or Android CalendarContract ID
   final DateTime createdAt;
   final DateTime? updatedAt;
@@ -41,6 +42,7 @@ class EventModel extends Equatable {
     this.location,
     required this.visibility,
     this.category = EventCategory.other,
+    this.emoji,
     this.nativeCalendarId,
     required this.createdAt,
     this.updatedAt,
@@ -60,6 +62,7 @@ class EventModel extends Equatable {
       category: json['category'] != null
           ? _categoryFromString(json['category'] as String)
           : EventCategory.other,
+      emoji: json['emoji'] as String?, // Local-only field, will be null from DB
       nativeCalendarId: json['native_calendar_id'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] != null
@@ -69,6 +72,7 @@ class EventModel extends Equatable {
   }
 
   /// Convert EventModel to JSON for Supabase
+  /// Note: emoji is excluded as it's a local-only field (not in DB schema yet)
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -80,6 +84,7 @@ class EventModel extends Equatable {
       'location': location,
       'visibility': _visibilityToString(visibility),
       'category': _categoryToString(category),
+      // 'emoji': emoji, // TODO: Add to Supabase schema when ready
       'native_calendar_id': nativeCalendarId,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
@@ -153,6 +158,7 @@ class EventModel extends Equatable {
     String? location,
     EventVisibility? visibility,
     EventCategory? category,
+    String? emoji,
     String? nativeCalendarId,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -167,6 +173,7 @@ class EventModel extends Equatable {
       location: location ?? this.location,
       visibility: visibility ?? this.visibility,
       category: category ?? this.category,
+      emoji: emoji ?? this.emoji,
       nativeCalendarId: nativeCalendarId ?? this.nativeCalendarId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -184,6 +191,7 @@ class EventModel extends Equatable {
         location,
         visibility,
         category,
+        emoji,
         nativeCalendarId,
         createdAt,
         updatedAt,

@@ -262,7 +262,7 @@ class _UserSearchTile extends StatelessWidget {
                     width: 48,
                     height: 48,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, _) => Text(
+                    errorBuilder: (_, __, ___) => Text(
                       user.initials,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
@@ -494,3 +494,4 @@ class _TipItem extends StatelessWidget {
     );
   }
 }
+

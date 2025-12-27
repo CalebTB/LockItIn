@@ -3,6 +3,14 @@ import 'package:flutter/material.dart';
 /// Compact mini calendar grid for the card calendar view
 /// Shows a 7-column grid with dates and event indicators
 class MiniCalendarWidget extends StatelessWidget {
+  // Sunset Coral Dark Theme Colors
+  static const Color _rose500 = Color(0xFFF43F5E);
+  static const Color _rose300 = Color(0xFFFDA4AF);
+  static const Color _rose50 = Color(0xFFFFF1F2);
+  static const Color _orange500 = Color(0xFFF97316);
+  static const Color _amber500 = Color(0xFFF59E0B);
+  static const Color _amber300 = Color(0xFFFCD34D);
+
   final DateTime selectedDate;
   final DateTime focusedMonth;
   final Map<int, List<Color>> eventIndicators; // day -> list of event colors
@@ -20,7 +28,6 @@ class MiniCalendarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final today = DateTime.now();
     final daysInMonth = DateTime(focusedMonth.year, focusedMonth.month + 1, 0).day;
     final firstDayOfMonth = DateTime(focusedMonth.year, focusedMonth.month, 1);
@@ -46,7 +53,7 @@ class MiniCalendarWidget extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurface.withValues(alpha: 0.5),
+                      color: _rose300.withValues(alpha: 0.6),
                     ),
                   ),
                 );
@@ -83,29 +90,24 @@ class MiniCalendarWidget extends StatelessWidget {
                 onTap: () => onDateSelected(date),
                 child: Container(
                   decoration: BoxDecoration(
-                    gradient: isSelected
-                        ? LinearGradient(
+                    gradient: isSelected || isToday
+                        ? const LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [
-                              colorScheme.primary,
-                              colorScheme.primary.withValues(alpha: 0.8),
-                            ],
+                            colors: [_rose500, _orange500],
                           )
                         : null,
-                    color: isSelected
+                    color: isSelected || isToday
                         ? null
-                        : hasEvents && !isToday
-                            ? _getEventBackgroundColor(eventColors).withValues(alpha: 0.15)
-                            : isToday
-                                ? colorScheme.primary.withValues(alpha: 0.1)
-                                : null,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: isSelected
+                        : hasEvents
+                            ? _amber500.withValues(alpha: 0.2)
+                            : null,
+                    shape: BoxShape.circle,
+                    boxShadow: isSelected || isToday
                         ? [
                             BoxShadow(
-                              color: colorScheme.primary.withValues(alpha: 0.3),
-                              blurRadius: 6,
+                              color: _rose500.withValues(alpha: 0.3),
+                              blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
                           ]
@@ -118,18 +120,16 @@ class MiniCalendarWidget extends StatelessWidget {
                         '$dayNumber',
                         style: TextStyle(
                           fontSize: 14,
-                          fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected
+                          fontWeight: isSelected || isToday ? FontWeight.w600 : FontWeight.w500,
+                          color: isSelected || isToday
                               ? Colors.white
                               : hasEvents
-                                  ? _getEventBackgroundColor(eventColors)
-                                  : isToday
-                                      ? colorScheme.primary
-                                      : colorScheme.onSurface,
+                                  ? _amber300
+                                  : _rose50.withValues(alpha: 0.8),
                         ),
                       ),
-                      if (hasEvents && !isSelected) ...[
-                        const SizedBox(height: 1),
+                      if (hasEvents) ...[
+                        const SizedBox(height: 2),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: eventColors.take(3).map((color) {
@@ -138,8 +138,14 @@ class MiniCalendarWidget extends StatelessWidget {
                               height: 4,
                               margin: const EdgeInsets.symmetric(horizontal: 0.5),
                               decoration: BoxDecoration(
-                                color: color,
+                                color: isSelected || isToday ? Colors.white : color,
                                 shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: (isSelected || isToday ? Colors.white : color).withValues(alpha: 0.5),
+                                    blurRadius: 2,
+                                  ),
+                                ],
                               ),
                             );
                           }).toList(),
@@ -158,10 +164,5 @@ class MiniCalendarWidget extends StatelessWidget {
 
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
-  Color _getEventBackgroundColor(List<Color> colors) {
-    if (colors.isEmpty) return Colors.grey;
-    return colors.first;
   }
 }
