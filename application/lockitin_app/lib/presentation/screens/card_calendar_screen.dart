@@ -156,6 +156,9 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
                         ),
                       ),
 
+                      // Selected Day Events Section
+                      _buildSelectedDayEventsSection(context, provider),
+
                       // Upcoming Events Section
                       _buildUpcomingEventsSection(context, provider),
 
@@ -294,6 +297,72 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSelectedDayEventsSection(BuildContext context, CalendarProvider provider) {
+    final selectedDayEvents = provider.getEventsForDay(_selectedDate);
+    final dateFormat = DateFormat('EEEE, MMMM d');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            dateFormat.format(_selectedDate).toUpperCase(),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+              color: Colors.grey[500],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          if (selectedDayEvents.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.event_busy_outlined,
+                      size: 40,
+                      color: Colors.grey[300],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No events this day',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ...selectedDayEvents.map((event) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: UpcomingEventCard(
+                    event: event,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => EventDetailScreen(event: event),
+                        ),
+                      );
+                    },
+                  ),
+                )),
+        ],
       ),
     );
   }
