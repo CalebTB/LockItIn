@@ -5,6 +5,7 @@ import '../providers/calendar_provider.dart';
 import '../../domain/models/calendar_month.dart';
 import '../../data/models/event_model.dart';
 import '../../utils/calendar_utils.dart';
+import '../../core/services/event_service.dart';
 import 'day_detail_screen.dart';
 import 'card_calendar_screen.dart';
 import 'event_creation_screen.dart';
@@ -49,6 +50,107 @@ class _CalendarViewState extends State<_CalendarView> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  /// Handle event creation with dual-write to native calendar and Supabase
+  Future<void> _handleCreateEvent(
+    BuildContext context,
+    CalendarProvider provider,
+  ) async {
+    // Navigate to event creation screen
+    final result = await Navigator.of(context).push<EventModel>(
+      MaterialPageRoute(
+        builder: (context) => const EventCreationScreen(),
+      ),
+    );
+
+    // If user canceled, return early
+    if (result == null || !context.mounted) return;
+
+    // Show loading dialog
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Saving event...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    try {
+      // Create event using EventService (dual-write)
+      final eventService = EventService();
+      final savedEvent = await eventService.createEvent(result);
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Add event to provider for immediate UI update
+      provider.addEvent(savedEvent);
+
+      // Show success message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Event "${savedEvent.title}" created successfully'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } on EventServiceException catch (e) {
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Dismiss',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show generic error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create event: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -264,29 +366,7 @@ class _CalendarViewState extends State<_CalendarView> {
       ),
       floatingActionButton: Consumer<CalendarProvider>(
         builder: (context, provider, _) => FloatingActionButton(
-          onPressed: () async {
-            final result = await Navigator.of(context).push<EventModel>(
-              MaterialPageRoute(
-                builder: (context) => const EventCreationScreen(),
-              ),
-            );
-
-            // If an event was created, add it to the provider
-            if (result != null) {
-              provider.addEvent(result);
-
-              // Show success message
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Event "${result.title}" created successfully'),
-                    backgroundColor: Colors.green,
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-              }
-            }
-          },
+          onPressed: () => _handleCreateEvent(context, provider),
           backgroundColor: colorScheme.primary,
           child: const Icon(Icons.add, size: 28),
         ),
