@@ -293,7 +293,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 ),
               ),
               const SizedBox(width: 4),
-              ...[_rose950, _rose900, _rose800, _rose700, _rose600, _rose500, _rose400]
+              // Solid color boxes (rose-950 to rose-500)
+              ...[_rose950, _rose900, _rose800, _rose700, _rose600, _rose500]
                   .map((color) => Container(
                         width: 16,
                         height: 16,
@@ -303,6 +304,20 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                           borderRadius: BorderRadius.circular(3),
                         ),
                       )),
+              // Gradient box (rose-400 to orange-400) for 100% available
+              Container(
+                width: 16,
+                height: 16,
+                margin: const EdgeInsets.symmetric(horizontal: 1),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [_rose400, _orange400],
+                  ),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
               const SizedBox(width: 4),
               Text(
                 'More',
