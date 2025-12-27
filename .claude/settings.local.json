@@ -25,7 +25,8 @@
       "Bash(flutter build:*)",
       "Bash(gh label list:*)",
       "Bash(gh pr view:*)",
-      "Bash(gh:*)"
+      "Bash(gh:*)",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "ask": []
