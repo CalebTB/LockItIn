@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../data/models/event_model.dart';
 import '../../utils/privacy_colors.dart';
 import '../providers/settings_provider.dart';
+import '../widgets/day_timeline_view.dart';
 import 'event_detail_screen.dart';
 
 /// Day detail screen showing all events for a selected date
@@ -62,7 +63,10 @@ class DayDetailScreen extends StatelessWidget {
       ),
       body: events.isEmpty
           ? _buildEmptyState(context, colorScheme)
-          : _buildEventList(context, colorScheme, events),
+          : DayTimelineView(
+              selectedDate: selectedDate,
+              events: events,
+            ),
     );
   }
 
@@ -170,11 +174,15 @@ class DayDetailScreen extends StatelessWidget {
                       color: colorScheme.primary,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      timeText,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: colorScheme.onSurface.withValues(alpha: 0.7),
+                    Flexible(
+                      child: Text(
+                        timeText,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -273,11 +281,15 @@ class DayDetailScreen extends StatelessWidget {
                             color: colorScheme.primary,
                           ),
                           const SizedBox(width: 6),
-                          Text(
-                            timeText,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: colorScheme.onSurface.withValues(alpha: 0.7),
+                          Flexible(
+                            child: Text(
+                              timeText,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: colorScheme.onSurface.withValues(alpha: 0.7),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],

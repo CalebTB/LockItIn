@@ -3,8 +3,10 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/calendar_provider.dart';
 import '../../domain/models/calendar_month.dart';
+import '../../data/models/event_model.dart';
 import '../../utils/calendar_utils.dart';
 import 'day_detail_screen.dart';
+import 'card_calendar_screen.dart';
 
 /// Calendar screen showing custom month grid view with horizontal swipe navigation
 /// Uses CalendarProvider for state management and caching
@@ -115,6 +117,27 @@ class _CalendarViewState extends State<_CalendarView> {
                       ),
 
                       const SizedBox(width: 12),
+
+                      // Card View Toggle
+                      Consumer<CalendarProvider>(
+                        builder: (context, provider, _) => IconButton(
+                          icon: Icon(Icons.view_agenda_rounded, color: colorScheme.primary),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => ChangeNotifierProvider.value(
+                                  value: provider,
+                                  child: const CardCalendarScreen(),
+                                ),
+                              ),
+                            );
+                          },
+                          iconSize: 24,
+                          padding: const EdgeInsets.all(12),
+                          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                          tooltip: 'Card View',
+                        ),
+                      ),
 
                       // Profile Icon
                       IconButton(
@@ -352,6 +375,9 @@ class _CalendarViewState extends State<_CalendarView> {
     // Determine border color for current month dates
     final borderColor = colorScheme.onSurface.withValues(alpha: 0.08);
 
+    // Check if this day has any holiday events
+    final hasHolidayEvent = events.any((event) => event.category == EventCategory.holiday);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -365,124 +391,157 @@ class _CalendarViewState extends State<_CalendarView> {
           decoration: BoxDecoration(
             color: isToday
                 ? colorScheme.primaryContainer.withValues(alpha: 0.1)
-                : Colors.transparent,
-            border: Border.all(
-              color: borderColor,
-              width: 0.5,
-            ),
+                : (day.weekday == DateTime.saturday || day.weekday == DateTime.sunday)
+                    ? colorScheme.tertiary.withValues(alpha: 0.1)
+                    : Colors.transparent,
+            border: hasHolidayEvent
+                ? Border(
+                    left: BorderSide(color: colorScheme.tertiary, width: 2),
+                    top: BorderSide(color: borderColor, width: 0.5),
+                    right: BorderSide(color: borderColor, width: 0.5),
+                    bottom: BorderSide(color: borderColor, width: 0.5),
+                  )
+                : Border.all(
+                    color: borderColor,
+                    width: 0.5,
+                  ),
           ),
         child: Padding(
           // Internal padding for content - reduced to move date numbers closer to corner
           padding: const EdgeInsets.all(4.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.start,
+          child: Stack(
             children: [
-              // Date number with today indicator
-              Container(
-                width: 22,
-                height: 22,
-                alignment: Alignment.center,
-                decoration: isToday
-                    ? BoxDecoration(
-                        color: colorScheme.primary,
-                        shape: BoxShape.circle,
-                      )
-                    : null,
-                child: Text(
-                  '${day.day}',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: isToday ? FontWeight.w600 : FontWeight.w400,
-                    color: isToday
-                        ? colorScheme.onPrimary
-                        : colorScheme.onSurface,
+              // Main content - date number and event circles
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  // Date number with today indicator
+                  Container(
+                    width: 22,
+                    height: 22,
+                    alignment: Alignment.center,
+                    decoration: isToday
+                        ? BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                colorScheme.primary,   // Deep Blue
+                                colorScheme.secondary, // Purple
+                              ],
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: colorScheme.primary.withValues(alpha: 0.3),
+                                blurRadius: 2,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          )
+                        : null,
+                    child: Text(
+                      '${day.day}',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: isToday ? FontWeight.w600 : FontWeight.w400,
+                        color: isToday
+                            ? Colors.white
+                            : colorScheme.onSurface,
+                      ),
+                    ),
                   ),
-                ),
+
+                  const SizedBox(height: 4),
+
+                  // Event indicators as colored circles
+                  if (hasEvents)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 2),
+                        child: Wrap(
+                          spacing: 3,
+                          runSpacing: 3,
+                          children: [
+                            // Show up to 6 colored circles
+                            ...events.take(6).map(
+                              (event) => Container(
+                                width: 9,
+                                height: 9,
+                                decoration: BoxDecoration(
+                                  color: CalendarUtils.getCategoryColor(event.category),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.2),
+                                      blurRadius: 1,
+                                      offset: const Offset(0, 0.5),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // Show "+X" text if more than 6 events
+                            if (events.length > 6)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 2),
+                                child: Text(
+                                  '+${events.length - 6}',
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w600,
+                                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                                    height: 1.0,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               ),
 
-              const SizedBox(height: 2),
-
-              // Event indicators with titles
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (hasEvents) ...[
-                      // Show up to 2 event titles, then "+X more" indicator
-                      if (events.length <= 2)
-                        ...events.map(
-                          (event) => Container(
-                            height: 16,
-                            margin: const EdgeInsets.only(bottom: 2),
-                            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primary,
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: Text(
-                              event.title,
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w500,
-                                color: colorScheme.onPrimary,
-                                height: 1.0,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )
-                      else ...[
-                        // Show first 2 events
-                        ...events.take(2).map(
-                          (event) => Container(
-                            height: 16,
-                            margin: const EdgeInsets.only(bottom: 2),
-                            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primary,
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: Text(
-                              event.title,
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w500,
-                                color: colorScheme.onPrimary,
-                                height: 1.0,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                        // "+X more" indicator
-                        Container(
-                          height: 14,
-                          margin: const EdgeInsets.only(bottom: 2),
-                          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                          child: Text(
-                            '+${events.length - 2} more',
-                            style: TextStyle(
-                              fontSize: 8,
-                              fontWeight: FontWeight.w600,
-                              color: colorScheme.onPrimaryContainer,
-                              height: 1.0,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.clip,
-                          ),
+              // Event count badge positioned at bottom-right
+              if (hasEvents)
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 18,
+                    height: 18,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          colorScheme.secondary.withValues(alpha: 0.7), // Purple
+                          colorScheme.tertiary.withValues(alpha: 0.7),  // Warm Coral
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 3,
+                          offset: const Offset(0, 1),
                         ),
                       ],
-                    ],
-                  ],
+                    ),
+                    child: Text(
+                      '${events.length}',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        height: 1.2,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ),
-              ),
             ],
           ),
         ),
