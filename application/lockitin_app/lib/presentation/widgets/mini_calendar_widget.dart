@@ -36,9 +36,7 @@ class MiniCalendarWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Day headers row - minimal height
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Row(
+          Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day) {
                 return Expanded(
@@ -53,7 +51,6 @@ class MiniCalendarWidget extends StatelessWidget {
                   ),
                 );
               }).toList(),
-            ),
           ),
 
           // Date grid
