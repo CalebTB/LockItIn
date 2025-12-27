@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/group_model.dart';
 import '../providers/group_provider.dart';
+import '../screens/group_detail_screen.dart';
 
 /// Bottom sheet displaying user's groups with navigation
 /// Shows list of groups with emoji icons and member counts
@@ -454,7 +455,11 @@ class _GroupsBottomSheetState extends State<GroupsBottomSheet> {
           onTap: () {
             // Navigate to group detail
             widget.onClose();
-            // TODO: Navigate to group detail screen
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => GroupDetailScreen(group: group),
+              ),
+            );
           },
           child: Padding(
             padding: const EdgeInsets.all(16),
