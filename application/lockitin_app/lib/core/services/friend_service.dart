@@ -1,0 +1,474 @@
+import '../../data/models/friendship_model.dart';
+import '../network/supabase_client.dart';
+import '../utils/logger.dart';
+
+/// Exception thrown when friend operations fail
+class FriendServiceException implements Exception {
+  final String message;
+  final String? code;
+
+  FriendServiceException(this.message, {this.code});
+
+  @override
+  String toString() => 'FriendServiceException: $message';
+}
+
+/// Service for managing friend connections with Supabase
+///
+/// Uses singleton pattern - access via [FriendService.instance] or constructor
+class FriendService {
+  // Singleton instance
+  static final FriendService _instance = FriendService._internal();
+
+  /// Access the singleton instance
+  static FriendService get instance => _instance;
+
+  /// Factory constructor returns singleton
+  factory FriendService() => _instance;
+
+  /// Private internal constructor
+  FriendService._internal();
+
+  // ============================================================================
+  // Friend Request Operations
+  // ============================================================================
+
+  /// Send a friend request to another user
+  ///
+  /// Creates a pending friendship from current user to target user
+  /// Returns the created FriendshipModel
+  Future<FriendshipModel> sendFriendRequest(String friendId) async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw FriendServiceException('User not authenticated');
+      }
+
+      if (currentUserId == friendId) {
+        throw FriendServiceException('Cannot send friend request to yourself');
+      }
+
+      Logger.info('Sending friend request to: $friendId');
+
+      // Check if friendship already exists (in either direction)
+      final existingCheck = await SupabaseClientManager.client
+          .from('friendships')
+          .select()
+          .or('and(user_id.eq.$currentUserId,friend_id.eq.$friendId),and(user_id.eq.$friendId,friend_id.eq.$currentUserId)');
+
+      if ((existingCheck as List).isNotEmpty) {
+        final existing = FriendshipModel.fromJson(existingCheck[0]);
+        if (existing.status == FriendshipStatus.accepted) {
+          throw FriendServiceException('You are already friends with this user');
+        } else if (existing.status == FriendshipStatus.pending) {
+          throw FriendServiceException('A friend request already exists');
+        } else if (existing.status == FriendshipStatus.blocked) {
+          throw FriendServiceException('Unable to send friend request');
+        }
+      }
+
+      // Create the friend request
+      final response = await SupabaseClientManager.client
+          .from('friendships')
+          .insert({
+            'user_id': currentUserId,
+            'friend_id': friendId,
+            'status': 'pending',
+          })
+          .select()
+          .single();
+
+      Logger.info('Friend request sent successfully');
+      return FriendshipModel.fromJson(response);
+    } catch (e) {
+      if (e is FriendServiceException) rethrow;
+      Logger.error('Failed to send friend request: $e');
+      throw FriendServiceException('Failed to send friend request: $e');
+    }
+  }
+
+  /// Accept a pending friend request
+  ///
+  /// Updates the friendship status to accepted
+  Future<FriendshipModel> acceptFriendRequest(String requestId) async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw FriendServiceException('User not authenticated');
+      }
+
+      Logger.info('Accepting friend request: $requestId');
+
+      final response = await SupabaseClientManager.client
+          .from('friendships')
+          .update({
+            'status': 'accepted',
+            'accepted_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', requestId)
+          .eq('friend_id', currentUserId) // Only recipient can accept
+          .eq('status', 'pending') // Only pending requests can be accepted
+          .select()
+          .single();
+
+      Logger.info('Friend request accepted successfully');
+      return FriendshipModel.fromJson(response);
+    } catch (e) {
+      if (e is FriendServiceException) rethrow;
+      Logger.error('Failed to accept friend request: $e');
+      throw FriendServiceException('Failed to accept friend request: $e');
+    }
+  }
+
+  /// Decline a pending friend request
+  ///
+  /// Deletes the friendship record
+  Future<void> declineFriendRequest(String requestId) async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw FriendServiceException('User not authenticated');
+      }
+
+      Logger.info('Declining friend request: $requestId');
+
+      await SupabaseClientManager.client
+          .from('friendships')
+          .delete()
+          .eq('id', requestId)
+          .eq('friend_id', currentUserId) // Only recipient can decline
+          .eq('status', 'pending');
+
+      Logger.info('Friend request declined successfully');
+    } catch (e) {
+      if (e is FriendServiceException) rethrow;
+      Logger.error('Failed to decline friend request: $e');
+      throw FriendServiceException('Failed to decline friend request: $e');
+    }
+  }
+
+  /// Cancel a friend request that was sent
+  ///
+  /// Only the sender can cancel their own request
+  Future<void> cancelFriendRequest(String requestId) async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw FriendServiceException('User not authenticated');
+      }
+
+      Logger.info('Canceling friend request: $requestId');
+
+      await SupabaseClientManager.client
+          .from('friendships')
+          .delete()
+          .eq('id', requestId)
+          .eq('user_id', currentUserId) // Only sender can cancel
+          .eq('status', 'pending');
+
+      Logger.info('Friend request canceled successfully');
+    } catch (e) {
+      if (e is FriendServiceException) rethrow;
+      Logger.error('Failed to cancel friend request: $e');
+      throw FriendServiceException('Failed to cancel friend request: $e');
+    }
+  }
+
+  /// Remove a friend (unfriend)
+  ///
+  /// Deletes the accepted friendship record
+  Future<void> removeFriend(String friendshipId) async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw FriendServiceException('User not authenticated');
+      }
+
+      Logger.info('Removing friend: $friendshipId');
+
+      await SupabaseClientManager.client
+          .from('friendships')
+          .delete()
+          .eq('id', friendshipId)
+          .or('user_id.eq.$currentUserId,friend_id.eq.$currentUserId')
+          .eq('status', 'accepted');
+
+      Logger.info('Friend removed successfully');
+    } catch (e) {
+      if (e is FriendServiceException) rethrow;
+      Logger.error('Failed to remove friend: $e');
+      throw FriendServiceException('Failed to remove friend: $e');
+    }
+  }
+
+  // ============================================================================
+  // Block Operations
+  // ============================================================================
+
+  /// Block a user
+  ///
+  /// Updates existing friendship to blocked or creates blocked entry
+  Future<void> blockUser(String userId) async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw FriendServiceException('User not authenticated');
+      }
+
+      Logger.info('Blocking user: $userId');
+
+      // Check for existing friendship
+      final existingCheck = await SupabaseClientManager.client
+          .from('friendships')
+          .select()
+          .or('and(user_id.eq.$currentUserId,friend_id.eq.$userId),and(user_id.eq.$userId,friend_id.eq.$currentUserId)');
+
+      if ((existingCheck as List).isNotEmpty) {
+        // Update existing record
+        await SupabaseClientManager.client
+            .from('friendships')
+            .update({'status': 'blocked'})
+            .eq('id', existingCheck[0]['id']);
+      } else {
+        // Create new blocked record
+        await SupabaseClientManager.client.from('friendships').insert({
+          'user_id': currentUserId,
+          'friend_id': userId,
+          'status': 'blocked',
+        });
+      }
+
+      Logger.info('User blocked successfully');
+    } catch (e) {
+      if (e is FriendServiceException) rethrow;
+      Logger.error('Failed to block user: $e');
+      throw FriendServiceException('Failed to block user: $e');
+    }
+  }
+
+  /// Unblock a user
+  ///
+  /// Deletes the blocked friendship record
+  Future<void> unblockUser(String friendshipId) async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw FriendServiceException('User not authenticated');
+      }
+
+      Logger.info('Unblocking user: $friendshipId');
+
+      await SupabaseClientManager.client
+          .from('friendships')
+          .delete()
+          .eq('id', friendshipId)
+          .eq('user_id', currentUserId) // Only blocker can unblock
+          .eq('status', 'blocked');
+
+      Logger.info('User unblocked successfully');
+    } catch (e) {
+      if (e is FriendServiceException) rethrow;
+      Logger.error('Failed to unblock user: $e');
+      throw FriendServiceException('Failed to unblock user: $e');
+    }
+  }
+
+  // ============================================================================
+  // Query Operations
+  // ============================================================================
+
+  /// Get list of accepted friends
+  ///
+  /// Uses the get_friends database function
+  Future<List<FriendProfile>> getFriends() async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw FriendServiceException('User not authenticated');
+      }
+
+      Logger.info('Fetching friends list');
+
+      final response = await SupabaseClientManager.client
+          .rpc('get_friends', params: {'user_uuid': currentUserId});
+
+      final friends = (response as List)
+          .map((json) => FriendProfile.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      Logger.info('Fetched ${friends.length} friends');
+      return friends;
+    } catch (e) {
+      if (e is FriendServiceException) rethrow;
+      Logger.error('Failed to fetch friends: $e');
+      throw FriendServiceException('Failed to fetch friends: $e');
+    }
+  }
+
+  /// Get list of pending friend requests received
+  ///
+  /// Uses the get_pending_requests database function
+  Future<List<FriendRequest>> getPendingRequests() async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw FriendServiceException('User not authenticated');
+      }
+
+      Logger.info('Fetching pending friend requests');
+
+      final response = await SupabaseClientManager.client
+          .rpc('get_pending_requests', params: {'user_uuid': currentUserId});
+
+      final requests = (response as List)
+          .map((json) => FriendRequest.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      Logger.info('Fetched ${requests.length} pending requests');
+      return requests;
+    } catch (e) {
+      if (e is FriendServiceException) rethrow;
+      Logger.error('Failed to fetch pending requests: $e');
+      throw FriendServiceException('Failed to fetch pending requests: $e');
+    }
+  }
+
+  /// Get list of sent friend requests (outgoing pending)
+  Future<List<FriendshipModel>> getSentRequests() async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw FriendServiceException('User not authenticated');
+      }
+
+      Logger.info('Fetching sent friend requests');
+
+      final response = await SupabaseClientManager.client
+          .from('friendships')
+          .select()
+          .eq('user_id', currentUserId)
+          .eq('status', 'pending');
+
+      final requests = (response as List)
+          .map((json) => FriendshipModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      Logger.info('Fetched ${requests.length} sent requests');
+      return requests;
+    } catch (e) {
+      if (e is FriendServiceException) rethrow;
+      Logger.error('Failed to fetch sent requests: $e');
+      throw FriendServiceException('Failed to fetch sent requests: $e');
+    }
+  }
+
+  /// Get list of blocked users
+  Future<List<FriendshipModel>> getBlockedUsers() async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw FriendServiceException('User not authenticated');
+      }
+
+      Logger.info('Fetching blocked users');
+
+      final response = await SupabaseClientManager.client
+          .from('friendships')
+          .select()
+          .eq('user_id', currentUserId)
+          .eq('status', 'blocked');
+
+      final blocked = (response as List)
+          .map((json) => FriendshipModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      Logger.info('Fetched ${blocked.length} blocked users');
+      return blocked;
+    } catch (e) {
+      if (e is FriendServiceException) rethrow;
+      Logger.error('Failed to fetch blocked users: $e');
+      throw FriendServiceException('Failed to fetch blocked users: $e');
+    }
+  }
+
+  /// Search for users by email or name
+  ///
+  /// Returns list of user profiles matching the query
+  Future<List<FriendProfile>> searchUsers(String query) async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw FriendServiceException('User not authenticated');
+      }
+
+      if (query.length < 2) {
+        return [];
+      }
+
+      Logger.info('Searching users: $query');
+
+      // Search by email or name (case-insensitive)
+      final response = await SupabaseClientManager.client
+          .from('users')
+          .select('id, email, full_name, avatar_url')
+          .or('email.ilike.%$query%,full_name.ilike.%$query%')
+          .neq('id', currentUserId) // Exclude self
+          .limit(20);
+
+      final users = (response as List)
+          .map((json) => FriendProfile.fromUserJson(json as Map<String, dynamic>))
+          .toList();
+
+      Logger.info('Found ${users.length} users matching query');
+      return users;
+    } catch (e) {
+      if (e is FriendServiceException) rethrow;
+      Logger.error('Failed to search users: $e');
+      throw FriendServiceException('Failed to search users: $e');
+    }
+  }
+
+  /// Check if two users are friends
+  ///
+  /// Uses the are_friends database function
+  Future<bool> areFriends(String otherUserId) async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        return false;
+      }
+
+      final response = await SupabaseClientManager.client.rpc('are_friends',
+          params: {'user1_uuid': currentUserId, 'user2_uuid': otherUserId});
+
+      return response as bool;
+    } catch (e) {
+      Logger.error('Failed to check friendship: $e');
+      return false;
+    }
+  }
+
+  /// Get friendship status with another user
+  ///
+  /// Returns null if no relationship exists
+  Future<FriendshipModel?> getFriendshipStatus(String otherUserId) async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        return null;
+      }
+
+      final response = await SupabaseClientManager.client
+          .from('friendships')
+          .select()
+          .or('and(user_id.eq.$currentUserId,friend_id.eq.$otherUserId),and(user_id.eq.$otherUserId,friend_id.eq.$currentUserId)')
+          .maybeSingle();
+
+      if (response == null) return null;
+      return FriendshipModel.fromJson(response);
+    } catch (e) {
+      Logger.error('Failed to get friendship status: $e');
+      return null;
+    }
+  }
+}
