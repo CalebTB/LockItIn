@@ -5,15 +5,21 @@ import 'package:uuid/uuid.dart';
 import '../../data/models/event_model.dart';
 import '../providers/auth_provider.dart';
 
-/// Event creation screen with form for all event fields
+/// Event creation/editing screen with form for all event fields
 /// Includes title, date/time pickers, location, notes, and privacy settings
+/// When eventToEdit is provided, the form is pre-filled for editing
 class EventCreationScreen extends StatefulWidget {
   final DateTime? initialDate;
+  final EventModel? eventToEdit;
 
   const EventCreationScreen({
     super.key,
     this.initialDate,
+    this.eventToEdit,
   });
+
+  /// Check if this screen is in edit mode
+  bool get isEditMode => eventToEdit != null;
 
   @override
   State<EventCreationScreen> createState() => _EventCreationScreenState();
@@ -35,10 +41,30 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
   @override
   void initState() {
     super.initState();
-    _startDate = widget.initialDate ?? DateTime.now();
-    _endDate = _startDate; // Default to same day
-    _startTime = TimeOfDay.now();
-    _endTime = TimeOfDay(hour: (_startTime.hour + 1) % 24, minute: _startTime.minute);
+
+    if (widget.eventToEdit != null) {
+      // Edit mode: pre-fill form with existing event data
+      final event = widget.eventToEdit!;
+      _titleController.text = event.title;
+      _locationController.text = event.location ?? '';
+      _notesController.text = event.description ?? '';
+      _startDate = event.startTime;
+      _endDate = event.endTime;
+      _startTime = TimeOfDay.fromDateTime(event.startTime);
+      _endTime = TimeOfDay.fromDateTime(event.endTime);
+      _visibility = event.visibility;
+      // Check if it's an all-day event (starts at midnight and ends at 23:59)
+      _isAllDay = event.startTime.hour == 0 &&
+                  event.startTime.minute == 0 &&
+                  event.endTime.hour == 23 &&
+                  event.endTime.minute == 59;
+    } else {
+      // Create mode: use defaults
+      _startDate = widget.initialDate ?? DateTime.now();
+      _endDate = _startDate; // Default to same day
+      _startTime = TimeOfDay.now();
+      _endTime = TimeOfDay(hour: (_startTime.hour + 1) % 24, minute: _startTime.minute);
+    }
   }
 
   @override
@@ -63,7 +89,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'New Event',
+          widget.isEditMode ? 'Edit Event' : 'New Event',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -612,22 +638,38 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
       return;
     }
 
-    // Create event model
-    const uuid = Uuid();
-    final event = EventModel(
-      id: uuid.v4(),
-      userId: userId,
-      title: _titleController.text.trim(),
-      description: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-      startTime: startDateTime,
-      endTime: endDateTime,
-      location: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
-      visibility: _visibility,
-      nativeCalendarId: null,
-      createdAt: DateTime.now(),
-    );
+    // Create or update event model
+    final EventModel event;
 
-    // Return the event to the caller (calendar screen will add it to provider)
+    if (widget.isEditMode) {
+      // Edit mode: preserve original IDs and update fields
+      event = widget.eventToEdit!.copyWith(
+        title: _titleController.text.trim(),
+        description: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        startTime: startDateTime,
+        endTime: endDateTime,
+        location: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
+        visibility: _visibility,
+        updatedAt: DateTime.now(),
+      );
+    } else {
+      // Create mode: generate new IDs
+      const uuid = Uuid();
+      event = EventModel(
+        id: uuid.v4(),
+        userId: userId,
+        title: _titleController.text.trim(),
+        description: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        startTime: startDateTime,
+        endTime: endDateTime,
+        location: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
+        visibility: _visibility,
+        nativeCalendarId: null,
+        createdAt: DateTime.now(),
+      );
+    }
+
+    // Return the event to the caller (calendar/detail screen will handle save)
     Navigator.of(context).pop(event);
   }
 

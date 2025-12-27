@@ -102,31 +102,53 @@ class EventService {
   /// Update event in both native calendar and Supabase
   ///
   /// Performs dual-write update operation
-  /// Requires event to have both nativeCalendarId and id (Supabase ID)
+  /// If native calendar update fails (e.g., event was deleted externally),
+  /// we still update Supabase to keep data in sync
   Future<EventModel> updateEvent(EventModel event) async {
-    if (event.nativeCalendarId == null) {
-      throw EventServiceException(
-        'Cannot update event without native calendar ID',
-      );
-    }
-
     try {
       Logger.info('Updating event: ${event.id}');
 
-      // Update in native calendar
-      await _calendarManager.updateEvent(event);
-      Logger.info('Updated event in native calendar');
+      bool nativeUpdateFailed = false;
 
-      // Update in Supabase
-      await SupabaseClientManager.client
-          .from('events')
-          .update(event.toJson())
-          .eq('id', event.id);
+      // Try to update in native calendar if we have the ID
+      if (event.nativeCalendarId != null) {
+        try {
+          await _calendarManager.updateEvent(event);
+          Logger.info('Updated event in native calendar');
+        } catch (e) {
+          // Native calendar update failed - event might have been deleted externally
+          // Continue with Supabase update
+          Logger.warning('Native calendar update failed (event may not exist): $e');
+          nativeUpdateFailed = true;
+        }
+      }
 
-      Logger.info('Updated event in Supabase');
+      // Update in Supabase (always attempt this)
+      try {
+        await SupabaseClientManager.client
+            .from('events')
+            .update(event.toJson())
+            .eq('id', event.id);
+
+        Logger.info('Updated event in Supabase');
+      } catch (e) {
+        Logger.error('Failed to update event in Supabase: $e');
+        throw EventServiceException(
+          'Failed to sync event changes to cloud: $e',
+        );
+      }
+
+      // If native update failed but Supabase succeeded, warn but don't fail
+      if (nativeUpdateFailed) {
+        Logger.warning(
+          'Event updated in Supabase but native calendar sync failed. '
+          'The event may have been modified or deleted in Apple Calendar.',
+        );
+      }
 
       return event;
     } catch (e) {
+      if (e is EventServiceException) rethrow;
       Logger.error('Failed to update event: $e');
       throw EventServiceException('Failed to update event: $e');
     }

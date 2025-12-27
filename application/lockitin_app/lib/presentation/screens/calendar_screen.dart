@@ -18,10 +18,8 @@ class CalendarScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => CalendarProvider(),
-      child: const _CalendarView(),
-    );
+    // CalendarProvider is now provided at app level in main.dart
+    return const _CalendarView();
   }
 }
 

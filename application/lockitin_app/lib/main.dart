@@ -4,6 +4,7 @@ import 'core/network/supabase_client.dart';
 import 'core/utils/logger.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/providers/auth_provider.dart';
+import 'presentation/providers/calendar_provider.dart';
 import 'presentation/providers/device_calendar_provider.dart';
 import 'presentation/providers/settings_provider.dart';
 import 'presentation/screens/splash_screen.dart';
@@ -40,6 +41,9 @@ class LockItInApp extends StatelessWidget {
 
         // Device Calendar Provider (platform channels)
         ChangeNotifierProvider(create: (_) => DeviceCalendarProvider()),
+
+        // Calendar Provider (calendar state, events, navigation)
+        ChangeNotifierProvider(create: (_) => CalendarProvider()),
 
         // Add more providers here as you build features:
         // ChangeNotifierProvider(create: (_) => GroupsProvider()),
