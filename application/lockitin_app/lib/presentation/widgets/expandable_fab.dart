@@ -61,10 +61,10 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 56,
+      width: 200, // Wide enough for labels + buttons
       height: 240,
       child: Stack(
-        alignment: Alignment.bottomCenter,
+        alignment: Alignment.bottomRight,
         clipBehavior: Clip.none,
         children: [
           // New Event Button (top)
@@ -131,6 +131,7 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
       builder: (context, child) {
         final progress = _expandAnimation.value;
         return Positioned(
+          right: 4, // Keep buttons aligned to the right
           bottom: 56 + (distance * progress),
           child: Opacity(
             opacity: progress,
@@ -209,7 +210,10 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
       animation: _expandAnimation,
       builder: (context, child) {
         final isOpen = _expandAnimation.value > 0.5;
-        return Material(
+        return Positioned(
+          right: 0,
+          bottom: 0,
+          child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: widget.onToggle,
@@ -245,6 +249,7 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
               ),
             ),
           ),
+        ),
         );
       },
     );
