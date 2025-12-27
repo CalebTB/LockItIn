@@ -115,20 +115,35 @@ class CalendarPlugin: NSObject, FlutterPlugin {
             status = EKEventStore.authorizationStatus(for: .event)
         }
 
-        switch status {
-        case .authorized, .fullAccess:
-            result("granted")
-        case .denied:
-            result("denied")
-        case .restricted:
-            result("restricted")
-        case .notDetermined:
-            result("notDetermined")
-        case .writeOnly:
-            // Write-only is not sufficient for our needs
-            result("denied")
-        @unknown default:
-            result("notDetermined")
+        if #available(iOS 17.0, *) {
+            switch status {
+            case .authorized, .fullAccess:
+                result("granted")
+            case .denied:
+                result("denied")
+            case .restricted:
+                result("restricted")
+            case .notDetermined:
+                result("notDetermined")
+            case .writeOnly:
+                // Write-only is not sufficient for our needs
+                result("denied")
+            @unknown default:
+                result("notDetermined")
+            }
+        } else {
+            switch status {
+            case .authorized:
+                result("granted")
+            case .denied:
+                result("denied")
+            case .restricted:
+                result("restricted")
+            case .notDetermined:
+                result("notDetermined")
+            @unknown default:
+                result("notDetermined")
+            }
         }
     }
 
@@ -143,13 +158,24 @@ class CalendarPlugin: NSObject, FlutterPlugin {
             status = EKEventStore.authorizationStatus(for: .event)
         }
 
-        guard status == .authorized || status == .fullAccess else {
-            result(FlutterError(
-                code: "PERMISSION_DENIED",
-                message: "Calendar access not authorized",
-                details: nil
-            ))
-            return
+        if #available(iOS 17.0, *) {
+            guard status == .authorized || status == .fullAccess else {
+                result(FlutterError(
+                    code: "PERMISSION_DENIED",
+                    message: "Calendar access not authorized",
+                    details: nil
+                ))
+                return
+            }
+        } else {
+            guard status == .authorized else {
+                result(FlutterError(
+                    code: "PERMISSION_DENIED",
+                    message: "Calendar access not authorized",
+                    details: nil
+                ))
+                return
+            }
         }
 
         // Parse date range
@@ -202,13 +228,24 @@ class CalendarPlugin: NSObject, FlutterPlugin {
             status = EKEventStore.authorizationStatus(for: .event)
         }
 
-        guard status == .authorized || status == .fullAccess else {
-            result(FlutterError(
-                code: "PERMISSION_DENIED",
-                message: "Calendar access not authorized",
-                details: nil
-            ))
-            return
+        if #available(iOS 17.0, *) {
+            guard status == .authorized || status == .fullAccess else {
+                result(FlutterError(
+                    code: "PERMISSION_DENIED",
+                    message: "Calendar access not authorized",
+                    details: nil
+                ))
+                return
+            }
+        } else {
+            guard status == .authorized else {
+                result(FlutterError(
+                    code: "PERMISSION_DENIED",
+                    message: "Calendar access not authorized",
+                    details: nil
+                ))
+                return
+            }
         }
 
         // Parse event data
@@ -254,13 +291,24 @@ class CalendarPlugin: NSObject, FlutterPlugin {
             status = EKEventStore.authorizationStatus(for: .event)
         }
 
-        guard status == .authorized || status == .fullAccess else {
-            result(FlutterError(
-                code: "PERMISSION_DENIED",
-                message: "Calendar access not authorized",
-                details: nil
-            ))
-            return
+        if #available(iOS 17.0, *) {
+            guard status == .authorized || status == .fullAccess else {
+                result(FlutterError(
+                    code: "PERMISSION_DENIED",
+                    message: "Calendar access not authorized",
+                    details: nil
+                ))
+                return
+            }
+        } else {
+            guard status == .authorized else {
+                result(FlutterError(
+                    code: "PERMISSION_DENIED",
+                    message: "Calendar access not authorized",
+                    details: nil
+                ))
+                return
+            }
         }
 
         // Get event ID
@@ -314,13 +362,24 @@ class CalendarPlugin: NSObject, FlutterPlugin {
             status = EKEventStore.authorizationStatus(for: .event)
         }
 
-        guard status == .authorized || status == .fullAccess else {
-            result(FlutterError(
-                code: "PERMISSION_DENIED",
-                message: "Calendar access not authorized",
-                details: nil
-            ))
-            return
+        if #available(iOS 17.0, *) {
+            guard status == .authorized || status == .fullAccess else {
+                result(FlutterError(
+                    code: "PERMISSION_DENIED",
+                    message: "Calendar access not authorized",
+                    details: nil
+                ))
+                return
+            }
+        } else {
+            guard status == .authorized else {
+                result(FlutterError(
+                    code: "PERMISSION_DENIED",
+                    message: "Calendar access not authorized",
+                    details: nil
+                ))
+                return
+            }
         }
 
         // Get event ID

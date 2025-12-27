@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 import '../../data/models/event_model.dart';
 
 /// Event creation screen with form for all event fields
@@ -595,8 +596,9 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     }
 
     // Create event model
+    const uuid = Uuid();
     final event = EventModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: uuid.v4(),
       userId: 'current-user',
       title: _titleController.text.trim(),
       description: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),

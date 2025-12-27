@@ -3,7 +3,6 @@ import '../../domain/models/calendar_month.dart';
 import '../../utils/calendar_utils.dart';
 import '../../data/models/event_model.dart';
 import '../../core/services/calendar_manager.dart';
-import '../../core/services/holiday_service.dart';
 import '../../core/services/test_events_service.dart';
 import '../../core/utils/logger.dart';
 
@@ -149,9 +148,10 @@ class CalendarProvider extends ChangeNotifier {
       final startDate = DateTime(now.year, now.month - 1, now.day);
       final endDate = DateTime(now.year, now.month + 2, now.day);
 
-      final holidays = await HolidayService.getHolidaysInRange(startDate, endDate);
-      allEvents.addAll(holidays);
-      Logger.info('Loaded ${holidays.length} holidays');
+      // DISABLED: Holidays disabled since we now sync from iOS Calendar
+      // final holidays = await HolidayService.getHolidaysInRange(startDate, endDate);
+      // allEvents.addAll(holidays);
+      // Logger.info('Loaded ${holidays.length} holidays');
 
       // Load test events for development (if enabled)
       if (TestEventsService.enableTestEvents) {
