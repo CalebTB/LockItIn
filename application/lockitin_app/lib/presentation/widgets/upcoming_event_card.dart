@@ -167,9 +167,15 @@ class UpcomingEventCard extends StatelessWidget {
   }
 
   Widget _buildAttendeeAvatars() {
+    final avatarCount = attendeeInitials!.take(3).length;
+    // Calculate width: first avatar is 24px, each subsequent adds 16px (overlap)
+    final width = 24.0 + ((avatarCount - 1) * 16.0);
+
     return SizedBox(
+      width: width,
       height: 24,
       child: Stack(
+        clipBehavior: Clip.none,
         children: attendeeInitials!.take(3).toList().asMap().entries.map((entry) {
           return Positioned(
             left: entry.key * 16.0,
