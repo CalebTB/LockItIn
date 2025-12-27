@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/friendship_model.dart';
 import '../providers/friend_provider.dart';
@@ -82,7 +83,12 @@ class _SearchResultsState extends State<_SearchResults> {
   void didUpdateWidget(_SearchResults oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.query != widget.query) {
-      _performSearch();
+      // Defer search to avoid calling notifyListeners during build
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _performSearch();
+        }
+      });
     }
   }
 
