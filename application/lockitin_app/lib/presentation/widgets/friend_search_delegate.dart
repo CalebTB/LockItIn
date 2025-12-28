@@ -298,13 +298,6 @@ class _UserSearchTile extends StatelessWidget {
           user.displayName,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        subtitle: Text(
-          user.email,
-          style: TextStyle(
-            color: colorScheme.onSurfaceVariant,
-            fontSize: 13,
-          ),
-        ),
         trailing: _buildActionButton(context, colorScheme),
       ),
     );

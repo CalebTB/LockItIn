@@ -26,7 +26,13 @@
       "Bash(gh label list:*)",
       "Bash(gh pr view:*)",
       "Bash(gh:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(wc:*)",
+      "Bash(git -C /Users/calebbyers/Code/LockItIn log --oneline --all)",
+      "Bash(git -C /Users/calebbyers/Code/LockItIn log --oneline --grep=\"Sprint\")",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(xargs:*)"
     ],
     "deny": [],
     "ask": []

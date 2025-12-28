@@ -27,13 +27,6 @@ class FriendListTile extends StatelessWidget {
           friend.displayName,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        subtitle: Text(
-          friend.email,
-          style: TextStyle(
-            color: colorScheme.onSurfaceVariant,
-            fontSize: 13,
-          ),
-        ),
         trailing: PopupMenuButton<String>(
           icon: Icon(
             Icons.more_vert_rounded,

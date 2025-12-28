@@ -140,9 +140,12 @@ class FriendProvider extends ChangeNotifier {
     }
   }
 
-  /// Refresh all friend data
+  /// Refresh all friend data (force reload)
   Future<void> refresh() async {
-    await initialize();
+    await Future.wait([
+      loadFriends(),
+      loadPendingRequests(),
+    ]);
   }
 
   // ============================================================================

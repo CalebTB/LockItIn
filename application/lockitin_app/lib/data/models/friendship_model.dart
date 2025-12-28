@@ -1,4 +1,21 @@
 import 'package:equatable/equatable.dart';
+import 'user_display_mixin.dart';
+
+/// Helper to mask email addresses for privacy
+/// e.g., "john.doe@example.com" -> "j***@example.com"
+String maskEmail(String email) {
+  final parts = email.split('@');
+  if (parts.length != 2) return email; // Invalid email, return as-is
+
+  final localPart = parts[0];
+  final domain = parts[1];
+
+  // Show first character, mask the rest
+  final maskedLocal =
+      localPart.length > 1 ? '${localPart[0]}***' : '$localPart***';
+
+  return '$maskedLocal@$domain';
+}
 
 /// Friendship status for friend connections
 enum FriendshipStatus {
@@ -136,10 +153,12 @@ class FriendshipModel extends Equatable {
 }
 
 /// Simplified user profile model for friend display
-class FriendProfile extends Equatable {
+class FriendProfile extends Equatable with UserDisplayMixin {
   final String id;
   final String? friendshipId; // ID of the friendship record (for deletion)
+  @override
   final String? fullName;
+  @override
   final String email;
   final String? avatarUrl;
   final DateTime? friendshipSince;
@@ -168,28 +187,14 @@ class FriendProfile extends Equatable {
   }
 
   /// Create from users table (for search results)
+  /// Note: Email is masked for privacy in search results
   factory FriendProfile.fromUserJson(Map<String, dynamic> json) {
     return FriendProfile(
       id: json['id'] as String,
       fullName: json['full_name'] as String?,
-      email: json['email'] as String,
+      email: maskEmail(json['email'] as String), // Mask email for privacy
       avatarUrl: json['avatar_url'] as String?,
     );
-  }
-
-  /// Display name (full name or email if no name)
-  String get displayName => fullName?.isNotEmpty == true ? fullName! : email;
-
-  /// Initials for avatar placeholder
-  String get initials {
-    if (fullName?.isNotEmpty == true) {
-      final parts = fullName!.split(' ');
-      if (parts.length >= 2) {
-        return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-      }
-      return fullName![0].toUpperCase();
-    }
-    return email[0].toUpperCase();
   }
 
   @override
@@ -197,10 +202,12 @@ class FriendProfile extends Equatable {
 }
 
 /// Model for sent friend request with recipient info
-class SentRequest extends Equatable {
+class SentRequest extends Equatable with UserDisplayMixin {
   final String requestId;
   final String recipientId;
+  @override
   final String? fullName;
+  @override
   final String email;
   final String? avatarUrl;
   final DateTime sentAt;
@@ -226,31 +233,18 @@ class SentRequest extends Equatable {
     );
   }
 
-  /// Display name (full name or email if no name)
-  String get displayName => fullName?.isNotEmpty == true ? fullName! : email;
-
-  /// Initials for avatar placeholder
-  String get initials {
-    if (fullName?.isNotEmpty == true) {
-      final parts = fullName!.split(' ');
-      if (parts.length >= 2) {
-        return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-      }
-      return fullName![0].toUpperCase();
-    }
-    return email[0].toUpperCase();
-  }
-
   @override
   List<Object?> get props =>
       [requestId, recipientId, fullName, email, avatarUrl, sentAt];
 }
 
 /// Model for pending friend request with requester info
-class FriendRequest extends Equatable {
+class FriendRequest extends Equatable with UserDisplayMixin {
   final String requestId;
   final String requesterId;
+  @override
   final String? fullName;
+  @override
   final String email;
   final String? avatarUrl;
   final DateTime requestedAt;
@@ -274,21 +268,6 @@ class FriendRequest extends Equatable {
       avatarUrl: json['avatar_url'] as String?,
       requestedAt: DateTime.parse(json['requested_at'] as String),
     );
-  }
-
-  /// Display name (full name or email if no name)
-  String get displayName => fullName?.isNotEmpty == true ? fullName! : email;
-
-  /// Initials for avatar placeholder
-  String get initials {
-    if (fullName?.isNotEmpty == true) {
-      final parts = fullName!.split(' ');
-      if (parts.length >= 2) {
-        return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-      }
-      return fullName![0].toUpperCase();
-    }
-    return email[0].toUpperCase();
   }
 
   @override

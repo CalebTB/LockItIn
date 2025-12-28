@@ -2085,10 +2085,7 @@ class _MembersBottomSheet extends StatelessWidget {
               Navigator.pop(context); // Close dialog
               Navigator.pop(context); // Close members sheet
 
-              final success = await provider.removeMember(
-                groupId: group.id,
-                userId: '', // Empty string triggers self-removal in service
-              );
+              final success = await provider.leaveGroup(group.id);
 
               if (context.mounted) {
                 if (success) {
