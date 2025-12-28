@@ -17,21 +17,18 @@ ADD COLUMN IF NOT EXISTS members_can_invite BOOLEAN DEFAULT true;
 
 COMMENT ON COLUMN groups.members_can_invite IS 'Whether non-owner members can invite others to the group';
 
--- Step 2: Convert existing admin roles to member
--- (Admins become regular members in 2-tier system)
+-- Step 2: Add 'co_owner' to the enum type
+-- NOTE: Run this statement FIRST, separately in the SQL editor before running the rest:
+--   ALTER TYPE group_member_role ADD VALUE IF NOT EXISTS 'co_owner' AFTER 'owner';
+--
+-- PostgreSQL 9.3+ supports IF NOT EXISTS for ADD VALUE
+ALTER TYPE group_member_role ADD VALUE IF NOT EXISTS 'co_owner' AFTER 'owner';
+
+-- Step 3: Convert existing admin roles to member (if any exist)
+-- (Admins become regular members)
 UPDATE group_members
 SET role = 'member'
 WHERE role = 'admin';
-
--- Step 3: Update the role constraint
--- First drop the old constraint if it exists
-ALTER TABLE group_members
-DROP CONSTRAINT IF EXISTS group_members_role_check;
-
--- Add new constraint with owner, co_owner, and member
-ALTER TABLE group_members
-ADD CONSTRAINT group_members_role_check
-CHECK (role IN ('owner', 'co_owner', 'member'));
 
 -- Step 4: Update the get_user_groups function to include members_can_invite
 CREATE OR REPLACE FUNCTION get_user_groups(user_uuid UUID)
