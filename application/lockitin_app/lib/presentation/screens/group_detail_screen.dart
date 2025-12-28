@@ -158,7 +158,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final dayEnd = DateTime(date.year, date.month, date.day, 23, 59, 59);
 
     final eventsOnDate = memberEventsList
-        .where((e) => e.startTime.isBefore(dayEnd) && e.endTime.isAfter(dayStart))
+        .where((e) {
+          // Convert UTC event times to local for comparison
+          final localStart = e.startTime.toLocal();
+          final localEnd = e.endTime.toLocal();
+          return localStart.isBefore(dayEnd) && localEnd.isAfter(dayStart);
+        })
         .where((e) => e.category != EventCategory.holiday)
         .toList();
 
@@ -178,7 +183,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final dayEnd = DateTime(date.year, date.month, date.day, 23, 59, 59);
 
     final eventsOnDate = memberEventsList
-        .where((e) => e.startTime.isBefore(dayEnd) && e.endTime.isAfter(dayStart))
+        .where((e) {
+          // Convert UTC event times to local for comparison
+          final localStart = e.startTime.toLocal();
+          final localEnd = e.endTime.toLocal();
+          return localStart.isBefore(dayEnd) && localEnd.isAfter(dayStart);
+        })
         .where((e) => e.category != EventCategory.holiday)
         .toList();
 

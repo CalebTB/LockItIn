@@ -47,10 +47,13 @@ class AvailabilityCalculatorService {
 
       final eventsOnDate = entry.value
           .where((e) {
+            // Convert UTC event times to local for comparison
+            final localStart = e.startTime.toLocal();
+            final localEnd = e.endTime.toLocal();
             // Event overlaps with this date if:
             // - Event starts before or during this day AND
             // - Event ends after or during this day
-            return e.startTime.isBefore(dayEnd) && e.endTime.isAfter(dayStart);
+            return localStart.isBefore(dayEnd) && localEnd.isAfter(dayStart);
           })
           .where((e) => e.category != EventCategory.holiday)
           .toList();
@@ -125,21 +128,23 @@ class AvailabilityCalculatorService {
     required DateTime rangeEnd,
   }) {
     // Get events that overlap with this range, sorted by start time
-    // Use stored hour/minute directly (wall clock time - no timezone conversion)
+    // Convert UTC times to local for correct hour/minute extraction
     final overlappingEvents = events
         .where((e) {
+          final localStart = e.startTime.toLocal();
+          final localEnd = e.endTime.toLocal();
           final eventStart = DateTime(
             rangeStart.year, rangeStart.month, rangeStart.day,
-            e.startTime.hour, e.startTime.minute,
+            localStart.hour, localStart.minute,
           );
           final eventEnd = DateTime(
             rangeStart.year, rangeStart.month, rangeStart.day,
-            e.endTime.hour, e.endTime.minute,
+            localEnd.hour, localEnd.minute,
           );
           return eventStart.isBefore(rangeEnd) && eventEnd.isAfter(rangeStart);
         })
         .toList()
-      ..sort((a, b) => a.startTime.hour.compareTo(b.startTime.hour));
+      ..sort((a, b) => a.startTime.toLocal().hour.compareTo(b.startTime.toLocal().hour));
 
     if (overlappingEvents.isEmpty) {
       // No events - entire range is free
@@ -150,14 +155,16 @@ class AvailabilityCalculatorService {
     var currentFreeStart = rangeStart;
 
     for (final event in overlappingEvents) {
-      // Use stored hour/minute directly
+      // Convert UTC to local for correct hour/minute
+      final localStart = event.startTime.toLocal();
+      final localEnd = event.endTime.toLocal();
       final eventStartWall = DateTime(
         rangeStart.year, rangeStart.month, rangeStart.day,
-        event.startTime.hour, event.startTime.minute,
+        localStart.hour, localStart.minute,
       );
       final eventEndWall = DateTime(
         rangeStart.year, rangeStart.month, rangeStart.day,
-        event.endTime.hour, event.endTime.minute,
+        localEnd.hour, localEnd.minute,
       );
 
       // Clamp event times to the filter range
@@ -210,21 +217,24 @@ class AvailabilityCalculatorService {
     );
 
     // Get overlapping events (conflicts) sorted by start time
+    // Convert UTC times to local for correct hour/minute
     final conflicts = events
         .where((e) => e.category != EventCategory.holiday)
         .where((e) {
+          final localStart = e.startTime.toLocal();
+          final localEnd = e.endTime.toLocal();
           final eventStart = DateTime(
             date.year, date.month, date.day,
-            e.startTime.hour, e.startTime.minute,
+            localStart.hour, localStart.minute,
           );
           final eventEnd = DateTime(
             date.year, date.month, date.day,
-            e.endTime.hour, e.endTime.minute,
+            localEnd.hour, localEnd.minute,
           );
           return eventStart.isBefore(bounds.end) && eventEnd.isAfter(bounds.start);
         })
         .toList()
-      ..sort((a, b) => a.startTime.hour.compareTo(b.startTime.hour));
+      ..sort((a, b) => a.startTime.toLocal().hour.compareTo(b.startTime.toLocal().hour));
 
     // No conflicts - completely free
     if (conflicts.isEmpty) {
@@ -245,13 +255,15 @@ class AvailabilityCalculatorService {
     // Single conflict - show the busy time range
     if (conflicts.length == 1) {
       final event = conflicts.first;
+      final localStart = event.startTime.toLocal();
+      final localEnd = event.endTime.toLocal();
       final eventStart = DateTime(
         date.year, date.month, date.day,
-        event.startTime.hour, event.startTime.minute,
+        localStart.hour, localStart.minute,
       );
       final eventEnd = DateTime(
         date.year, date.month, date.day,
-        event.endTime.hour, event.endTime.minute,
+        localEnd.hour, localEnd.minute,
       );
 
       // Clamp to filter range for display
