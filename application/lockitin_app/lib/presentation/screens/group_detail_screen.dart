@@ -6,6 +6,7 @@ import '../../data/models/event_model.dart';
 import '../../core/services/event_service.dart';
 import '../../core/services/availability_calculator_service.dart';
 import '../../core/utils/time_filter_utils.dart';
+import '../../core/utils/logger.dart';
 import '../providers/group_provider.dart';
 import '../providers/calendar_provider.dart';
 import '../theme/sunset_coral_theme.dart';
@@ -111,6 +112,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         endDate: endDate,
       );
 
+      // Debug: Log loaded events per member
+      for (final entry in events.entries) {
+        Logger.info('Member ${entry.key}: ${entry.value.length} events loaded');
+        for (final event in entry.value) {
+          Logger.info('  - ${event.title}: ${event.startTime} to ${event.endTime}');
+        }
+      }
+
       if (mounted) {
         setState(() {
           _memberEvents = events;
@@ -136,21 +145,47 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  /// Get a human-readable description of availability
-  /// Delegates to AvailabilityCalculatorService
-  String _getAvailabilityDescription(
-    CalendarProvider calendarProvider,
+  /// Get a human-readable description of availability for a specific member
+  /// Uses _memberEvents to get the member's events
+  String _getMemberAvailabilityDescription(
+    String memberId,
     DateTime date,
     TimeFilter filter,
   ) {
-    final events = calendarProvider.getEventsForDay(date)
+    // Get this member's events for the date
+    final memberEventsList = _memberEvents[memberId] ?? [];
+    final dayStart = DateTime(date.year, date.month, date.day, 0, 0);
+    final dayEnd = DateTime(date.year, date.month, date.day, 23, 59, 59);
+
+    final eventsOnDate = memberEventsList
+        .where((e) => e.startTime.isBefore(dayEnd) && e.endTime.isAfter(dayStart))
         .where((e) => e.category != EventCategory.holiday)
         .toList();
 
     return _availabilityService.getAvailabilityDescription(
-      events: events,
+      events: eventsOnDate,
       date: date,
       filter: filter,
+      customStartTime: _customStartTime,
+      customEndTime: _customEndTime,
+    );
+  }
+
+  /// Check if a specific member is available on a date
+  bool _isMemberAvailableOnDate(String memberId, DateTime date) {
+    final memberEventsList = _memberEvents[memberId] ?? [];
+    final dayStart = DateTime(date.year, date.month, date.day, 0, 0);
+    final dayEnd = DateTime(date.year, date.month, date.day, 23, 59, 59);
+
+    final eventsOnDate = memberEventsList
+        .where((e) => e.startTime.isBefore(dayEnd) && e.endTime.isAfter(dayStart))
+        .where((e) => e.category != EventCategory.holiday)
+        .toList();
+
+    return _availabilityService.isMemberAvailable(
+      events: eventsOnDate,
+      date: date,
+      timeFilters: _selectedTimeFilters,
       customStartTime: _customStartTime,
       customEndTime: _customEndTime,
     );
@@ -1409,8 +1444,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     itemCount: members.length,
                     itemBuilder: (context, index) {
                       final member = members[index];
-                      // Mock availability status
-                      final isAvailable = index < available;
+                      // Check actual member availability from their events
+                      final isAvailable = _isMemberAvailableOnDate(member.userId, date);
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
@@ -1481,23 +1516,23 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                           : _rose400.withValues(alpha: 0.6),
                                     ),
                                   ),
-                                  // Show availability time description
+                                  // Show availability time description for THIS member
                                   Builder(
                                     builder: (context) {
                                       // Get availability descriptions for selected filters
                                       final descriptions = <String>[];
 
                                       if (_selectedTimeFilters.contains(TimeFilter.allDay)) {
-                                        final desc = _getAvailabilityDescription(
-                                          calendarProvider,
+                                        final desc = _getMemberAvailabilityDescription(
+                                          member.userId,
                                           date,
                                           TimeFilter.allDay,
                                         );
                                         descriptions.add(desc);
                                       } else {
                                         for (final filter in _selectedTimeFilters) {
-                                          final desc = _getAvailabilityDescription(
-                                            calendarProvider,
+                                          final desc = _getMemberAvailabilityDescription(
+                                            member.userId,
                                             date,
                                             filter,
                                           );
