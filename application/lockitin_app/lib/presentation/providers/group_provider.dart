@@ -53,14 +53,22 @@ class GroupProvider extends ChangeNotifier {
   /// Check if current user is owner of selected group
   bool get isOwner => _currentUserRole == GroupMemberRole.owner;
 
-  /// Check if current user can manage members (owner only in 2-tier system)
-  bool get canManageMembers => _currentUserRole == GroupMemberRole.owner;
+  /// Check if current user is co-owner of selected group
+  bool get isCoOwner => _currentUserRole == GroupMemberRole.coOwner;
+
+  /// Check if current user is owner or co-owner (has management permissions)
+  bool get isOwnerOrCoOwner =>
+      _currentUserRole == GroupMemberRole.owner ||
+      _currentUserRole == GroupMemberRole.coOwner;
+
+  /// Check if current user can manage members (owner or co-owner)
+  bool get canManageMembers => isOwnerOrCoOwner;
 
   /// Check if current user can invite members
-  /// Owner can always invite; members can invite if group allows it
+  /// Owner/Co-owner can always invite; members can invite if group allows it
   bool get canInviteMembers {
     if (_currentUserRole == null) return false;
-    if (_currentUserRole == GroupMemberRole.owner) return true;
+    if (isOwnerOrCoOwner) return true;
     return _selectedGroup?.membersCanInvite ?? false;
   }
 

@@ -1,10 +1,15 @@
--- Migration: Simplify Group Roles from 3-tier to 2-tier
+-- Migration: Simplify Group Roles with Co-Owner Support
 --
 -- Changes:
 -- 1. Add members_can_invite column to groups table
 -- 2. Convert existing 'admin' roles to 'member'
--- 3. Update role constraint to only allow 'owner' and 'member'
+-- 3. Update role constraint to allow 'owner', 'co_owner', and 'member'
 -- 4. Update RPC functions if needed
+--
+-- Role system:
+-- - owner: Original creator, full control, can promote to co-owner
+-- - co_owner: Promoted by owner, same permissions as owner (except transfer ownership)
+-- - member: Regular participant
 
 -- Step 1: Add members_can_invite column to groups
 ALTER TABLE groups
@@ -23,10 +28,10 @@ WHERE role = 'admin';
 ALTER TABLE group_members
 DROP CONSTRAINT IF EXISTS group_members_role_check;
 
--- Add new constraint with only owner and member
+-- Add new constraint with owner, co_owner, and member
 ALTER TABLE group_members
 ADD CONSTRAINT group_members_role_check
-CHECK (role IN ('owner', 'member'));
+CHECK (role IN ('owner', 'co_owner', 'member'));
 
 -- Step 4: Update the get_user_groups function to include members_can_invite
 CREATE OR REPLACE FUNCTION get_user_groups(user_uuid UUID)
@@ -58,4 +63,4 @@ AS $$
 $$;
 
 -- Add comment explaining the role system
-COMMENT ON COLUMN group_members.role IS 'Member role: owner (full control) or member (participant). Multiple owners allowed (co-owners).';
+COMMENT ON COLUMN group_members.role IS 'Member role: owner (full control), co_owner (promoted by owner, same permissions), or member (participant).';

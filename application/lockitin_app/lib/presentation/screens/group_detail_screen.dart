@@ -1878,6 +1878,26 @@ class _MembersBottomSheet extends StatelessWidget {
                                         color: Colors.white,
                                       ),
                                     ),
+                                  )
+                                // Co-Owner badge
+                                else if (member.role == GroupMemberRole.coOwner)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _rose500.withValues(alpha: 0.3),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'Co-Owner',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: _rose300,
+                                      ),
+                                    ),
                                   ),
 
                                 // Chevron for manageable members (owners can manage everyone)
@@ -1933,11 +1953,11 @@ class _MembersBottomSheet extends StatelessWidget {
     GroupMemberProfile member,
     GroupProvider provider,
   ) {
-    // Only owners can manage members
-    if (!provider.isOwner) {
+    // Only owners and co-owners can manage members
+    if (!provider.canManageMembers) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Only owners can manage members'),
+          content: const Text('Only owners and co-owners can manage members'),
           backgroundColor: _rose500,
         ),
       );
@@ -1954,6 +1974,7 @@ class _MembersBottomSheet extends StatelessWidget {
         member: member,
         groupId: group.id,
         isOwner: provider.isOwner,
+        isCoOwner: provider.isCoOwner,
       ),
     );
   }
@@ -2019,12 +2040,17 @@ class _MemberOptionsSheet extends StatelessWidget {
   final GroupMemberProfile member;
   final String groupId;
   final bool isOwner;
+  final bool isCoOwner;
 
   const _MemberOptionsSheet({
     required this.member,
     required this.groupId,
     required this.isOwner,
+    required this.isCoOwner,
   });
+
+  /// Whether current user can manage (is owner or co-owner)
+  bool get canManage => isOwner || isCoOwner;
 
   static const Color _rose950 = Color(0xFF4C0519);
   static const Color _rose500 = Color(0xFFF43F5E);
@@ -2101,48 +2127,53 @@ class _MemberOptionsSheet extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // Options (only owner can change roles)
-          if (isOwner) ...[
-            // Promote/demote co-owner
-            if (member.role == GroupMemberRole.owner)
-              _buildOptionTile(
-                context,
-                icon: Icons.person_outline,
-                label: 'Remove Co-Owner',
-                color: _orange400,
-                onTap: () => _demoteFromCoOwner(context),
-              )
-            else
-              _buildOptionTile(
-                context,
-                icon: Icons.stars,
-                label: 'Make Co-Owner',
-                color: _orange400,
-                onTap: () => _promoteToCoOwner(context),
-              ),
-            const SizedBox(height: 8),
-
-            // Transfer ownership (only for non-owners)
+          // Options for owners and co-owners
+          if (canManage) ...[
+            // Cannot manage the owner
             if (member.role != GroupMemberRole.owner) ...[
-              _buildOptionTile(
-                context,
-                icon: Icons.swap_horiz,
-                label: 'Transfer Ownership',
-                color: _rose400,
-                onTap: () => _confirmTransferOwnership(context),
-              ),
+              // Promote/demote co-owner options
+              if (member.role == GroupMemberRole.coOwner)
+                _buildOptionTile(
+                  context,
+                  icon: Icons.person_outline,
+                  label: 'Remove Co-Owner',
+                  color: _orange400,
+                  onTap: () => _demoteFromCoOwner(context),
+                )
+              else
+                _buildOptionTile(
+                  context,
+                  icon: Icons.stars,
+                  label: 'Make Co-Owner',
+                  color: _orange400,
+                  onTap: () => _promoteToCoOwner(context),
+                ),
               const SizedBox(height: 8),
+
+              // Transfer ownership (only owner can do this, only to non-owners)
+              if (isOwner) ...[
+                _buildOptionTile(
+                  context,
+                  icon: Icons.swap_horiz,
+                  label: 'Transfer Ownership',
+                  color: _rose400,
+                  onTap: () => _confirmTransferOwnership(context),
+                ),
+                const SizedBox(height: 8),
+              ],
+
+              // Remove from group
+              // Co-owners can only remove regular members
+              if (isOwner || member.role == GroupMemberRole.member)
+                _buildOptionTile(
+                  context,
+                  icon: Icons.person_remove,
+                  label: 'Remove from Group',
+                  color: _red500,
+                  onTap: () => _confirmRemoveMember(context),
+                ),
             ],
           ],
-
-          // Remove from group (owners and admins can do this)
-          _buildOptionTile(
-            context,
-            icon: Icons.person_remove,
-            label: 'Remove from Group',
-            color: _red500,
-            onTap: () => _confirmRemoveMember(context),
-          ),
 
           const SizedBox(height: 16),
         ],

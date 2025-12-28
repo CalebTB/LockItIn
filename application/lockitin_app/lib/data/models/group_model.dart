@@ -2,11 +2,13 @@ import 'package:equatable/equatable.dart';
 
 /// Role of a member within a group
 ///
-/// Simple 2-tier system:
-/// - Owner: Full control (delete group, remove members, edit settings, invite)
+/// 3-tier system with co-ownership:
+/// - Owner: Original creator, full control
+/// - Co-Owner: Promoted by owner, has same permissions as owner
 /// - Member: Participate (create/vote proposals, set privacy, leave, invite if allowed)
 enum GroupMemberRole {
   owner, // Created the group, full control
+  coOwner, // Promoted by owner, same permissions as owner
   member, // Regular participant
 }
 
@@ -153,6 +155,8 @@ class GroupMemberModel extends Equatable {
     switch (role) {
       case GroupMemberRole.owner:
         return 'owner';
+      case GroupMemberRole.coOwner:
+        return 'co_owner';
       case GroupMemberRole.member:
         return 'member';
     }
@@ -163,6 +167,9 @@ class GroupMemberModel extends Equatable {
     switch (role.toLowerCase()) {
       case 'owner':
         return GroupMemberRole.owner;
+      case 'co_owner':
+      case 'coowner':
+        return GroupMemberRole.coOwner;
       case 'member':
       default:
         // Note: 'admin' from old data will be treated as member
@@ -179,8 +186,9 @@ class GroupMemberModel extends Equatable {
     };
   }
 
-  /// Check if this member can manage other members (owner only)
-  bool get canManageMembers => role == GroupMemberRole.owner;
+  /// Check if this member can manage other members (owner or co-owner)
+  bool get canManageMembers =>
+      role == GroupMemberRole.owner || role == GroupMemberRole.coOwner;
 
   /// Check if this member can delete the group (owner only)
   bool get canDeleteGroup => role == GroupMemberRole.owner;
@@ -242,6 +250,8 @@ class GroupMemberProfile extends Equatable {
     switch (role) {
       case GroupMemberRole.owner:
         return 'Owner';
+      case GroupMemberRole.coOwner:
+        return 'Co-Owner';
       case GroupMemberRole.member:
         return 'Member';
     }
