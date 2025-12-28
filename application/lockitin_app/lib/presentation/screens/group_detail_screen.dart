@@ -9,6 +9,11 @@ import '../../core/utils/time_filter_utils.dart';
 import '../providers/group_provider.dart';
 import '../providers/calendar_provider.dart';
 import '../theme/sunset_coral_theme.dart';
+import '../widgets/group_calendar_legend.dart';
+import '../widgets/group_members_section.dart';
+import '../widgets/group_time_filter_chips.dart';
+import '../widgets/group_date_range_filter.dart';
+import '../widgets/group_best_days_section.dart';
 
 /// Group detail screen showing group calendar with availability heatmap
 /// Adapted from CalendarScreen with Sunset Coral Dark theme
@@ -26,8 +31,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   static const _rose950 = SunsetCoralTheme.rose950;
   static const _rose900 = SunsetCoralTheme.rose900;
   static const _rose800 = SunsetCoralTheme.rose800;
-  static const _rose700 = SunsetCoralTheme.rose700;
-  static const _rose600 = SunsetCoralTheme.rose600;
   static const _rose500 = SunsetCoralTheme.rose500;
   static const _rose400 = SunsetCoralTheme.rose400;
   static const _rose300 = SunsetCoralTheme.rose300;
@@ -201,10 +204,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   _buildMonthNavigation(),
 
                   // Date range filter row
-                  _buildDateRangeFilterRow(),
+                  GroupDateRangeFilter(
+                    selectedDateRange: _selectedDateRange,
+                    onTap: _showDateRangePicker,
+                    onClear: _clearDateRange,
+                  ),
 
                   // Time filter chips
-                  _buildTimeFilterChips(),
+                  GroupTimeFilterChips(
+                    selectedFilters: _selectedTimeFilters,
+                    onFilterTap: _toggleTimeFilter,
+                    onCustomTap: _showCustomTimeRangePicker,
+                  ),
 
                   // Scrollable content: legend + calendar + members + best days
                   Expanded(
@@ -212,7 +223,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       child: Column(
                         children: [
                           // Availability legend
-                          _buildLegend(),
+                          const GroupCalendarLegend(),
 
                           // Calendar grid (fixed height for 6 rows)
                           SizedBox(
@@ -221,10 +232,25 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                           ),
 
                           // Group members section
-                          _buildMembersSection(),
+                          GroupMembersSection(
+                            group: widget.group,
+                            onInvite: () => _showInviteFlow(context),
+                          ),
 
                           // Best days section
-                          _buildBestDaysSection(),
+                          GroupBestDaysSection(
+                            focusedMonth: _focusedMonth,
+                            selectedTimeFilters: _selectedTimeFilters,
+                            customStartTime: _customStartTime,
+                            customEndTime: _customEndTime,
+                            getBestDaysForFilters: (filters) =>
+                                _getBestDaysForFilters(
+                                  context.read<CalendarProvider>(),
+                                  filters,
+                                ),
+                            onDaySelected: (day) =>
+                                setState(() => _selectedDay = day),
+                          ),
 
                           const SizedBox(height: 16),
                         ],
@@ -768,67 +794,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     });
   }
 
-  Widget _buildTimeFilterChips() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: TimeFilter.values.map((filter) {
-          final isSelected = _selectedTimeFilters.contains(filter);
-
-          // For "All Day", show "Custom" label instead
-          final label = filter == TimeFilter.allDay ? 'Custom' : filter.label;
-
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: GestureDetector(
-                onTap: () {
-                  if (filter == TimeFilter.allDay) {
-                    // Show custom time picker
-                    _showCustomTimeRangePicker();
-                  } else {
-                    _toggleTimeFilter(filter);
-                  }
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                  decoration: BoxDecoration(
-                    gradient: isSelected
-                        ? const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [_rose500, _orange500],
-                          )
-                        : null,
-                    color: isSelected ? null : _rose900.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isSelected
-                          ? Colors.transparent
-                          : _rose500.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                        color: isSelected ? Colors.white : _rose300,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
   void _showCustomTimeRangePicker() {
     // Convert TimeOfDay to dropdown values
     int startHour = _customStartTime.hourOfPeriod == 0 ? 12 : _customStartTime.hourOfPeriod;
@@ -1135,157 +1100,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  Widget _buildDateRangeFilterRow() {
-    final hasRange = _selectedDateRange != null;
-
-    // Format date with year if years differ
-    String formatDateRange() {
-      if (!hasRange) return 'All dates';
-      final start = _selectedDateRange!.start;
-      final end = _selectedDateRange!.end;
-      final monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-      if (start.year != end.year) {
-        // Format with year when crossing years: Dec 29 '25 - Jan 3 '26
-        final startYr = start.year.toString().substring(2);
-        final endYr = end.year.toString().substring(2);
-        return "${monthNames[start.month - 1]} ${start.day} '$startYr - ${monthNames[end.month - 1]} ${end.day} '$endYr";
-      } else {
-        // Format without year: Dec 27 - Jan 3
-        return '${monthNames[start.month - 1]} ${start.day} - ${monthNames[end.month - 1]} ${end.day}';
-      }
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: GestureDetector(
-        onTap: _showDateRangePicker,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            gradient: hasRange
-                ? const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [_rose500, _orange500],
-                  )
-                : null,
-            color: hasRange ? null : _rose900.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: hasRange
-                  ? Colors.transparent
-                  : _rose500.withValues(alpha: 0.3),
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.date_range_rounded,
-                size: 18,
-                color: hasRange ? Colors.white : _rose300,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  formatDateRange(),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: hasRange ? FontWeight.w600 : FontWeight.w500,
-                    color: hasRange ? Colors.white : _rose300,
-                  ),
-                ),
-              ),
-              if (hasRange)
-                GestureDetector(
-                  onTap: _clearDateRange,
-                  child: Icon(
-                    Icons.close,
-                    size: 18,
-                    color: Colors.white.withValues(alpha: 0.8),
-                  ),
-                )
-              else
-                Icon(
-                  Icons.keyboard_arrow_down,
-                  size: 18,
-                  color: _rose300,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLegend() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: _rose500.withValues(alpha: 0.2)),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Availability',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white,
-            ),
-          ),
-          Row(
-            children: [
-              Text(
-                'Less',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 4),
-              // Solid color boxes (rose-950 to rose-500)
-              ...[_rose950, _rose900, _rose800, _rose700, _rose600, _rose500]
-                  .map((color) => Container(
-                        width: 16,
-                        height: 16,
-                        margin: const EdgeInsets.symmetric(horizontal: 1),
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      )),
-              // Gradient box (rose-400 to orange-400) for 100% available
-              Container(
-                width: 16,
-                height: 16,
-                margin: const EdgeInsets.symmetric(horizontal: 1),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [_rose400, _orange400],
-                  ),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'More',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildCalendarPageView() {
     return PageView.builder(
       controller: _pageController,
@@ -1469,130 +1283,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  Widget _buildMembersSection() {
-    return Consumer<GroupProvider>(
-      builder: (context, provider, _) {
-        final members = provider.selectedGroupMembers;
-
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(color: _rose500.withValues(alpha: 0.2)),
-            ),
-          ),
-          child: Row(
-            children: [
-              // Member avatars (stacked)
-              if (provider.isLoadingMembers)
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: _rose400,
-                  ),
-                )
-              else
-                SizedBox(
-                  width: (members.length.clamp(0, 5) * 22.0) + 8,
-                  height: 28,
-                  child: Stack(
-                    children: [
-                      ...members.take(5).toList().asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final member = entry.value;
-                        return Positioned(
-                          left: index * 22.0,
-                          child: Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              color: index == 0
-                                  ? null
-                                  : _rose900.withValues(alpha: 0.8),
-                              gradient: index == 0
-                                  ? const LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [_rose400, _orange400],
-                                    )
-                                  : null,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: _rose950, width: 2),
-                            ),
-                            child: Center(
-                              child: Text(
-                                member.initials,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: index == 0 ? Colors.white : _rose200,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-
-              if (members.length > 5)
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Text(
-                    '+${members.length - 5}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: _rose300,
-                    ),
-                  ),
-                ),
-
-              const SizedBox(width: 8),
-              Text(
-                '${widget.group.memberCount} members',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: _rose300,
-                ),
-              ),
-
-              const Spacer(),
-
-              // Invite button (compact)
-              GestureDetector(
-                onTap: () => _showInviteFlow(context),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _rose500.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.person_add_rounded, size: 14, color: _rose300),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Invite',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _rose300,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   /// Get best days for a specific set of time filters
   /// Uses AvailabilityCalculatorService for consistent availability logic
   List<int> _getBestDaysForFilters(
@@ -1618,235 +1308,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         })
         .take(4)
         .toList();
-  }
-
-  /// Format TimeOfDay to string like "9am" or "5:30pm"
-  String _formatTimeOfDay(TimeOfDay time) {
-    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-    final period = time.period == DayPeriod.am ? 'am' : 'pm';
-    if (time.minute == 0) {
-      return '$hour$period';
-    }
-    return '$hour:${time.minute.toString().padLeft(2, '0')}$period';
-  }
-
-  Widget _buildBestDaysSection() {
-    final hasSpecificFilters = !_selectedTimeFilters.contains(TimeFilter.allDay);
-    final customTimeLabel = '${_formatTimeOfDay(_customStartTime)} - ${_formatTimeOfDay(_customEndTime)}';
-
-    return Consumer<CalendarProvider>(
-      builder: (context, calendarProvider, _) {
-        // Get best days for custom time range (when Custom filter is selected)
-        final customBestDays = _getBestDaysForFilters(
-          calendarProvider,
-          {TimeFilter.allDay},
-        );
-
-        // Get best days for selected filters if specific ones are selected
-        List<int> filteredBestDays = [];
-        String filterLabel = '';
-        if (hasSpecificFilters) {
-          filteredBestDays = _getBestDaysForFilters(
-            calendarProvider,
-            _selectedTimeFilters,
-          );
-          // Consolidate time ranges into earliest start - latest end
-          final filters = _selectedTimeFilters.toList();
-          int earliestStart = 24;
-          int latestEnd = 0;
-          for (final filter in filters) {
-            if (filter.startHour < earliestStart) {
-              earliestStart = filter.startHour;
-            }
-            // Handle night filter (ends at 6am next day = 30 in 24h terms)
-            final effectiveEnd = filter == TimeFilter.night ? 30 : filter.endHour;
-            if (effectiveEnd > latestEnd) {
-              latestEnd = effectiveEnd;
-            }
-          }
-          // Format the consolidated range
-          String formatHour(int hour) {
-            final h = hour % 24;
-            if (h == 0) return '12am';
-            if (h == 12) return '12pm';
-            if (h < 12) return '${h}am';
-            return '${h - 12}pm';
-          }
-          filterLabel = '${formatHour(earliestStart)} - ${formatHour(latestEnd % 24)}';
-        }
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(color: _rose500.withValues(alpha: 0.2)),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Show custom time range when Custom filter is selected
-              if (!hasSpecificFilters) ...[
-                Row(
-                  children: [
-                    Text(
-                      'BEST DAYS THIS MONTH',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [_rose500, _orange500],
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        customTimeLabel,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (customBestDays.isNotEmpty)
-                  _buildBestDayChips(customBestDays)
-                else
-                  _buildNoDatesMessage(),
-              ],
-
-              // Show filtered best days when specific filters are selected
-              if (hasSpecificFilters) ...[
-                Row(
-                  children: [
-                    Text(
-                      'BEST DAYS THIS MONTH',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [_rose500, _orange500],
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        filterLabel,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (filteredBestDays.isNotEmpty)
-                  _buildBestDayChips(filteredBestDays)
-                else
-                  _buildNoDatesMessage(),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBestDayChips(List<int> days) {
-    final monthName = DateFormat('MMM').format(_focusedMonth);
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: days.map((day) {
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedDay = day),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [_rose500, _orange500],
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _rose500.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Text(
-                  '$monthName $day',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildNoDatesMessage() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: _rose900.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: _rose500.withValues(alpha: 0.2),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.event_busy_rounded,
-              size: 16,
-              color: _rose400.withValues(alpha: 0.6),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'No dates to propose this month',
-              style: TextStyle(
-                fontSize: 13,
-                color: _rose300.withValues(alpha: 0.6),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildDayDetailSheet() {
