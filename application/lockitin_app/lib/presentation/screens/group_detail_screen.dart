@@ -207,9 +207,51 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     super.dispose();
   }
 
-  /// Get text color for heatmap cell - always white for readability
+  // Additional rose colors for heatmap gradient
+  static const Color _rose600 = Color(0xFFE11D48);
+  static const Color _rose700 = Color(0xFFBE123C);
+
+  /// Get background color for heatmap cell based on availability ratio
+  /// Matches JSX design: discrete color stops at each threshold
+  Color _getHeatmapBackgroundColor(int available, int total) {
+    if (total == 0) return _rose950;
+
+    final ratio = available / total;
+
+    // Color stops matching JSX design (from least to most available)
+    if (ratio >= 1.0) {
+      return _rose400; // 100% - will use gradient instead
+    } else if (ratio >= 0.875) {
+      return _rose400; // 87.5%+
+    } else if (ratio >= 0.75) {
+      return _rose500; // 75%+
+    } else if (ratio >= 0.625) {
+      return _rose600; // 62.5%+
+    } else if (ratio >= 0.5) {
+      return _rose700; // 50%+
+    } else if (ratio >= 0.375) {
+      return _rose800; // 37.5%+
+    } else if (ratio >= 0.25) {
+      return _rose900; // 25%+
+    } else {
+      return _rose950; // <25%
+    }
+  }
+
+  /// Get text color for heatmap cell - matches JSX design
   Color _getHeatmapTextColor(int available, int total) {
-    return Colors.white;
+    if (total == 0) return _rose400;
+
+    final ratio = available / total;
+
+    // Text colors matching JSX design
+    if (ratio >= 0.375) {
+      return Colors.white; // 37.5%+ - white text
+    } else if (ratio >= 0.25) {
+      return _rose300; // 25%+ - rose-300
+    } else {
+      return _rose400; // <25% - rose-400
+    }
   }
 
   void _previousMonth() {
@@ -1259,7 +1301,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
                         decoration: BoxDecoration(
-                          // Use gradient for available, solid color for busy, dimmed for out of range
+                          // Use gradient for fully available, interpolated color for partial
                           gradient: isFullyAvailable
                               ? const LinearGradient(
                                   begin: Alignment.topLeft,
@@ -1269,7 +1311,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               : null,
                           color: isFullyAvailable
                               ? null
-                              : (isInRange ? _rose950 : _rose950.withValues(alpha: 0.3)),
+                              : (isInRange
+                                  ? _getHeatmapBackgroundColor(available, totalMembers)
+                                  : _rose950.withValues(alpha: 0.3)),
                           borderRadius: BorderRadius.circular(8),
                           border: isSelected
                               ? Border.all(color: _orange400, width: 2)
