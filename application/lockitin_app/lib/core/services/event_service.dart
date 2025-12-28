@@ -274,15 +274,16 @@ class EventService {
         '${startDate.toIso8601String()} to ${endDate.toIso8601String()}',
       );
 
-      // Fetch events for all members in one query
+      // Fetch events for all members that overlap with the date range
+      // An event overlaps if: start_time < endDate AND end_time > startDate
       // Only include events that are visible (not 'private')
       final response = await SupabaseClientManager.client
           .from('events')
           .select()
           .inFilter('user_id', memberUserIds)
           .neq('visibility', 'private') // Exclude private events
-          .gte('start_time', startDate.toIso8601String())
-          .lte('start_time', endDate.toIso8601String());
+          .lt('start_time', endDate.toIso8601String()) // Event starts before end of range
+          .gt('end_time', startDate.toIso8601String()); // Event ends after start of range
 
       // Group events by user_id
       final Map<String, List<EventModel>> eventsByUser = {};

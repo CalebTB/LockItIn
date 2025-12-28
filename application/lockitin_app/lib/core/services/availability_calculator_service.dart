@@ -40,13 +40,17 @@ class AvailabilityCalculatorService {
     int availableCount = 0;
 
     for (final entry in memberEvents.entries) {
-      // Get events for this member on this date
+      // Get events for this member that overlap with this date
+      // An event overlaps if it starts before end of day AND ends after start of day
+      final dayStart = DateTime(date.year, date.month, date.day, 0, 0);
+      final dayEnd = DateTime(date.year, date.month, date.day, 23, 59, 59);
+
       final eventsOnDate = entry.value
           .where((e) {
-            final eventDate = e.startTime;
-            return eventDate.year == date.year &&
-                   eventDate.month == date.month &&
-                   eventDate.day == date.day;
+            // Event overlaps with this date if:
+            // - Event starts before or during this day AND
+            // - Event ends after or during this day
+            return e.startTime.isBefore(dayEnd) && e.endTime.isAfter(dayStart);
           })
           .where((e) => e.category != EventCategory.holiday)
           .toList();
