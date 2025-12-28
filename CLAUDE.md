@@ -327,9 +327,93 @@ lockitin_app/
 - iOS TestFlight: `flutter build ipa && Fastlane`
 - Android Internal Testing: `flutter build appbundle` + Google Play Console
 
+## Git Workflow & Version Control
+
+**Reference:** See `lockitin_docs/versioning-and-issue-categories.md` for complete details.
+
+### Versioning (SemVer)
+Use **MAJOR.MINOR.PATCH** format: `v1.2.3`
+
+| Version | Content |
+|---------|---------|
+| v0.1.0 | Sprint 1 complete (Auth + Calendar) |
+| v0.2.0 | Sprint 2 complete (Groups + Shadow Calendar) |
+| v0.3.0 | Sprint 3 complete (Proposals + Voting) |
+| v0.4.0 | Sprint 4 complete (Templates + Travel) |
+| v0.5.0-beta.1 | MVP complete, first beta |
+| v1.0.0 | Public Launch |
+
+### Branch Naming Convention
+**Format:** `[type]/[issue-number]-[short-description]`
+
+| Type | Use For |
+|------|---------|
+| `feature/` | New features |
+| `fix/` | Bug fixes |
+| `refactor/` | Code improvements |
+| `docs/` | Documentation |
+| `chore/` | Maintenance |
+
+**Examples:**
+```bash
+feature/20-group-detail-view
+fix/99-calendar-sync-crash
+refactor/100-group-service-cleanup
+```
+
+### Issue Naming Convention
+**Format:** `[version] - [Category]: [Title]`
+
+**Categories:** Auth, Calendar, Groups, Proposals, Notifications, Templates, Location, Premium, UI, Backend, Settings, Testing, Launch
+
+**Examples:**
+```
+v0.2.0 - Groups: Detail View
+v0.3.0 - Proposals: Voting API Backend
+v1.0.1 - Bug: Calendar sync fails on iOS 17
+```
+
+### Commit Message Convention
+**Format:** `type(scope): description`
+
+| Type | Use For |
+|------|---------|
+| `feat:` | New feature |
+| `fix:` | Bug fix |
+| `docs:` | Documentation |
+| `style:` | Formatting (no code change) |
+| `refactor:` | Code refactoring |
+| `test:` | Adding tests |
+| `chore:` | Maintenance |
+
+**Examples:**
+```
+feat(groups): add pull-to-refresh for groups list
+fix(calendar): resolve sync crash on iOS 17
+refactor(auth): simplify session management logic
+```
+
+### Quick Reference Commands
+```bash
+# Create branch for issue
+git checkout -b feature/20-group-detail-view
+
+# Create issue with labels
+gh issue create \
+  --title "v0.2.0 - Groups: Detail View" \
+  --label "type: feature" \
+  --label "area: groups" \
+  --label "priority: high" \
+  --label "sprint: 2"
+
+# Create PR
+gh pr create \
+  --title "v0.2.0 - Groups: Detail View" \
+  --body "Closes #20"
+```
+
 ## Important Notes
 
-- **No Code Yet**: This repository contains only planning/design docs. Code development starts Dec 25, 2025.
 - **Solo Developer**: Built by one person with learning curve factored in (3-4 hours/day pace)
 - **Documentation First**: All major decisions documented before coding begins
 - **Agile with Buffer**: 2-week sprints with built-in timeline buffer for unknowns
@@ -337,4 +421,4 @@ lockitin_app/
 
 ---
 
-*Last updated: December 6, 2025 - Updated to Flutter/Dart cross-platform development*
+*Last updated: December 27, 2025 - Added Git workflow and version control guidelines*

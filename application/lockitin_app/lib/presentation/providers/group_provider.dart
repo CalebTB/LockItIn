@@ -18,6 +18,9 @@ class GroupProvider extends ChangeNotifier {
   /// Members of the currently selected group
   List<GroupMemberProfile> _selectedGroupMembers = [];
 
+  /// Current user's role in the selected group
+  GroupMemberRole? _currentUserRole;
+
   /// Pending group invites for the current user
   List<GroupInvite> _pendingInvites = [];
 
@@ -44,7 +47,30 @@ class GroupProvider extends ChangeNotifier {
   List<GroupModel> get groups => _groups;
   GroupModel? get selectedGroup => _selectedGroup;
   List<GroupMemberProfile> get selectedGroupMembers => _selectedGroupMembers;
+  GroupMemberRole? get currentUserRole => _currentUserRole;
   List<GroupInvite> get pendingInvites => _pendingInvites;
+
+  /// Check if current user is owner of selected group
+  bool get isOwner => _currentUserRole == GroupMemberRole.owner;
+
+  /// Check if current user is co-owner of selected group
+  bool get isCoOwner => _currentUserRole == GroupMemberRole.coOwner;
+
+  /// Check if current user is owner or co-owner (has management permissions)
+  bool get isOwnerOrCoOwner =>
+      _currentUserRole == GroupMemberRole.owner ||
+      _currentUserRole == GroupMemberRole.coOwner;
+
+  /// Check if current user can manage members (owner or co-owner)
+  bool get canManageMembers => isOwnerOrCoOwner;
+
+  /// Check if current user can invite members
+  /// Owner/Co-owner can always invite; members can invite if group allows it
+  bool get canInviteMembers {
+    if (_currentUserRole == null) return false;
+    if (isOwnerOrCoOwner) return true;
+    return _selectedGroup?.membersCanInvite ?? false;
+  }
 
   bool get isLoadingGroups => _isLoadingGroups;
   bool get isLoadingMembers => _isLoadingMembers;
@@ -145,13 +171,30 @@ class GroupProvider extends ChangeNotifier {
     _selectedGroup = group;
     notifyListeners();
 
-    await loadGroupMembers(groupId);
+    // Load members and user's role in parallel
+    await Future.wait([
+      loadGroupMembers(groupId),
+      _loadCurrentUserRole(groupId),
+    ]);
+  }
+
+  /// Load current user's role in a group
+  Future<void> _loadCurrentUserRole(String groupId) async {
+    try {
+      _currentUserRole = await _groupService.getUserRole(groupId);
+      Logger.info('Current user role: $_currentUserRole');
+      notifyListeners();
+    } catch (e) {
+      Logger.error('Failed to load user role: $e');
+      _currentUserRole = null;
+    }
   }
 
   /// Clear the selected group
   void clearSelectedGroup() {
     _selectedGroup = null;
     _selectedGroupMembers = [];
+    _currentUserRole = null;
     _membersError = null;
     notifyListeners();
   }
@@ -383,36 +426,59 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
-  /// Update a member's role
-  Future<bool> updateMemberRole({
+  /// Promote a member to co-owner
+  Future<bool> promoteToCoOwner({
     required String groupId,
     required String userId,
-    required GroupMemberRole newRole,
   }) async {
     _actionError = null;
 
     try {
-      await _groupService.updateMemberRole(
+      await _groupService.promoteToCoOwner(
         groupId: groupId,
         userId: userId,
-        newRole: newRole,
       );
 
-      // Update in local members list if viewing this group
+      // Reload members to get updated data
       if (_selectedGroup?.id == groupId) {
-        final index = _selectedGroupMembers.indexWhere((m) => m.userId == userId);
-        if (index != -1) {
-          // Reload members to get updated data
-          await loadGroupMembers(groupId);
-        }
+        await loadGroupMembers(groupId);
       }
 
-      Logger.info('Updated role for $userId in $groupId to $newRole');
+      Logger.info('Promoted $userId to co-owner in $groupId');
       notifyListeners();
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to update member role: $e');
+      Logger.error('Failed to promote member: $e');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Demote a co-owner to member
+  Future<bool> demoteFromCoOwner({
+    required String groupId,
+    required String userId,
+  }) async {
+    _actionError = null;
+
+    try {
+      await _groupService.demoteFromCoOwner(
+        groupId: groupId,
+        userId: userId,
+      );
+
+      // Reload members to get updated data
+      if (_selectedGroup?.id == groupId) {
+        await loadGroupMembers(groupId);
+      }
+
+      Logger.info('Demoted $userId from co-owner in $groupId');
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _actionError = e.toString();
+      Logger.error('Failed to demote co-owner: $e');
       notifyListeners();
       return false;
     }

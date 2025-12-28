@@ -3,82 +3,17 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/group_model.dart';
 import '../../data/models/event_model.dart';
+import '../../core/services/event_service.dart';
+import '../../core/services/availability_calculator_service.dart';
+import '../../core/utils/time_filter_utils.dart';
 import '../providers/group_provider.dart';
 import '../providers/calendar_provider.dart';
-
-/// Time range filter options for availability
-enum TimeFilter {
-  allDay,
-  morning,    // 6am - 12pm
-  afternoon,  // 12pm - 5pm
-  evening,    // 5pm - 10pm
-  night,      // 10pm - 6am
-}
-
-
-extension TimeFilterExtension on TimeFilter {
-  String get label {
-    switch (this) {
-      case TimeFilter.allDay:
-        return 'All Day';
-      case TimeFilter.morning:
-        return 'Morning';
-      case TimeFilter.afternoon:
-        return 'Afternoon';
-      case TimeFilter.evening:
-        return 'Evening';
-      case TimeFilter.night:
-        return 'Night';
-    }
-  }
-
-  String get timeRange {
-    switch (this) {
-      case TimeFilter.allDay:
-        return '12am - 12am';
-      case TimeFilter.morning:
-        return '6am - 12pm';
-      case TimeFilter.afternoon:
-        return '12pm - 5pm';
-      case TimeFilter.evening:
-        return '5pm - 10pm';
-      case TimeFilter.night:
-        return '10pm - 6am';
-    }
-  }
-
-  /// Get start hour (0-23)
-  int get startHour {
-    switch (this) {
-      case TimeFilter.allDay:
-        return 0;
-      case TimeFilter.morning:
-        return 6;
-      case TimeFilter.afternoon:
-        return 12;
-      case TimeFilter.evening:
-        return 17;
-      case TimeFilter.night:
-        return 22;
-    }
-  }
-
-  /// Get end hour (0-23)
-  int get endHour {
-    switch (this) {
-      case TimeFilter.allDay:
-        return 24;
-      case TimeFilter.morning:
-        return 12;
-      case TimeFilter.afternoon:
-        return 17;
-      case TimeFilter.evening:
-        return 22;
-      case TimeFilter.night:
-        return 6; // Wraps to next day
-    }
-  }
-}
+import '../theme/sunset_coral_theme.dart';
+import '../widgets/group_calendar_legend.dart';
+import '../widgets/group_members_section.dart';
+import '../widgets/group_time_filter_chips.dart';
+import '../widgets/group_date_range_filter.dart';
+import '../widgets/group_best_days_section.dart';
 
 /// Group detail screen showing group calendar with availability heatmap
 /// Adapted from CalendarScreen with Sunset Coral Dark theme
@@ -92,23 +27,24 @@ class GroupDetailScreen extends StatefulWidget {
 }
 
 class _GroupDetailScreenState extends State<GroupDetailScreen> {
-  // Sunset Coral Dark Theme Colors
-  static const Color _rose950 = Color(0xFF4C0519);
-  static const Color _rose900 = Color(0xFF881337);
-  static const Color _rose800 = Color(0xFF9F1239);
-  static const Color _rose700 = Color(0xFFBE123C);
-  static const Color _rose600 = Color(0xFFE11D48);
-  static const Color _rose500 = Color(0xFFF43F5E);
-  static const Color _rose400 = Color(0xFFFB7185);
-  static const Color _rose300 = Color(0xFFFDA4AF);
-  static const Color _rose200 = Color(0xFFFECDD3);
-  static const Color _rose50 = Color(0xFFFFF1F2);
-  static const Color _orange400 = Color(0xFFFB923C);
-  static const Color _orange500 = Color(0xFFF97316);
-  static const Color _orange600 = Color(0xFFEA580C);
-  static const Color _amber500 = Color(0xFFF59E0B);
-  static const Color _emerald500 = Color(0xFF10B981);
-  static const Color _slate950 = Color(0xFF020617);
+  // Use theme colors from SunsetCoralTheme
+  static const _rose950 = SunsetCoralTheme.rose950;
+  static const _rose900 = SunsetCoralTheme.rose900;
+  static const _rose800 = SunsetCoralTheme.rose800;
+  static const _rose500 = SunsetCoralTheme.rose500;
+  static const _rose400 = SunsetCoralTheme.rose400;
+  static const _rose300 = SunsetCoralTheme.rose300;
+  static const _rose200 = SunsetCoralTheme.rose200;
+  static const _rose50 = SunsetCoralTheme.rose50;
+  static const _orange400 = SunsetCoralTheme.orange400;
+  static const _orange500 = SunsetCoralTheme.orange500;
+  static const _orange600 = SunsetCoralTheme.orange600;
+  static const _amber500 = SunsetCoralTheme.amber500;
+  static const _emerald500 = SunsetCoralTheme.emerald500;
+  static const _slate950 = SunsetCoralTheme.slate950;
+
+  // Availability calculation service
+  final _availabilityService = AvailabilityCalculatorService();
 
   late DateTime _focusedMonth;
   int? _selectedDay;
@@ -120,253 +56,140 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   TimeOfDay _customStartTime = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _customEndTime = const TimeOfDay(hour: 17, minute: 0);
 
+  // Group members' events for availability calculation
+  Map<String, List<EventModel>> _memberEvents = {};
+  bool _isLoadingMemberEvents = false;
+
   @override
   void initState() {
     super.initState();
     _focusedMonth = DateTime.now();
     _pageController = PageController(initialPage: 12); // Start at current month
 
-    // Load group members
+    // Load group members and their events
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<GroupProvider>().selectGroup(widget.group.id);
+      _initializeGroupData();
     });
   }
 
-  /// Minimum contiguous free time required to be considered "available" (in minutes)
-  static const int _minContiguousFreeMinutes = 120; // 2 hours
+  /// Initialize group data - load members, then their events
+  Future<void> _initializeGroupData() async {
+    final groupProvider = context.read<GroupProvider>();
 
-  /// Check if user has any events on a specific date within the selected time filters
-  /// Returns 0 if busy, 1 if available
-  ///
-  /// Availability Logic (Contiguous Free Time):
-  /// - Available if there's at least 2 hours of UNINTERRUPTED free time
-  /// - Events at the edges are fine as long as they leave enough contiguous time
-  /// - This answers "Can we actually schedule something here?"
-  ///
-  /// See: lockitin_docs/availability-logic.md for full documentation
+    // Wait for group selection and member loading to complete
+    await groupProvider.selectGroup(widget.group.id);
+
+    // Now load member events
+    await _loadMemberEvents();
+  }
+
+  /// Load events for all group members
+  Future<void> _loadMemberEvents() async {
+    final groupProvider = context.read<GroupProvider>();
+    final members = groupProvider.selectedGroupMembers;
+
+    if (members.isEmpty) {
+      // If members still empty, wait a bit and check again
+      // (could happen if network is slow)
+      return;
+    }
+
+    setState(() => _isLoadingMemberEvents = true);
+
+    try {
+      // Get member user IDs
+      final memberIds = members.map((m) => m.userId).toList();
+
+      // Fetch events for 2 months before and after current month
+      final now = DateTime.now();
+      final startDate = DateTime(now.year, now.month - 2, 1);
+      final endDate = DateTime(now.year, now.month + 3, 0);
+
+      final events = await EventService.instance.fetchGroupMembersEvents(
+        memberUserIds: memberIds,
+        startDate: startDate,
+        endDate: endDate,
+      );
+
+      if (mounted) {
+        setState(() {
+          _memberEvents = events;
+          _isLoadingMemberEvents = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingMemberEvents = false);
+      }
+    }
+  }
+
+  /// Calculate how many group members are available on a specific date
+  /// Delegates to AvailabilityCalculatorService
   int _getAvailabilityForDay(CalendarProvider calendarProvider, DateTime date) {
-    // Filter out holidays - they don't count as busy time
-    final events = calendarProvider.getEventsForDay(date)
-        .where((e) => e.category != EventCategory.holiday)
-        .toList();
-
-    // If "Custom" filter is selected, use custom time range
-    if (_selectedTimeFilters.contains(TimeFilter.allDay)) {
-      final filterStart = DateTime(
-        date.year, date.month, date.day,
-        _customStartTime.hour, _customStartTime.minute,
-      );
-      final filterEnd = DateTime(
-        date.year, date.month, date.day,
-        _customEndTime.hour, _customEndTime.minute,
-      );
-
-      // Find the longest contiguous free block
-      final longestFreeMinutes = _findLongestFreeBlock(events, filterStart, filterEnd);
-
-      // Available if there's at least 2 hours of contiguous free time
-      return longestFreeMinutes >= _minContiguousFreeMinutes ? 1 : 0;
-    }
-
-    // Check each selected time filter
-    for (final filter in _selectedTimeFilters) {
-      final startHour = filter.startHour;
-      final endHour = filter.endHour;
-
-      // Create time boundaries for this filter on this date
-      final DateTime filterStart;
-      final DateTime filterEnd;
-
-      if (filter == TimeFilter.night) {
-        // Night spans 10pm - 6am (crosses midnight)
-        filterStart = DateTime(date.year, date.month, date.day, startHour);
-        filterEnd = DateTime(date.year, date.month, date.day + 1, endHour);
-      } else {
-        filterStart = DateTime(date.year, date.month, date.day, startHour);
-        filterEnd = DateTime(date.year, date.month, date.day, endHour);
-      }
-
-      // Find the longest contiguous free block
-      final longestFreeMinutes = _findLongestFreeBlock(
-        events,
-        filterStart,
-        filterEnd,
-      );
-
-      // Available if there's at least 2 hours of contiguous free time
-      if (longestFreeMinutes < _minContiguousFreeMinutes) {
-        return 0; // Busy - not enough contiguous free time
-      }
-    }
-
-    return 1; // Available - has sufficient contiguous free time
+    return _availabilityService.calculateGroupAvailability(
+      memberEvents: _memberEvents,
+      date: date,
+      timeFilters: _selectedTimeFilters,
+      customStartTime: _customStartTime,
+      customEndTime: _customEndTime,
+    );
   }
 
-  /// Find the longest contiguous free block within a time range
-  /// Returns the duration in minutes
-  int _findLongestFreeBlock(
-    List<dynamic> events,
-    DateTime rangeStart,
-    DateTime rangeEnd,
-  ) {
-    // Get events that overlap with this range, sorted by start time
-    // Use stored hour/minute directly (wall clock time - no timezone conversion)
-    final overlappingEvents = events
-        .where((e) {
-          final eventStart = DateTime(
-            rangeStart.year, rangeStart.month, rangeStart.day,
-            e.startTime.hour, e.startTime.minute,
-          );
-          final eventEnd = DateTime(
-            rangeStart.year, rangeStart.month, rangeStart.day,
-            e.endTime.hour, e.endTime.minute,
-          );
-          return eventStart.isBefore(rangeEnd) && eventEnd.isAfter(rangeStart);
-        })
-        .toList()
-      ..sort((a, b) => a.startTime.hour.compareTo(b.startTime.hour));
-
-    if (overlappingEvents.isEmpty) {
-      // No events - entire range is free
-      return rangeEnd.difference(rangeStart).inMinutes;
-    }
-
-    var longestFreeBlock = 0;
-    var currentFreeStart = rangeStart;
-
-    for (final event in overlappingEvents) {
-      // Use stored hour/minute directly
-      final eventStartWall = DateTime(
-        rangeStart.year, rangeStart.month, rangeStart.day,
-        event.startTime.hour, event.startTime.minute,
-      );
-      final eventEndWall = DateTime(
-        rangeStart.year, rangeStart.month, rangeStart.day,
-        event.endTime.hour, event.endTime.minute,
-      );
-
-      // Clamp event times to the filter range
-      final eventStart = eventStartWall.isAfter(rangeStart)
-          ? eventStartWall
-          : rangeStart;
-      final eventEnd = eventEndWall.isBefore(rangeEnd)
-          ? eventEndWall
-          : rangeEnd;
-
-      // Free block before this event
-      if (eventStart.isAfter(currentFreeStart)) {
-        final freeMinutes = eventStart.difference(currentFreeStart).inMinutes;
-        if (freeMinutes > longestFreeBlock) {
-          longestFreeBlock = freeMinutes;
-        }
-      }
-
-      // Move current position past this event (if it extends further)
-      if (eventEnd.isAfter(currentFreeStart)) {
-        currentFreeStart = eventEnd;
-      }
-    }
-
-    // Check free block after last event
-    if (rangeEnd.isAfter(currentFreeStart)) {
-      final freeMinutes = rangeEnd.difference(currentFreeStart).inMinutes;
-      if (freeMinutes > longestFreeBlock) {
-        longestFreeBlock = freeMinutes;
-      }
-    }
-
-    return longestFreeBlock;
-  }
-
-  /// Get a human-readable description of availability
-  /// Returns "Free" if no conflicts, or shows conflict count and times
-  String _getAvailabilityDescription(
-    CalendarProvider calendarProvider,
+  /// Get a human-readable description of availability for a specific member
+  /// Uses _memberEvents to get the member's events
+  String _getMemberAvailabilityDescription(
+    String memberId,
     DateTime date,
     TimeFilter filter,
   ) {
-    final events = calendarProvider.getEventsForDay(date)
+    // Get this member's events for the date
+    final memberEventsList = _memberEvents[memberId] ?? [];
+    final dayStart = DateTime(date.year, date.month, date.day, 0, 0);
+    final dayEnd = DateTime(date.year, date.month, date.day, 23, 59, 59);
+
+    final eventsOnDate = memberEventsList
+        .where((e) {
+          // Convert UTC event times to local for comparison
+          final localStart = e.startTime.toLocal();
+          final localEnd = e.endTime.toLocal();
+          return localStart.isBefore(dayEnd) && localEnd.isAfter(dayStart);
+        })
         .where((e) => e.category != EventCategory.holiday)
         .toList();
 
-    // Get filter time boundaries
-    final DateTime filterStart;
-    final DateTime filterEnd;
-    final startHour = filter.startHour;
-    final endHour = filter.endHour;
+    return _availabilityService.getAvailabilityDescription(
+      events: eventsOnDate,
+      date: date,
+      filter: filter,
+      customStartTime: _customStartTime,
+      customEndTime: _customEndTime,
+    );
+  }
 
-    if (filter == TimeFilter.allDay) {
-      // Use custom time range
-      filterStart = DateTime(
-        date.year, date.month, date.day,
-        _customStartTime.hour, _customStartTime.minute,
-      );
-      filterEnd = DateTime(
-        date.year, date.month, date.day,
-        _customEndTime.hour, _customEndTime.minute,
-      );
-    } else if (filter == TimeFilter.night) {
-      filterStart = DateTime(date.year, date.month, date.day, startHour);
-      filterEnd = DateTime(date.year, date.month, date.day + 1, endHour);
-    } else {
-      filterStart = DateTime(date.year, date.month, date.day, startHour);
-      filterEnd = DateTime(date.year, date.month, date.day, endHour);
-    }
+  /// Check if a specific member is available on a date
+  bool _isMemberAvailableOnDate(String memberId, DateTime date) {
+    final memberEventsList = _memberEvents[memberId] ?? [];
+    final dayStart = DateTime(date.year, date.month, date.day, 0, 0);
+    final dayEnd = DateTime(date.year, date.month, date.day, 23, 59, 59);
 
-    // Get overlapping events (conflicts) sorted by start time
-    // Use stored hour/minute directly (wall clock time - no timezone conversion)
-    final conflicts = events
+    final eventsOnDate = memberEventsList
         .where((e) {
-          final eventStart = DateTime(
-            date.year, date.month, date.day,
-            e.startTime.hour, e.startTime.minute,
-          );
-          final eventEnd = DateTime(
-            date.year, date.month, date.day,
-            e.endTime.hour, e.endTime.minute,
-          );
-          return eventStart.isBefore(filterEnd) && eventEnd.isAfter(filterStart);
+          // Convert UTC event times to local for comparison
+          final localStart = e.startTime.toLocal();
+          final localEnd = e.endTime.toLocal();
+          return localStart.isBefore(dayEnd) && localEnd.isAfter(dayStart);
         })
-        .toList()
-      ..sort((a, b) => a.startTime.hour.compareTo(b.startTime.hour));
+        .where((e) => e.category != EventCategory.holiday)
+        .toList();
 
-    // No conflicts - completely free
-    if (conflicts.isEmpty) {
-      return 'Free';
-    }
-
-    // Format time helper
-    final timeFormat = DateFormat('h:mma');
-    final hourFormat = DateFormat('ha');
-
-    String formatTime(DateTime dt) {
-      if (dt.minute == 0) {
-        return hourFormat.format(dt).toLowerCase();
-      }
-      return timeFormat.format(dt).toLowerCase();
-    }
-
-    // Single conflict - show the busy time range
-    if (conflicts.length == 1) {
-      final event = conflicts.first;
-      final eventStart = DateTime(
-        date.year, date.month, date.day,
-        event.startTime.hour, event.startTime.minute,
-      );
-      final eventEnd = DateTime(
-        date.year, date.month, date.day,
-        event.endTime.hour, event.endTime.minute,
-      );
-
-      // Clamp to filter range for display
-      final displayStart = eventStart.isBefore(filterStart) ? filterStart : eventStart;
-      final displayEnd = eventEnd.isAfter(filterEnd) ? filterEnd : eventEnd;
-
-      return 'Busy ${formatTime(displayStart)} - ${formatTime(displayEnd)}';
-    }
-
-    // Multiple conflicts - show count
-    return '${conflicts.length} conflicts';
+    return _availabilityService.isMemberAvailable(
+      events: eventsOnDate,
+      date: date,
+      timeFilters: _selectedTimeFilters,
+      customStartTime: _customStartTime,
+      customEndTime: _customEndTime,
+    );
   }
 
   @override
@@ -375,9 +198,51 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     super.dispose();
   }
 
-  /// Get text color for heatmap cell - always white for readability
+  // Additional rose colors for heatmap gradient
+  static const Color _rose600 = Color(0xFFE11D48);
+  static const Color _rose700 = Color(0xFFBE123C);
+
+  /// Get background color for heatmap cell based on availability ratio
+  /// Matches JSX design: discrete color stops at each threshold
+  Color _getHeatmapBackgroundColor(int available, int total) {
+    if (total == 0) return _rose950;
+
+    final ratio = available / total;
+
+    // Color stops matching JSX design (from least to most available)
+    if (ratio >= 1.0) {
+      return _rose400; // 100% - will use gradient instead
+    } else if (ratio >= 0.875) {
+      return _rose400; // 87.5%+
+    } else if (ratio >= 0.75) {
+      return _rose500; // 75%+
+    } else if (ratio >= 0.625) {
+      return _rose600; // 62.5%+
+    } else if (ratio >= 0.5) {
+      return _rose700; // 50%+
+    } else if (ratio >= 0.375) {
+      return _rose800; // 37.5%+
+    } else if (ratio >= 0.25) {
+      return _rose900; // 25%+
+    } else {
+      return _rose950; // <25%
+    }
+  }
+
+  /// Get text color for heatmap cell - matches JSX design
   Color _getHeatmapTextColor(int available, int total) {
-    return Colors.white;
+    if (total == 0) return _rose400;
+
+    final ratio = available / total;
+
+    // Text colors matching JSX design
+    if (ratio >= 0.375) {
+      return Colors.white; // 37.5%+ - white text
+    } else if (ratio >= 0.25) {
+      return _rose300; // 25%+ - rose-300
+    } else {
+      return _rose400; // <25% - rose-400
+    }
   }
 
   void _previousMonth() {
@@ -417,10 +282,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   _buildMonthNavigation(),
 
                   // Date range filter row
-                  _buildDateRangeFilterRow(),
+                  GroupDateRangeFilter(
+                    selectedDateRange: _selectedDateRange,
+                    onTap: _showDateRangePicker,
+                    onClear: _clearDateRange,
+                  ),
 
                   // Time filter chips
-                  _buildTimeFilterChips(),
+                  GroupTimeFilterChips(
+                    selectedFilters: _selectedTimeFilters,
+                    onFilterTap: _toggleTimeFilter,
+                    onCustomTap: _showCustomTimeRangePicker,
+                  ),
 
                   // Scrollable content: legend + calendar + members + best days
                   Expanded(
@@ -428,7 +301,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       child: Column(
                         children: [
                           // Availability legend
-                          _buildLegend(),
+                          const GroupCalendarLegend(),
 
                           // Calendar grid (fixed height for 6 rows)
                           SizedBox(
@@ -437,10 +310,25 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                           ),
 
                           // Group members section
-                          _buildMembersSection(),
+                          GroupMembersSection(
+                            group: widget.group,
+                            onInvite: () => _showInviteFlow(context),
+                          ),
 
                           // Best days section
-                          _buildBestDaysSection(),
+                          GroupBestDaysSection(
+                            focusedMonth: _focusedMonth,
+                            selectedTimeFilters: _selectedTimeFilters,
+                            customStartTime: _customStartTime,
+                            customEndTime: _customEndTime,
+                            getBestDaysForFilters: (filters) =>
+                                _getBestDaysForFilters(
+                                  context.read<CalendarProvider>(),
+                                  filters,
+                                ),
+                            onDaySelected: (day) =>
+                                setState(() => _selectedDay = day),
+                          ),
 
                           const SizedBox(height: 16),
                         ],
@@ -984,67 +872,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     });
   }
 
-  Widget _buildTimeFilterChips() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: TimeFilter.values.map((filter) {
-          final isSelected = _selectedTimeFilters.contains(filter);
-
-          // For "All Day", show "Custom" label instead
-          final label = filter == TimeFilter.allDay ? 'Custom' : filter.label;
-
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: GestureDetector(
-                onTap: () {
-                  if (filter == TimeFilter.allDay) {
-                    // Show custom time picker
-                    _showCustomTimeRangePicker();
-                  } else {
-                    _toggleTimeFilter(filter);
-                  }
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                  decoration: BoxDecoration(
-                    gradient: isSelected
-                        ? const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [_rose500, _orange500],
-                          )
-                        : null,
-                    color: isSelected ? null : _rose900.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isSelected
-                          ? Colors.transparent
-                          : _rose500.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                        color: isSelected ? Colors.white : _rose300,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
   void _showCustomTimeRangePicker() {
     // Convert TimeOfDay to dropdown values
     int startHour = _customStartTime.hourOfPeriod == 0 ? 12 : _customStartTime.hourOfPeriod;
@@ -1351,157 +1178,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  Widget _buildDateRangeFilterRow() {
-    final hasRange = _selectedDateRange != null;
-
-    // Format date with year if years differ
-    String formatDateRange() {
-      if (!hasRange) return 'All dates';
-      final start = _selectedDateRange!.start;
-      final end = _selectedDateRange!.end;
-      final monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-      if (start.year != end.year) {
-        // Format with year when crossing years: Dec 29 '25 - Jan 3 '26
-        final startYr = start.year.toString().substring(2);
-        final endYr = end.year.toString().substring(2);
-        return "${monthNames[start.month - 1]} ${start.day} '$startYr - ${monthNames[end.month - 1]} ${end.day} '$endYr";
-      } else {
-        // Format without year: Dec 27 - Jan 3
-        return '${monthNames[start.month - 1]} ${start.day} - ${monthNames[end.month - 1]} ${end.day}';
-      }
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: GestureDetector(
-        onTap: _showDateRangePicker,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            gradient: hasRange
-                ? const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [_rose500, _orange500],
-                  )
-                : null,
-            color: hasRange ? null : _rose900.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: hasRange
-                  ? Colors.transparent
-                  : _rose500.withValues(alpha: 0.3),
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.date_range_rounded,
-                size: 18,
-                color: hasRange ? Colors.white : _rose300,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  formatDateRange(),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: hasRange ? FontWeight.w600 : FontWeight.w500,
-                    color: hasRange ? Colors.white : _rose300,
-                  ),
-                ),
-              ),
-              if (hasRange)
-                GestureDetector(
-                  onTap: _clearDateRange,
-                  child: Icon(
-                    Icons.close,
-                    size: 18,
-                    color: Colors.white.withValues(alpha: 0.8),
-                  ),
-                )
-              else
-                Icon(
-                  Icons.keyboard_arrow_down,
-                  size: 18,
-                  color: _rose300,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLegend() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: _rose500.withValues(alpha: 0.2)),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Availability',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white,
-            ),
-          ),
-          Row(
-            children: [
-              Text(
-                'Less',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 4),
-              // Solid color boxes (rose-950 to rose-500)
-              ...[_rose950, _rose900, _rose800, _rose700, _rose600, _rose500]
-                  .map((color) => Container(
-                        width: 16,
-                        height: 16,
-                        margin: const EdgeInsets.symmetric(horizontal: 1),
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      )),
-              // Gradient box (rose-400 to orange-400) for 100% available
-              Container(
-                width: 16,
-                height: 16,
-                margin: const EdgeInsets.symmetric(horizontal: 1),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [_rose400, _orange400],
-                  ),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'More',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildCalendarPageView() {
     return PageView.builder(
       controller: _pageController,
@@ -1527,9 +1203,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   Widget _buildCalendarGrid(DateTime month) {
-    // For now, show 0/1 based on current user's events only
-    // In the future, this will aggregate availability from all group members
-    const totalMembers = 1; // Just the current user for now
     final days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     // Calculate first day offset and days in month
@@ -1538,8 +1211,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final startWeekday = firstDayOfMonth.weekday % 7; // 0 = Sunday
     final daysInMonth = lastDayOfMonth.day;
 
-    return Consumer<CalendarProvider>(
-      builder: (context, calendarProvider, _) {
+    return Consumer2<CalendarProvider, GroupProvider>(
+      builder: (context, calendarProvider, groupProvider, _) {
+        // Get actual member count from the group
+        final totalMembers = groupProvider.selectedGroupMembers.isNotEmpty
+            ? groupProvider.selectedGroupMembers.length
+            : (groupProvider.selectedGroup?.memberCount ?? 1);
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Column(
@@ -1615,7 +1292,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
                         decoration: BoxDecoration(
-                          // Use gradient for available, solid color for busy, dimmed for out of range
+                          // Use gradient for fully available, interpolated color for partial
                           gradient: isFullyAvailable
                               ? const LinearGradient(
                                   begin: Alignment.topLeft,
@@ -1625,7 +1302,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               : null,
                           color: isFullyAvailable
                               ? null
-                              : (isInRange ? _rose950 : _rose950.withValues(alpha: 0.3)),
+                              : (isInRange
+                                  ? _getHeatmapBackgroundColor(available, totalMembers)
+                                  : _rose950.withValues(alpha: 0.3)),
                           borderRadius: BorderRadius.circular(8),
                           border: isSelected
                               ? Border.all(color: _orange400, width: 2)
@@ -1653,7 +1332,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             ),
                             // Only show availability info if in range
                             if (isInRange)
-                              Text(
+                              _isLoadingMemberEvents
+                                ? SizedBox(
+                                    width: 8,
+                                    height: 8,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1,
+                                      color: textColor.withValues(alpha: 0.5),
+                                    ),
+                                  )
+                                : Text(
                                 '$available/$totalMembers',
                                 style: TextStyle(
                                   fontSize: 9,
@@ -1675,441 +1363,39 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  Widget _buildMembersSection() {
-    return Consumer<GroupProvider>(
-      builder: (context, provider, _) {
-        final members = provider.selectedGroupMembers;
-
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(color: _rose500.withValues(alpha: 0.2)),
-            ),
-          ),
-          child: Row(
-            children: [
-              // Member avatars (stacked)
-              if (provider.isLoadingMembers)
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: _rose400,
-                  ),
-                )
-              else
-                SizedBox(
-                  width: (members.length.clamp(0, 5) * 22.0) + 8,
-                  height: 28,
-                  child: Stack(
-                    children: [
-                      ...members.take(5).toList().asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final member = entry.value;
-                        return Positioned(
-                          left: index * 22.0,
-                          child: Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              color: index == 0
-                                  ? null
-                                  : _rose900.withValues(alpha: 0.8),
-                              gradient: index == 0
-                                  ? const LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [_rose400, _orange400],
-                                    )
-                                  : null,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: _rose950, width: 2),
-                            ),
-                            child: Center(
-                              child: Text(
-                                member.initials,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: index == 0 ? Colors.white : _rose200,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-
-              if (members.length > 5)
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Text(
-                    '+${members.length - 5}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: _rose300,
-                    ),
-                  ),
-                ),
-
-              const SizedBox(width: 8),
-              Text(
-                '${widget.group.memberCount} members',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: _rose300,
-                ),
-              ),
-
-              const Spacer(),
-
-              // Invite button (compact)
-              GestureDetector(
-                onTap: () => _showInviteFlow(context),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _rose500.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.person_add_rounded, size: 14, color: _rose300),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Invite',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _rose300,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   /// Get best days for a specific set of time filters
+  /// Uses AvailabilityCalculatorService for consistent availability logic
   List<int> _getBestDaysForFilters(
     CalendarProvider calendarProvider,
     Set<TimeFilter> filters,
   ) {
-    final lastDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
-    final daysInMonth = lastDayOfMonth.day;
-
-    final bestDays = <int>[];
-    for (int day = 1; day <= daysInMonth && bestDays.length < 4; day++) {
-      final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
-
-      // Skip if outside selected date range
-      if (_selectedDateRange != null) {
-        if (date.isBefore(_selectedDateRange!.start) ||
-            date.isAfter(_selectedDateRange!.end)) {
-          continue;
-        }
-      }
-
-      // Only consider today or future days
-      if (date.isAfter(DateTime.now().subtract(const Duration(days: 1)))) {
-        // Check availability for this specific filter set
-        final events = calendarProvider.getEventsForDay(date)
-            .where((e) => e.category != EventCategory.holiday)
-            .toList();
-
-        bool isAvailable = true;
-
-        if (filters.contains(TimeFilter.allDay)) {
-          // Use custom time range
-          final filterStart = DateTime(
-            date.year, date.month, date.day,
-            _customStartTime.hour, _customStartTime.minute,
-          );
-          final filterEnd = DateTime(
-            date.year, date.month, date.day,
-            _customEndTime.hour, _customEndTime.minute,
-          );
-
-          // Find the longest contiguous free block
-          final longestFreeMinutes = _findLongestFreeBlock(events, filterStart, filterEnd);
-          isAvailable = longestFreeMinutes >= _minContiguousFreeMinutes;
-        } else {
-          // Check each filter
-          for (final filter in filters) {
-            final startHour = filter.startHour;
-            final endHour = filter.endHour;
-
-            final DateTime filterStart;
-            final DateTime filterEnd;
-
-            if (filter == TimeFilter.night) {
-              filterStart = DateTime(date.year, date.month, date.day, startHour);
-              filterEnd = DateTime(date.year, date.month, date.day + 1, endHour);
-            } else {
-              filterStart = DateTime(date.year, date.month, date.day, startHour);
-              filterEnd = DateTime(date.year, date.month, date.day, endHour);
-            }
-
-            for (final event in events) {
-              if (event.startTime.isBefore(filterEnd) && event.endTime.isAfter(filterStart)) {
-                isAvailable = false;
-                break;
-              }
-            }
-            if (!isAvailable) break;
-          }
-        }
-
-        if (isAvailable) {
-          bestDays.add(day);
-        }
-      }
-    }
-    return bestDays;
-  }
-
-  /// Format TimeOfDay to string like "9am" or "5:30pm"
-  String _formatTimeOfDay(TimeOfDay time) {
-    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-    final period = time.period == DayPeriod.am ? 'am' : 'pm';
-    if (time.minute == 0) {
-      return '$hour$period';
-    }
-    return '$hour:${time.minute.toString().padLeft(2, '0')}$period';
-  }
-
-  Widget _buildBestDaysSection() {
-    final hasSpecificFilters = !_selectedTimeFilters.contains(TimeFilter.allDay);
-    final customTimeLabel = '${_formatTimeOfDay(_customStartTime)} - ${_formatTimeOfDay(_customEndTime)}';
-
-    return Consumer<CalendarProvider>(
-      builder: (context, calendarProvider, _) {
-        // Get best days for custom time range (when Custom filter is selected)
-        final customBestDays = _getBestDaysForFilters(
-          calendarProvider,
-          {TimeFilter.allDay},
-        );
-
-        // Get best days for selected filters if specific ones are selected
-        List<int> filteredBestDays = [];
-        String filterLabel = '';
-        if (hasSpecificFilters) {
-          filteredBestDays = _getBestDaysForFilters(
-            calendarProvider,
-            _selectedTimeFilters,
-          );
-          // Consolidate time ranges into earliest start - latest end
-          final filters = _selectedTimeFilters.toList();
-          int earliestStart = 24;
-          int latestEnd = 0;
-          for (final filter in filters) {
-            if (filter.startHour < earliestStart) {
-              earliestStart = filter.startHour;
-            }
-            // Handle night filter (ends at 6am next day = 30 in 24h terms)
-            final effectiveEnd = filter == TimeFilter.night ? 30 : filter.endHour;
-            if (effectiveEnd > latestEnd) {
-              latestEnd = effectiveEnd;
-            }
-          }
-          // Format the consolidated range
-          String formatHour(int hour) {
-            final h = hour % 24;
-            if (h == 0) return '12am';
-            if (h == 12) return '12pm';
-            if (h < 12) return '${h}am';
-            return '${h - 12}pm';
-          }
-          filterLabel = '${formatHour(earliestStart)} - ${formatHour(latestEnd % 24)}';
-        }
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(color: _rose500.withValues(alpha: 0.2)),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Show custom time range when Custom filter is selected
-              if (!hasSpecificFilters) ...[
-                Row(
-                  children: [
-                    Text(
-                      'BEST DAYS THIS MONTH',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [_rose500, _orange500],
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        customTimeLabel,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (customBestDays.isNotEmpty)
-                  _buildBestDayChips(customBestDays)
-                else
-                  _buildNoDatesMessage(),
-              ],
-
-              // Show filtered best days when specific filters are selected
-              if (hasSpecificFilters) ...[
-                Row(
-                  children: [
-                    Text(
-                      'BEST DAYS THIS MONTH',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [_rose500, _orange500],
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        filterLabel,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (filteredBestDays.isNotEmpty)
-                  _buildBestDayChips(filteredBestDays)
-                else
-                  _buildNoDatesMessage(),
-              ],
-            ],
-          ),
-        );
-      },
+    // Use the service to find best days based on group availability
+    final allBestDays = _availabilityService.findBestDaysInMonth(
+      memberEvents: _memberEvents,
+      month: _focusedMonth,
+      timeFilters: filters,
+      dateRange: _selectedDateRange,
+      customStartTime: _customStartTime,
+      customEndTime: _customEndTime,
     );
-  }
 
-  Widget _buildBestDayChips(List<int> days) {
-    final monthName = DateFormat('MMM').format(_focusedMonth);
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: days.map((day) {
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedDay = day),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [_rose500, _orange500],
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _rose500.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Text(
-                  '$monthName $day',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildNoDatesMessage() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: _rose900.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: _rose500.withValues(alpha: 0.2),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.event_busy_rounded,
-              size: 16,
-              color: _rose400.withValues(alpha: 0.6),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'No dates to propose this month',
-              style: TextStyle(
-                fontSize: 13,
-                color: _rose300.withValues(alpha: 0.6),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    // Filter to only include today or future days, limit to 4
+    final now = DateTime.now().subtract(const Duration(days: 1));
+    return allBestDays
+        .where((day) {
+          final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+          return date.isAfter(now);
+        })
+        .take(4)
+        .toList();
   }
 
   Widget _buildDayDetailSheet() {
-    // For now, just user's availability (0 = busy, 1 = available)
-    const totalMembers = 1;
     final monthName = DateFormat('MMMM').format(_focusedMonth);
+    final groupProvider = context.read<GroupProvider>();
+    final totalMembers = groupProvider.selectedGroupMembers.isNotEmpty
+        ? groupProvider.selectedGroupMembers.length
+        : _memberEvents.length;
 
     return Consumer<CalendarProvider>(
       builder: (context, calendarProvider, _) {
@@ -2203,8 +1489,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     itemCount: members.length,
                     itemBuilder: (context, index) {
                       final member = members[index];
-                      // Mock availability status
-                      final isAvailable = index < available;
+                      // Check actual member availability from their events
+                      final isAvailable = _isMemberAvailableOnDate(member.userId, date);
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
@@ -2275,23 +1561,23 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                           : _rose400.withValues(alpha: 0.6),
                                     ),
                                   ),
-                                  // Show availability time description
+                                  // Show availability time description for THIS member
                                   Builder(
                                     builder: (context) {
                                       // Get availability descriptions for selected filters
                                       final descriptions = <String>[];
 
                                       if (_selectedTimeFilters.contains(TimeFilter.allDay)) {
-                                        final desc = _getAvailabilityDescription(
-                                          calendarProvider,
+                                        final desc = _getMemberAvailabilityDescription(
+                                          member.userId,
                                           date,
                                           TimeFilter.allDay,
                                         );
                                         descriptions.add(desc);
                                       } else {
                                         for (final filter in _selectedTimeFilters) {
-                                          final desc = _getAvailabilityDescription(
-                                            calendarProvider,
+                                          final desc = _getMemberAvailabilityDescription(
+                                            member.userId,
                                             date,
                                             filter,
                                           );
@@ -2472,7 +1758,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 }
 
-/// Full members list bottom sheet
+/// Full members list bottom sheet with role-based management
 class _MembersBottomSheet extends StatelessWidget {
   final GroupModel group;
 
@@ -2487,6 +1773,7 @@ class _MembersBottomSheet extends StatelessWidget {
   static const Color _rose50 = Color(0xFFFFF1F2);
   static const Color _orange400 = Color(0xFFFB923C);
   static const Color _slate950 = Color(0xFF020617);
+  static const Color _red500 = Color(0xFFEF4444);
 
   @override
   Widget build(BuildContext context) {
@@ -2502,179 +1789,656 @@ class _MembersBottomSheet extends StatelessWidget {
         ),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Column(
-        children: [
-          // Handle bar
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 12),
-            width: 48,
-            height: 6,
-            decoration: BoxDecoration(
-              color: _rose500.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
+      child: Consumer<GroupProvider>(
+        builder: (context, provider, _) {
+          final canManage = provider.canManageMembers;
+          final isOwner = provider.isOwner;
 
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 8, 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [_rose200, Color(0xFFFED7AA)],
-                  ).createShader(bounds),
-                  child: Text(
-                    'Members (${group.memberCount})',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+          return Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 48,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: _rose500.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(3),
                 ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
-                  color: _rose300,
-                ),
-              ],
-            ),
-          ),
+              ),
 
-          // Members list
-          Expanded(
-            child: Consumer<GroupProvider>(
-              builder: (context, provider, _) {
-                if (provider.isLoadingMembers) {
-                  return Center(
-                    child: CircularProgressIndicator(color: _rose400),
-                  );
-                }
-
-                final members = provider.selectedGroupMembers;
-
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: members.length,
-                  itemBuilder: (context, index) {
-                    final member = members[index];
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: _rose900.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: _rose500.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          // Avatar
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              gradient: index == 0
-                                  ? const LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [_rose400, _orange400],
-                                    )
-                                  : null,
-                              color: index == 0 ? null : _rose900,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Text(
-                                member.initials,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: index == 0 ? Colors.white : _rose200,
-                                ),
-                              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 8, 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ShaderMask(
+                          shaderCallback: (bounds) => const LinearGradient(
+                            colors: [_rose200, Color(0xFFFED7AA)],
+                          ).createShader(bounds),
+                          child: Text(
+                            'Members (${group.memberCount})',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
                           ),
-                          const SizedBox(width: 14),
+                        ),
+                        if (canManage)
+                          Text(
+                            'Tap member to manage',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _rose300.withValues(alpha: 0.6),
+                            ),
+                          ),
+                      ],
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                      color: _rose300,
+                    ),
+                  ],
+                ),
+              ),
 
-                          // Name and role
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+              // Members list
+              Expanded(
+                child: Builder(
+                  builder: (context) {
+                    if (provider.isLoadingMembers) {
+                      return Center(
+                        child: CircularProgressIndicator(color: _rose400),
+                      );
+                    }
+
+                    final members = provider.selectedGroupMembers;
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: members.length,
+                      itemBuilder: (context, index) {
+                        final member = members[index];
+
+                        return GestureDetector(
+                          onTap: canManage
+                              ? () => _showMemberOptions(context, member, provider)
+                              : null,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: _rose900.withValues(alpha: 0.4),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: _rose500.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Row(
                               children: [
-                                Text(
-                                  member.displayName,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    color: _rose50,
+                                // Avatar
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    gradient: member.role == GroupMemberRole.owner
+                                        ? const LinearGradient(
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                            colors: [_rose400, _orange400],
+                                          )
+                                        : null,
+                                    color: member.role == GroupMemberRole.owner ? null : _rose900,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      member.initials,
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: member.role == GroupMemberRole.owner
+                                            ? Colors.white
+                                            : _rose200,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                                Text(
-                                  member.roleDisplayName,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: member.role == GroupMemberRole.owner
-                                        ? _orange400
-                                        : _rose300.withValues(alpha: 0.6),
+                                const SizedBox(width: 14),
+
+                                // Name and role
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        member.displayName,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                          color: _rose50,
+                                        ),
+                                      ),
+                                      Text(
+                                        member.roleDisplayName,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: member.role == GroupMemberRole.owner
+                                              ? _orange400
+                                              : _rose300.withValues(alpha: 0.6),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
+
+                                // Role badge
+                                // Owner badge
+                                if (member.role == GroupMemberRole.owner)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [_rose500, _orange400],
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Text(
+                                      'Owner',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                // Co-Owner badge
+                                else if (member.role == GroupMemberRole.coOwner)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _rose500.withValues(alpha: 0.3),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'Co-Owner',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: _rose300,
+                                      ),
+                                    ),
+                                  ),
+
+                                // Chevron for manageable members (owners can manage everyone)
+                                if (canManage)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8),
+                                    child: Icon(
+                                      Icons.chevron_right,
+                                      size: 20,
+                                      color: _rose400.withValues(alpha: 0.5),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
-
-                          // Role badge
-                          if (member.role == GroupMemberRole.owner)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [_rose500, _orange400],
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                'Owner',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            )
-                          else if (member.role == GroupMemberRole.admin)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _rose500.withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                'Admin',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: _rose300,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
+                        );
+                      },
                     );
                   },
-                );
-              },
+                ),
+              ),
+
+              // Leave group button (for non-owners)
+              if (!isOwner && provider.currentUserRole != null)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _confirmLeaveGroup(context, provider),
+                      icon: const Icon(Icons.exit_to_app, size: 18),
+                      label: const Text('Leave Group'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _red500,
+                        side: BorderSide(color: _red500.withValues(alpha: 0.5)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showMemberOptions(
+    BuildContext context,
+    GroupMemberProfile member,
+    GroupProvider provider,
+  ) {
+    // Only owners and co-owners can manage members
+    if (!provider.canManageMembers) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Only owners and co-owners can manage members'),
+          backgroundColor: _rose500,
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _rose950,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => _MemberOptionsSheet(
+        member: member,
+        groupId: group.id,
+        isOwner: provider.isOwner,
+        isCoOwner: provider.isCoOwner,
+      ),
+    );
+  }
+
+  void _confirmLeaveGroup(BuildContext context, GroupProvider provider) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _rose950,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Leave Group?',
+          style: TextStyle(color: _rose50),
+        ),
+        content: Text(
+          'Are you sure you want to leave "${group.name}"? You will need to be invited again to rejoin.',
+          style: TextStyle(color: _rose200),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: _rose300)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Close members sheet
+
+              final success = await provider.removeMember(
+                groupId: group.id,
+                userId: '', // Empty string triggers self-removal in service
+              );
+
+              if (context.mounted) {
+                if (success) {
+                  Navigator.pop(context); // Close group detail screen
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Left ${group.name}'),
+                      backgroundColor: _rose500,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(provider.actionError ?? 'Failed to leave group'),
+                      backgroundColor: _red500,
+                    ),
+                  );
+                }
+              }
+            },
+            child: Text('Leave', style: TextStyle(color: _red500)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Member options bottom sheet
+class _MemberOptionsSheet extends StatelessWidget {
+  final GroupMemberProfile member;
+  final String groupId;
+  final bool isOwner;
+  final bool isCoOwner;
+
+  const _MemberOptionsSheet({
+    required this.member,
+    required this.groupId,
+    required this.isOwner,
+    required this.isCoOwner,
+  });
+
+  /// Whether current user can manage (is owner or co-owner)
+  bool get canManage => isOwner || isCoOwner;
+
+  static const Color _rose950 = Color(0xFF4C0519);
+  static const Color _rose500 = Color(0xFFF43F5E);
+  static const Color _rose400 = Color(0xFFFB7185);
+  static const Color _rose300 = Color(0xFFFDA4AF);
+  static const Color _rose200 = Color(0xFFFECDD3);
+  static const Color _rose50 = Color(0xFFFFF1F2);
+  static const Color _orange400 = Color(0xFFFB923C);
+  static const Color _red500 = Color(0xFFEF4444);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle bar
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: _rose500.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(2),
             ),
+          ),
+          const SizedBox(height: 16),
+
+          // Member info
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: _rose500.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    member.initials,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _rose200,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      member.displayName,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: _rose50,
+                      ),
+                    ),
+                    Text(
+                      member.roleDisplayName,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: _rose300,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Options for owners and co-owners
+          if (canManage) ...[
+            // Cannot manage the owner
+            if (member.role != GroupMemberRole.owner) ...[
+              // Promote/demote co-owner options
+              if (member.role == GroupMemberRole.coOwner)
+                _buildOptionTile(
+                  context,
+                  icon: Icons.person_outline,
+                  label: 'Remove Co-Owner',
+                  color: _orange400,
+                  onTap: () => _demoteFromCoOwner(context),
+                )
+              else
+                _buildOptionTile(
+                  context,
+                  icon: Icons.stars,
+                  label: 'Make Co-Owner',
+                  color: _orange400,
+                  onTap: () => _promoteToCoOwner(context),
+                ),
+              const SizedBox(height: 8),
+
+              // Transfer ownership (only owner can do this, only to non-owners)
+              if (isOwner) ...[
+                _buildOptionTile(
+                  context,
+                  icon: Icons.swap_horiz,
+                  label: 'Transfer Ownership',
+                  color: _rose400,
+                  onTap: () => _confirmTransferOwnership(context),
+                ),
+                const SizedBox(height: 8),
+              ],
+
+              // Remove from group
+              // Co-owners can only remove regular members
+              if (isOwner || member.role == GroupMemberRole.member)
+                _buildOptionTile(
+                  context,
+                  icon: Icons.person_remove,
+                  label: 'Remove from Group',
+                  color: _red500,
+                  onTap: () => _confirmRemoveMember(context),
+                ),
+            ],
+          ],
+
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOptionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _promoteToCoOwner(BuildContext context) async {
+    final provider = context.read<GroupProvider>();
+
+    Navigator.pop(context); // Close options sheet
+
+    final success = await provider.promoteToCoOwner(
+      groupId: groupId,
+      userId: member.userId,
+    );
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? '${member.displayName} is now a co-owner'
+                : provider.actionError ?? 'Failed to promote member',
+          ),
+          backgroundColor: success ? _rose500 : _red500,
+        ),
+      );
+    }
+  }
+
+  void _demoteFromCoOwner(BuildContext context) async {
+    final provider = context.read<GroupProvider>();
+
+    Navigator.pop(context); // Close options sheet
+
+    final success = await provider.demoteFromCoOwner(
+      groupId: groupId,
+      userId: member.userId,
+    );
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? '${member.displayName} is now a member'
+                : provider.actionError ?? 'Failed to demote co-owner',
+          ),
+          backgroundColor: success ? _rose500 : _red500,
+        ),
+      );
+    }
+  }
+
+  void _confirmTransferOwnership(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: _rose950,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Transfer Ownership?',
+          style: TextStyle(color: _rose50),
+        ),
+        content: Text(
+          'Are you sure you want to make ${member.displayName} the owner? You will become a member.',
+          style: TextStyle(color: _rose200),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('Cancel', style: TextStyle(color: _rose300)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext); // Close dialog
+              Navigator.pop(context); // Close options sheet
+
+              final provider = context.read<GroupProvider>();
+              final success = await provider.transferOwnership(
+                groupId: groupId,
+                newOwnerId: member.userId,
+              );
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? '${member.displayName} is now the owner'
+                          : provider.actionError ?? 'Failed to transfer ownership',
+                    ),
+                    backgroundColor: success ? _rose500 : _red500,
+                  ),
+                );
+              }
+            },
+            child: Text('Transfer', style: TextStyle(color: _orange400)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmRemoveMember(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: _rose950,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Remove Member?',
+          style: TextStyle(color: _rose50),
+        ),
+        content: Text(
+          'Are you sure you want to remove ${member.displayName} from the group?',
+          style: TextStyle(color: _rose200),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('Cancel', style: TextStyle(color: _rose300)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext); // Close dialog
+              Navigator.pop(context); // Close options sheet
+
+              final provider = context.read<GroupProvider>();
+              final success = await provider.removeMember(
+                groupId: groupId,
+                userId: member.userId,
+              );
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? '${member.displayName} has been removed'
+                          : provider.actionError ?? 'Failed to remove member',
+                    ),
+                    backgroundColor: success ? _rose500 : _red500,
+                  ),
+                );
+              }
+            },
+            child: Text('Remove', style: TextStyle(color: _red500)),
           ),
         ],
       ),
