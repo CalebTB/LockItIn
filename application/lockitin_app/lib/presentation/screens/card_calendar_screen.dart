@@ -10,6 +10,10 @@ import '../widgets/groups_bottom_sheet.dart';
 import '../widgets/friends_bottom_sheet.dart';
 import '../widgets/new_event_bottom_sheet.dart';
 import 'event_detail_screen.dart';
+import 'home_screen.dart';
+import 'profile_screen.dart';
+import 'device_calendar_screen.dart';
+import 'friends_screen.dart';
 
 /// Redesigned card-based calendar view with modern UI
 /// Features mini calendar, upcoming events, and expandable FAB navigation
@@ -107,6 +111,206 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
     });
   }
 
+  void _showNavigationMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF4C0519), Color(0xFF020617)], // rose-950 to slate-950
+          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 48,
+              height: 6,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF43F5E).withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+
+            // Menu title
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: Row(
+                children: [
+                  ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [Color(0xFFFECDD3), Color(0xFFFED7AA)],
+                    ).createShader(bounds),
+                    child: const Text(
+                      'Menu',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Menu items
+            _buildMenuItem(
+              icon: Icons.home_rounded,
+              label: 'Home',
+              subtitle: 'Feature overview',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                );
+              },
+            ),
+            _buildMenuItem(
+              icon: Icons.calendar_today_rounded,
+              label: 'Calendar',
+              subtitle: 'Current view',
+              isActive: true,
+              onTap: () => Navigator.pop(context),
+            ),
+            _buildMenuItem(
+              icon: Icons.sync_rounded,
+              label: 'Device Calendar',
+              subtitle: 'Sync native events',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const DeviceCalendarScreen()),
+                );
+              },
+            ),
+            _buildMenuItem(
+              icon: Icons.people_rounded,
+              label: 'Friends',
+              subtitle: 'Manage connections',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const FriendsScreen()),
+                );
+              },
+            ),
+            _buildMenuItem(
+              icon: Icons.person_rounded,
+              label: 'Profile',
+              subtitle: 'Account settings',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                );
+              },
+            ),
+
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required VoidCallback onTap,
+    bool isActive = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            color: isActive ? const Color(0xFFF43F5E).withValues(alpha: 0.1) : null,
+            border: Border(
+              left: BorderSide(
+                color: isActive ? const Color(0xFFF43F5E) : Colors.transparent,
+                width: 3,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? const Color(0xFFF43F5E).withValues(alpha: 0.2)
+                      : const Color(0xFF881337).withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: isActive ? const Color(0xFFFB7185) : const Color(0xFFFDA4AF),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: isActive
+                            ? const Color(0xFFFFF1F2)
+                            : const Color(0xFFFECDD3),
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: const Color(0xFFFDA4AF).withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isActive)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF43F5E).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Active',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFFB7185),
+                    ),
+                  ),
+                )
+              else
+                Icon(
+                  Icons.chevron_right,
+                  color: const Color(0xFFFDA4AF).withValues(alpha: 0.4),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   // Sunset Coral Dark Theme Colors
   static const Color _rose950 = Color(0xFF4C0519);
@@ -226,9 +430,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
             children: [
               // Menu button (for settings/profile)
               IconButton(
-                onPressed: () {
-                  // TODO: Open settings or profile menu
-                },
+                onPressed: () => _showNavigationMenu(context),
                 icon: const Icon(Icons.menu_rounded),
                 color: _rose200,
               ),

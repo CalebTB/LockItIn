@@ -49,6 +49,7 @@ class EventModel extends Equatable {
   });
 
   /// Create EventModel from Supabase JSON
+  /// Times are stored and displayed as "wall clock" time (no timezone conversion)
   factory EventModel.fromJson(Map<String, dynamic> json) {
     return EventModel(
       id: json['id'] as String,
