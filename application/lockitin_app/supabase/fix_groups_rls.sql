@@ -13,15 +13,18 @@
 DROP POLICY IF EXISTS "Users can view groups they belong to" ON groups;
 DROP POLICY IF EXISTS "Authenticated users can create groups" ON groups;
 DROP POLICY IF EXISTS "Owners and admins can update groups" ON groups;
+DROP POLICY IF EXISTS "Owners and co-owners can update groups" ON groups;
 DROP POLICY IF EXISTS "Only owners can delete groups" ON groups;
 
 DROP POLICY IF EXISTS "Users can view group members" ON group_members;
 DROP POLICY IF EXISTS "Owners and admins can add members" ON group_members;
+DROP POLICY IF EXISTS "Owners and co-owners can add members" ON group_members;
 DROP POLICY IF EXISTS "Owners can update roles" ON group_members;
 DROP POLICY IF EXISTS "Members can leave or be removed" ON group_members;
 
 DROP POLICY IF EXISTS "Users can view relevant invites" ON group_invites;
 DROP POLICY IF EXISTS "Owners and admins can invite" ON group_invites;
+DROP POLICY IF EXISTS "Owners and co-owners can invite" ON group_invites;
 DROP POLICY IF EXISTS "Users can decline or cancel invites" ON group_invites;
 
 -- ============================================================================
@@ -74,16 +77,16 @@ FOR INSERT
 TO authenticated
 WITH CHECK (auth.uid() = created_by);
 
--- Policy: Owners and admins can update groups
-CREATE POLICY "Owners and admins can update groups"
+-- Policy: Owners and co-owners can update groups
+CREATE POLICY "Owners and co-owners can update groups"
 ON groups
 FOR UPDATE
 TO authenticated
 USING (
-  auth_has_group_role(id, auth.uid(), ARRAY['owner', 'admin']::group_member_role[])
+  auth_has_group_role(id, auth.uid(), ARRAY['owner', 'co_owner']::group_member_role[])
 )
 WITH CHECK (
-  auth_has_group_role(id, auth.uid(), ARRAY['owner', 'admin']::group_member_role[])
+  auth_has_group_role(id, auth.uid(), ARRAY['owner', 'co_owner']::group_member_role[])
 );
 
 -- Policy: Only owners can delete groups
@@ -108,8 +111,8 @@ USING (
   auth_is_group_member(group_id, auth.uid())
 );
 
--- Policy: Owners and admins can add members, OR user can add themselves
-CREATE POLICY "Owners and admins can add members"
+-- Policy: Owners and co-owners can add members, OR user can add themselves
+CREATE POLICY "Owners and co-owners can add members"
 ON group_members
 FOR INSERT
 TO authenticated
@@ -117,8 +120,8 @@ WITH CHECK (
   -- Allow adding self (when creating a group or accepting invite)
   (user_id = auth.uid())
   OR
-  -- Allow owners/admins to add others
-  auth_has_group_role(group_id, auth.uid(), ARRAY['owner', 'admin']::group_member_role[])
+  -- Allow owners/co-owners to add others
+  auth_has_group_role(group_id, auth.uid(), ARRAY['owner', 'co_owner']::group_member_role[])
 );
 
 -- Policy: Owners can update member roles
@@ -133,7 +136,7 @@ WITH CHECK (
   auth_has_group_role(group_id, auth.uid(), ARRAY['owner']::group_member_role[])
 );
 
--- Policy: Members can remove themselves; Owners/admins can remove others
+-- Policy: Members can remove themselves; Owners/co-owners can remove others
 CREATE POLICY "Members can leave or be removed"
 ON group_members
 FOR DELETE
@@ -142,8 +145,8 @@ USING (
   -- User can remove themselves (leave)
   user_id = auth.uid()
   OR
-  -- Owners and admins can remove others
-  auth_has_group_role(group_id, auth.uid(), ARRAY['owner', 'admin']::group_member_role[])
+  -- Owners and co-owners can remove others
+  auth_has_group_role(group_id, auth.uid(), ARRAY['owner', 'co_owner']::group_member_role[])
 );
 
 -- ============================================================================
@@ -163,13 +166,13 @@ USING (
   auth_is_group_member(group_id, auth.uid())
 );
 
--- Policy: Owners and admins can create invites
-CREATE POLICY "Owners and admins can invite"
+-- Policy: Owners and co-owners can create invites
+CREATE POLICY "Owners and co-owners can invite"
 ON group_invites
 FOR INSERT
 TO authenticated
 WITH CHECK (
-  auth_has_group_role(group_id, auth.uid(), ARRAY['owner', 'admin']::group_member_role[])
+  auth_has_group_role(group_id, auth.uid(), ARRAY['owner', 'co_owner']::group_member_role[])
 );
 
 -- Policy: Invited user can delete (decline); inviters can cancel
@@ -181,8 +184,8 @@ USING (
   -- Invited user can decline
   invited_user_id = auth.uid()
   OR
-  -- Owners/admins can cancel invites
-  auth_has_group_role(group_id, auth.uid(), ARRAY['owner', 'admin']::group_member_role[])
+  -- Owners/co-owners can cancel invites
+  auth_has_group_role(group_id, auth.uid(), ARRAY['owner', 'co_owner']::group_member_role[])
 );
 
 -- ============================================================================

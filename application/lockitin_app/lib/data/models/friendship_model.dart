@@ -1,6 +1,22 @@
 import 'package:equatable/equatable.dart';
 import 'user_display_mixin.dart';
 
+/// Helper to mask email addresses for privacy
+/// e.g., "john.doe@example.com" -> "j***@example.com"
+String maskEmail(String email) {
+  final parts = email.split('@');
+  if (parts.length != 2) return email; // Invalid email, return as-is
+
+  final localPart = parts[0];
+  final domain = parts[1];
+
+  // Show first character, mask the rest
+  final maskedLocal =
+      localPart.length > 1 ? '${localPart[0]}***' : '$localPart***';
+
+  return '$maskedLocal@$domain';
+}
+
 /// Friendship status for friend connections
 enum FriendshipStatus {
   pending, // Friend request sent, awaiting response
@@ -171,11 +187,12 @@ class FriendProfile extends Equatable with UserDisplayMixin {
   }
 
   /// Create from users table (for search results)
+  /// Note: Email is masked for privacy in search results
   factory FriendProfile.fromUserJson(Map<String, dynamic> json) {
     return FriendProfile(
       id: json['id'] as String,
       fullName: json['full_name'] as String?,
-      email: json['email'] as String,
+      email: maskEmail(json['email'] as String), // Mask email for privacy
       avatarUrl: json['avatar_url'] as String?,
     );
   }
