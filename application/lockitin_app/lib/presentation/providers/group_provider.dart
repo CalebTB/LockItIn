@@ -53,13 +53,16 @@ class GroupProvider extends ChangeNotifier {
   /// Check if current user is owner of selected group
   bool get isOwner => _currentUserRole == GroupMemberRole.owner;
 
-  /// Check if current user is admin of selected group
-  bool get isAdmin => _currentUserRole == GroupMemberRole.admin;
+  /// Check if current user can manage members (owner only in 2-tier system)
+  bool get canManageMembers => _currentUserRole == GroupMemberRole.owner;
 
-  /// Check if current user can manage members (owner or admin)
-  bool get canManageMembers =>
-      _currentUserRole == GroupMemberRole.owner ||
-      _currentUserRole == GroupMemberRole.admin;
+  /// Check if current user can invite members
+  /// Owner can always invite; members can invite if group allows it
+  bool get canInviteMembers {
+    if (_currentUserRole == null) return false;
+    if (_currentUserRole == GroupMemberRole.owner) return true;
+    return _selectedGroup?.membersCanInvite ?? false;
+  }
 
   bool get isLoadingGroups => _isLoadingGroups;
   bool get isLoadingMembers => _isLoadingMembers;
@@ -415,36 +418,59 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
-  /// Update a member's role
-  Future<bool> updateMemberRole({
+  /// Promote a member to co-owner
+  Future<bool> promoteToCoOwner({
     required String groupId,
     required String userId,
-    required GroupMemberRole newRole,
   }) async {
     _actionError = null;
 
     try {
-      await _groupService.updateMemberRole(
+      await _groupService.promoteToCoOwner(
         groupId: groupId,
         userId: userId,
-        newRole: newRole,
       );
 
-      // Update in local members list if viewing this group
+      // Reload members to get updated data
       if (_selectedGroup?.id == groupId) {
-        final index = _selectedGroupMembers.indexWhere((m) => m.userId == userId);
-        if (index != -1) {
-          // Reload members to get updated data
-          await loadGroupMembers(groupId);
-        }
+        await loadGroupMembers(groupId);
       }
 
-      Logger.info('Updated role for $userId in $groupId to $newRole');
+      Logger.info('Promoted $userId to co-owner in $groupId');
       notifyListeners();
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to update member role: $e');
+      Logger.error('Failed to promote member: $e');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Demote a co-owner to member
+  Future<bool> demoteFromCoOwner({
+    required String groupId,
+    required String userId,
+  }) async {
+    _actionError = null;
+
+    try {
+      await _groupService.demoteFromCoOwner(
+        groupId: groupId,
+        userId: userId,
+      );
+
+      // Reload members to get updated data
+      if (_selectedGroup?.id == groupId) {
+        await loadGroupMembers(groupId);
+      }
+
+      Logger.info('Demoted $userId from co-owner in $groupId');
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _actionError = e.toString();
+      Logger.error('Failed to demote co-owner: $e');
       notifyListeners();
       return false;
     }

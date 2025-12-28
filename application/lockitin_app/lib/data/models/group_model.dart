@@ -1,10 +1,13 @@
 import 'package:equatable/equatable.dart';
 
 /// Role of a member within a group
+///
+/// Simple 2-tier system:
+/// - Owner: Full control (delete group, remove members, edit settings, invite)
+/// - Member: Participate (create/vote proposals, set privacy, leave, invite if allowed)
 enum GroupMemberRole {
   owner, // Created the group, full control
-  admin, // Can manage members and settings
-  member, // Regular member
+  member, // Regular participant
 }
 
 /// Group model matching Supabase groups table
@@ -19,6 +22,9 @@ class GroupModel extends Equatable {
   /// Member count (populated from join query)
   final int memberCount;
 
+  /// Whether members (non-owners) can invite others to the group
+  final bool membersCanInvite;
+
   const GroupModel({
     required this.id,
     required this.name,
@@ -27,6 +33,7 @@ class GroupModel extends Equatable {
     required this.createdAt,
     this.updatedAt,
     this.memberCount = 0,
+    this.membersCanInvite = true,
   });
 
   /// Create GroupModel from Supabase JSON
@@ -41,6 +48,7 @@ class GroupModel extends Equatable {
           ? DateTime.parse(json['updated_at'] as String)
           : null,
       memberCount: json['member_count'] as int? ?? 0,
+      membersCanInvite: json['members_can_invite'] as bool? ?? true,
     );
   }
 
@@ -53,6 +61,7 @@ class GroupModel extends Equatable {
       createdBy: json['created_by'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
       memberCount: json['member_count'] as int? ?? 0,
+      membersCanInvite: json['members_can_invite'] as bool? ?? true,
     );
   }
 
@@ -62,6 +71,7 @@ class GroupModel extends Equatable {
       'name': name,
       'emoji': emoji,
       'created_by': createdBy,
+      'members_can_invite': membersCanInvite,
     };
   }
 
@@ -70,6 +80,7 @@ class GroupModel extends Equatable {
     return {
       'name': name,
       'emoji': emoji,
+      'members_can_invite': membersCanInvite,
       'updated_at': DateTime.now().toIso8601String(),
     };
   }
@@ -83,6 +94,7 @@ class GroupModel extends Equatable {
     DateTime? createdAt,
     DateTime? updatedAt,
     int? memberCount,
+    bool? membersCanInvite,
   }) {
     return GroupModel(
       id: id ?? this.id,
@@ -92,6 +104,7 @@ class GroupModel extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       memberCount: memberCount ?? this.memberCount,
+      membersCanInvite: membersCanInvite ?? this.membersCanInvite,
     );
   }
 
@@ -104,6 +117,7 @@ class GroupModel extends Equatable {
         createdAt,
         updatedAt,
         memberCount,
+        membersCanInvite,
       ];
 }
 
@@ -139,8 +153,6 @@ class GroupMemberModel extends Equatable {
     switch (role) {
       case GroupMemberRole.owner:
         return 'owner';
-      case GroupMemberRole.admin:
-        return 'admin';
       case GroupMemberRole.member:
         return 'member';
     }
@@ -151,10 +163,9 @@ class GroupMemberModel extends Equatable {
     switch (role.toLowerCase()) {
       case 'owner':
         return GroupMemberRole.owner;
-      case 'admin':
-        return GroupMemberRole.admin;
       case 'member':
       default:
+        // Note: 'admin' from old data will be treated as member
         return GroupMemberRole.member;
     }
   }
@@ -168,11 +179,10 @@ class GroupMemberModel extends Equatable {
     };
   }
 
-  /// Check if this member can manage other members
-  bool get canManageMembers =>
-      role == GroupMemberRole.owner || role == GroupMemberRole.admin;
+  /// Check if this member can manage other members (owner only)
+  bool get canManageMembers => role == GroupMemberRole.owner;
 
-  /// Check if this member can delete the group
+  /// Check if this member can delete the group (owner only)
   bool get canDeleteGroup => role == GroupMemberRole.owner;
 
   @override
@@ -232,8 +242,6 @@ class GroupMemberProfile extends Equatable {
     switch (role) {
       case GroupMemberRole.owner:
         return 'Owner';
-      case GroupMemberRole.admin:
-        return 'Admin';
       case GroupMemberRole.member:
         return 'Member';
     }

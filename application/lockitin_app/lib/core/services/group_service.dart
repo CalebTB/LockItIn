@@ -168,7 +168,7 @@ class GroupService {
 
   /// Add a member to a group
   ///
-  /// Only owners and admins can add members
+  /// Only owners can add members directly
   Future<GroupMemberModel> addMember({
     required String groupId,
     required String userId,
@@ -215,8 +215,7 @@ class GroupService {
 
   /// Remove a member from a group
   ///
-  /// Owners and admins can remove members
-  /// Admins cannot remove owners or other admins
+  /// Only owners can remove members
   /// Members can remove themselves (leave)
   Future<void> removeMember({
     required String groupId,
@@ -238,10 +237,10 @@ class GroupService {
       final isLeavingSelf = userId == currentUserId;
 
       if (!isLeavingSelf) {
-        // Check permission to remove others
+        // Only owner can remove others
         final currentRole = currentMembership['role'] as String;
-        if (currentRole != 'owner' && currentRole != 'admin') {
-          throw GroupServiceException('You do not have permission to remove members');
+        if (currentRole != 'owner') {
+          throw GroupServiceException('Only the owner can remove members');
         }
 
         // Get target user's membership
@@ -250,11 +249,10 @@ class GroupService {
           throw GroupServiceException('User is not a member of this group');
         }
 
+        // Owner cannot remove another owner (co-owner)
         final targetRole = targetMembership['role'] as String;
-
-        // Admins cannot remove owners or other admins
-        if (currentRole == 'admin' && (targetRole == 'owner' || targetRole == 'admin')) {
-          throw GroupServiceException('Admins cannot remove owners or other admins');
+        if (targetRole == 'owner') {
+          throw GroupServiceException('Cannot remove a co-owner. Transfer ownership first.');
         }
       } else {
         // Owners cannot leave their own group
@@ -279,13 +277,12 @@ class GroupService {
     }
   }
 
-  /// Update a member's role
+  /// Promote a member to co-owner
   ///
-  /// Only owners can change roles
-  Future<void> updateMemberRole({
+  /// Only owners can promote members to co-owner
+  Future<void> promoteToCoOwner({
     required String groupId,
     required String userId,
-    required GroupMemberRole newRole,
   }) async {
     try {
       final currentUserId = SupabaseClientManager.currentUserId;
@@ -293,39 +290,97 @@ class GroupService {
         throw GroupServiceException('User not authenticated');
       }
 
-      // Only owners can change roles
+      // Only owners can promote
       final currentMembership = await _getMembership(groupId, currentUserId);
       if (currentMembership == null || currentMembership['role'] != 'owner') {
-        throw GroupServiceException('Only the owner can change member roles');
+        throw GroupServiceException('Only owners can promote members to co-owner');
       }
 
-      // Cannot change own role
+      // Cannot promote self
       if (userId == currentUserId) {
-        throw GroupServiceException('You cannot change your own role');
+        throw GroupServiceException('You are already an owner');
       }
 
-      // Cannot have multiple owners
-      if (newRole == GroupMemberRole.owner) {
-        throw GroupServiceException('Use transfer ownership instead');
+      // Verify target is a member
+      final targetMembership = await _getMembership(groupId, userId);
+      if (targetMembership == null) {
+        throw GroupServiceException('User is not a member of this group');
       }
 
-      Logger.info('Updating role for $userId in group $groupId to ${GroupMemberModel.roleToString(newRole)}');
+      // Check if already an owner
+      if (targetMembership['role'] == 'owner') {
+        throw GroupServiceException('User is already a co-owner');
+      }
+
+      Logger.info('Promoting $userId to co-owner in group $groupId');
 
       await SupabaseClientManager.client
           .from('group_members')
-          .update({'role': GroupMemberModel.roleToString(newRole)})
+          .update({'role': 'owner'})
           .eq('group_id', groupId)
           .eq('user_id', userId);
 
-      Logger.info('Role updated successfully');
+      Logger.info('Member promoted to co-owner successfully');
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to update member role: $e');
-      throw GroupServiceException('Failed to update member role: $e');
+      Logger.error('Failed to promote member: $e');
+      throw GroupServiceException('Failed to promote member: $e');
+    }
+  }
+
+  /// Demote a co-owner to member
+  ///
+  /// Only owners can demote other co-owners
+  Future<void> demoteFromCoOwner({
+    required String groupId,
+    required String userId,
+  }) async {
+    try {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw GroupServiceException('User not authenticated');
+      }
+
+      // Only owners can demote
+      final currentMembership = await _getMembership(groupId, currentUserId);
+      if (currentMembership == null || currentMembership['role'] != 'owner') {
+        throw GroupServiceException('Only owners can demote co-owners');
+      }
+
+      // Cannot demote self
+      if (userId == currentUserId) {
+        throw GroupServiceException('You cannot demote yourself. Transfer ownership instead.');
+      }
+
+      // Verify target is a co-owner
+      final targetMembership = await _getMembership(groupId, userId);
+      if (targetMembership == null) {
+        throw GroupServiceException('User is not a member of this group');
+      }
+
+      if (targetMembership['role'] != 'owner') {
+        throw GroupServiceException('User is not a co-owner');
+      }
+
+      Logger.info('Demoting $userId from co-owner in group $groupId');
+
+      await SupabaseClientManager.client
+          .from('group_members')
+          .update({'role': 'member'})
+          .eq('group_id', groupId)
+          .eq('user_id', userId);
+
+      Logger.info('Co-owner demoted to member successfully');
+    } catch (e) {
+      if (e is GroupServiceException) rethrow;
+      Logger.error('Failed to demote co-owner: $e');
+      throw GroupServiceException('Failed to demote co-owner: $e');
     }
   }
 
   /// Transfer group ownership to another member
+  ///
+  /// Current owner is demoted to member after transfer
   Future<void> transferOwnership({
     required String groupId,
     required String newOwnerId,
@@ -357,10 +412,10 @@ class GroupService {
           .eq('group_id', groupId)
           .eq('user_id', newOwnerId);
 
-      // Demote current owner to admin
+      // Demote current owner to member
       await SupabaseClientManager.client
           .from('group_members')
-          .update({'role': 'admin'})
+          .update({'role': 'member'})
           .eq('group_id', groupId)
           .eq('user_id', currentUserId);
 
@@ -511,14 +566,16 @@ class GroupService {
         );
       }).toList();
 
-      // Sort: owner first, then admins, then members
+      // Sort: owners first, then members by join date
       members.sort((a, b) {
-        final roleOrder = {
-          GroupMemberRole.owner: 0,
-          GroupMemberRole.admin: 1,
-          GroupMemberRole.member: 2,
-        };
-        return roleOrder[a.role]!.compareTo(roleOrder[b.role]!);
+        if (a.role == GroupMemberRole.owner && b.role != GroupMemberRole.owner) {
+          return -1;
+        }
+        if (a.role != GroupMemberRole.owner && b.role == GroupMemberRole.owner) {
+          return 1;
+        }
+        // Same role - sort by join date
+        return a.joinedAt.compareTo(b.joinedAt);
       });
 
       Logger.info('Fetched ${members.length} members');
@@ -552,7 +609,7 @@ class GroupService {
 
   /// Invite a user to a group
   ///
-  /// Only owners and admins can invite users
+  /// Owners can always invite. Members can invite if the group allows it.
   Future<void> inviteUser({
     required String groupId,
     required String userId,
@@ -563,9 +620,9 @@ class GroupService {
         throw GroupServiceException('User not authenticated');
       }
 
-      // Check permission
-      final canManage = await _canManageGroup(groupId, currentUserId);
-      if (!canManage) {
+      // Check permission to invite
+      final canInvite = await _canInviteToGroup(groupId, currentUserId);
+      if (!canInvite) {
         throw GroupServiceException('You do not have permission to invite users');
       }
 
@@ -751,12 +808,32 @@ class GroupService {
   // Helper Methods
   // ============================================================================
 
-  /// Check if user can manage the group (owner or admin)
+  /// Check if user can manage the group (owner only in 2-tier system)
   Future<bool> _canManageGroup(String groupId, String userId) async {
     final membership = await _getMembership(groupId, userId);
     if (membership == null) return false;
     final role = membership['role'] as String;
-    return role == 'owner' || role == 'admin';
+    return role == 'owner';
+  }
+
+  /// Check if user can invite to the group
+  ///
+  /// Owner can always invite. Members can invite if group allows it.
+  Future<bool> _canInviteToGroup(String groupId, String userId) async {
+    final membership = await _getMembership(groupId, userId);
+    if (membership == null) return false;
+
+    final role = membership['role'] as String;
+    if (role == 'owner') return true;
+
+    // Check if group allows member invites
+    final group = await SupabaseClientManager.client
+        .from('groups')
+        .select('members_can_invite')
+        .eq('id', groupId)
+        .maybeSingle();
+
+    return group?['members_can_invite'] as bool? ?? true;
   }
 
   /// Get a user's membership in a group

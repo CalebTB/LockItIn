@@ -1857,6 +1857,7 @@ class _MembersBottomSheet extends StatelessWidget {
                                 ),
 
                                 // Role badge
+                                // Owner badge
                                 if (member.role == GroupMemberRole.owner)
                                   Container(
                                     padding: const EdgeInsets.symmetric(
@@ -1877,29 +1878,10 @@ class _MembersBottomSheet extends StatelessWidget {
                                         color: Colors.white,
                                       ),
                                     ),
-                                  )
-                                else if (member.role == GroupMemberRole.admin)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _rose500.withValues(alpha: 0.3),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      'Admin',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: _rose300,
-                                      ),
-                                    ),
                                   ),
 
-                                // Chevron for manageable members
-                                if (canManage && member.role != GroupMemberRole.owner)
+                                // Chevron for manageable members (owners can manage everyone)
+                                if (canManage)
                                   Padding(
                                     padding: const EdgeInsets.only(left: 8),
                                     child: Icon(
@@ -1951,14 +1933,11 @@ class _MembersBottomSheet extends StatelessWidget {
     GroupMemberProfile member,
     GroupProvider provider,
   ) {
-    // Can't manage owner
-    if (member.role == GroupMemberRole.owner) return;
-
-    // Admins can't manage other admins
-    if (provider.isAdmin && member.role == GroupMemberRole.admin) {
+    // Only owners can manage members
+    if (!provider.isOwner) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Admins cannot manage other admins'),
+          content: const Text('Only owners can manage members'),
           backgroundColor: _rose500,
         ),
       );
@@ -2124,29 +2103,36 @@ class _MemberOptionsSheet extends StatelessWidget {
 
           // Options (only owner can change roles)
           if (isOwner) ...[
-            // Toggle admin role
-            _buildOptionTile(
-              context,
-              icon: member.role == GroupMemberRole.admin
-                  ? Icons.person_outline
-                  : Icons.admin_panel_settings,
-              label: member.role == GroupMemberRole.admin
-                  ? 'Remove Admin'
-                  : 'Make Admin',
-              color: _orange400,
-              onTap: () => _toggleAdminRole(context),
-            ),
+            // Promote/demote co-owner
+            if (member.role == GroupMemberRole.owner)
+              _buildOptionTile(
+                context,
+                icon: Icons.person_outline,
+                label: 'Remove Co-Owner',
+                color: _orange400,
+                onTap: () => _demoteFromCoOwner(context),
+              )
+            else
+              _buildOptionTile(
+                context,
+                icon: Icons.stars,
+                label: 'Make Co-Owner',
+                color: _orange400,
+                onTap: () => _promoteToCoOwner(context),
+              ),
             const SizedBox(height: 8),
 
-            // Transfer ownership
-            _buildOptionTile(
-              context,
-              icon: Icons.swap_horiz,
-              label: 'Transfer Ownership',
-              color: _rose400,
-              onTap: () => _confirmTransferOwnership(context),
-            ),
-            const SizedBox(height: 8),
+            // Transfer ownership (only for non-owners)
+            if (member.role != GroupMemberRole.owner) ...[
+              _buildOptionTile(
+                context,
+                icon: Icons.swap_horiz,
+                label: 'Transfer Ownership',
+                color: _rose400,
+                onTap: () => _confirmTransferOwnership(context),
+              ),
+              const SizedBox(height: 8),
+            ],
           ],
 
           // Remove from group (owners and admins can do this)
@@ -2198,18 +2184,14 @@ class _MemberOptionsSheet extends StatelessWidget {
     );
   }
 
-  void _toggleAdminRole(BuildContext context) async {
+  void _promoteToCoOwner(BuildContext context) async {
     final provider = context.read<GroupProvider>();
-    final newRole = member.role == GroupMemberRole.admin
-        ? GroupMemberRole.member
-        : GroupMemberRole.admin;
 
     Navigator.pop(context); // Close options sheet
 
-    final success = await provider.updateMemberRole(
+    final success = await provider.promoteToCoOwner(
       groupId: groupId,
       userId: member.userId,
-      newRole: newRole,
     );
 
     if (context.mounted) {
@@ -2217,8 +2199,32 @@ class _MemberOptionsSheet extends StatelessWidget {
         SnackBar(
           content: Text(
             success
-                ? '${member.displayName} is now ${newRole == GroupMemberRole.admin ? "an admin" : "a member"}'
-                : provider.actionError ?? 'Failed to update role',
+                ? '${member.displayName} is now a co-owner'
+                : provider.actionError ?? 'Failed to promote member',
+          ),
+          backgroundColor: success ? _rose500 : _red500,
+        ),
+      );
+    }
+  }
+
+  void _demoteFromCoOwner(BuildContext context) async {
+    final provider = context.read<GroupProvider>();
+
+    Navigator.pop(context); // Close options sheet
+
+    final success = await provider.demoteFromCoOwner(
+      groupId: groupId,
+      userId: member.userId,
+    );
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? '${member.displayName} is now a member'
+                : provider.actionError ?? 'Failed to demote co-owner',
           ),
           backgroundColor: success ? _rose500 : _red500,
         ),
@@ -2237,7 +2243,7 @@ class _MemberOptionsSheet extends StatelessWidget {
           style: TextStyle(color: _rose50),
         ),
         content: Text(
-          'Are you sure you want to make ${member.displayName} the owner? You will become an admin.',
+          'Are you sure you want to make ${member.displayName} the owner? You will become a member.',
           style: TextStyle(color: _rose200),
         ),
         actions: [
