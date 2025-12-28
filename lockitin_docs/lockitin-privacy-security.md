@@ -1836,6 +1836,48 @@ Before committing code:
 
 ---
 
+## Email Privacy
+
+**Decision (December 2025):** User email addresses are NOT displayed anywhere in the friend-related UI.
+
+### Rationale
+- Email addresses are considered sensitive personal information
+- Displaying emails enables potential harassment or spam
+- Users connect via name/avatar, not email
+- Follows privacy-first design principle
+
+### Implementation Details
+
+| Component | Email Behavior |
+|-----------|---------------|
+| Friend search results | Email NOT shown (name only) |
+| Friend request tiles | Email NOT shown |
+| Friends list | Email NOT shown |
+| Friend detail view | Email NOT shown |
+| User's own profile | Email IS shown (user's own data) |
+| Local search filter | Email CAN be searched (not displayed) |
+
+### Technical Notes
+- `FriendProfile.fromUserJson()` masks emails for search results: `j***@example.com`
+- Email field exists in models for internal use (database queries, local filtering)
+- Email is never rendered in UI widgets for other users
+- User's OWN email shown on Profile screen (self-service)
+
+### Files Affected
+- `lib/presentation/widgets/friend_request_tile.dart`
+- `lib/presentation/widgets/friend_search_delegate.dart`
+- `lib/presentation/widgets/friends_bottom_sheet.dart`
+- `lib/presentation/widgets/friend_list_tile.dart`
+- `lib/presentation/screens/friends_screen.dart`
+- `lib/data/models/friendship_model.dart` (maskEmail function)
+
+### Future Considerations
+- If email display is ever needed, require explicit user consent
+- Consider adding "share email with friends" toggle in settings
+- Email could be revealed only after mutual friendship acceptance
+
+---
+
 ## Summary
 
 LockItIn's privacy and security model is built on:
