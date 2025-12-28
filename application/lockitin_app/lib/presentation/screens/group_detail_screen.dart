@@ -1311,9 +1311,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   Widget _buildDayDetailSheet() {
-    // For now, just user's availability (0 = busy, 1 = available)
-    const totalMembers = 1;
     final monthName = DateFormat('MMMM').format(_focusedMonth);
+    final groupProvider = context.read<GroupProvider>();
+    final totalMembers = groupProvider.selectedGroupMembers.isNotEmpty
+        ? groupProvider.selectedGroupMembers.length
+        : _memberEvents.length;
 
     return Consumer<CalendarProvider>(
       builder: (context, calendarProvider, _) {
