@@ -8,14 +8,11 @@ import '../utils/time_filter_utils.dart';
 /// This service handles all availability logic:
 /// - Determining if a member is available on a specific date
 /// - Counting available members for group heatmap display
-/// - Finding the longest contiguous free time blocks
 /// - Generating human-readable availability descriptions
 ///
-/// Availability is defined as having at least [minContiguousFreeMinutes]
-/// of uninterrupted free time within the selected time filter.
+/// A member is considered "busy" if they have ANY event during the
+/// selected time filter. No events = available.
 class AvailabilityCalculatorService {
-  /// Minimum contiguous free time required to be considered "available" (in minutes)
-  static const int minContiguousFreeMinutes = 120; // 2 hours
 
   /// Calculate how many group members are available on a specific date
   ///
@@ -75,8 +72,8 @@ class AvailabilityCalculatorService {
 
   /// Check if a single member is available on a date based on their events
   ///
-  /// Returns true if the member has at least [minContiguousFreeMinutes]
-  /// of contiguous free time within ALL selected time filters.
+  /// Returns true if the member has NO events overlapping with the selected
+  /// time filters. Any event during the time range means they're busy.
   bool isMemberAvailable({
     required List<EventModel> events,
     required DateTime date,
@@ -92,31 +89,46 @@ class AvailabilityCalculatorService {
         customEnd: customEndTime,
       );
 
-      final longestFreeMinutes = findLongestFreeBlock(
-        events: events,
-        rangeStart: bounds.start,
-        rangeEnd: bounds.end,
-      );
-
-      return longestFreeMinutes >= minContiguousFreeMinutes;
+      // Check if any event overlaps with this time range
+      final hasConflict = _hasEventInRange(events, bounds.start, bounds.end);
+      return !hasConflict;
     }
 
-    // Check each selected time filter - must be available in ALL selected filters
+    // Check each selected time filter - must be free in ALL selected filters
     for (final filter in timeFilters) {
       final bounds = filter.getTimeBoundaries(date);
 
-      final longestFreeMinutes = findLongestFreeBlock(
-        events: events,
-        rangeStart: bounds.start,
-        rangeEnd: bounds.end,
-      );
-
-      if (longestFreeMinutes < minContiguousFreeMinutes) {
-        return false; // Busy - not enough contiguous free time in this filter
+      // If any event overlaps with this filter, member is not available
+      if (_hasEventInRange(events, bounds.start, bounds.end)) {
+        return false;
       }
     }
 
-    return true; // Available - has sufficient contiguous free time in all filters
+    return true; // Available - no events in any selected time filter
+  }
+
+  /// Check if any event overlaps with the given time range
+  bool _hasEventInRange(List<EventModel> events, DateTime rangeStart, DateTime rangeEnd) {
+    for (final event in events) {
+      final localStart = event.startTime.toLocal();
+      final localEnd = event.endTime.toLocal();
+
+      // Create event times on the same date as the range
+      final eventStart = DateTime(
+        rangeStart.year, rangeStart.month, rangeStart.day,
+        localStart.hour, localStart.minute,
+      );
+      final eventEnd = DateTime(
+        rangeStart.year, rangeStart.month, rangeStart.day,
+        localEnd.hour, localEnd.minute,
+      );
+
+      // Event overlaps if it starts before range ends AND ends after range starts
+      if (eventStart.isBefore(rangeEnd) && eventEnd.isAfter(rangeStart)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// Find the longest contiguous free block within a time range
