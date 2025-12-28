@@ -709,29 +709,96 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   void _showCustomTimeRangePicker() {
+    // Convert TimeOfDay to dropdown values
+    int startHour = _customStartTime.hourOfPeriod == 0 ? 12 : _customStartTime.hourOfPeriod;
+    int startMinute = (_customStartTime.minute ~/ 15) * 15; // Round to nearest 15
+    String startPeriod = _customStartTime.period == DayPeriod.am ? 'AM' : 'PM';
+
+    int endHour = _customEndTime.hourOfPeriod == 0 ? 12 : _customEndTime.hourOfPeriod;
+    int endMinute = (_customEndTime.minute ~/ 15) * 15;
+    String endPeriod = _customEndTime.period == DayPeriod.am ? 'AM' : 'PM';
+
+    final hours = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    final minutes = [0, 15, 30, 45];
+    final periods = ['AM', 'PM'];
+
     showModalBottomSheet(
       context: context,
       backgroundColor: _rose950,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => StatefulBuilder(
         builder: (context, setSheetState) {
-          String formatTime(TimeOfDay time) {
-            final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-            final period = time.period == DayPeriod.am ? 'am' : 'pm';
-            return '$hour:${time.minute.toString().padLeft(2, '0')}$period';
-          }
-
-          return Container(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+          // Dropdown builder widget
+          Widget buildDropdown({
+            required String label,
+            required dynamic value,
+            required List<dynamic> options,
+            required Function(dynamic) onChanged,
+          }) {
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Handle bar
-                Center(
-                  child: Container(
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: _rose400,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  decoration: BoxDecoration(
+                    color: _rose900.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _rose500.withValues(alpha: 0.3)),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<dynamic>(
+                      value: value,
+                      isExpanded: true,
+                      dropdownColor: _rose900,
+                      borderRadius: BorderRadius.circular(12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      icon: Icon(Icons.keyboard_arrow_down, color: _rose400, size: 20),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: _rose50,
+                      ),
+                      items: options.map((option) {
+                        final display = option is int
+                            ? option.toString().padLeft(2, '0')
+                            : option.toString();
+                        return DropdownMenuItem(
+                          value: option,
+                          child: Text(display),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) onChanged(val);
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle bar
+                  Container(
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
@@ -739,172 +806,206 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // Title
-                Text(
-                  'Custom Time Range',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: _rose50,
+                  // Title
+                  Text(
+                    'Select Time Range',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: _rose50,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
-                // Time pickers row
-                Row(
-                  children: [
-                    // Start time
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () async {
-                          final picked = await showTimePicker(
-                            context: context,
-                            initialTime: _customStartTime,
-                            builder: (context, child) {
-                              return Theme(
-                                data: Theme.of(context).copyWith(
-                                  colorScheme: const ColorScheme.dark(
-                                    primary: _rose500,
-                                    surface: _rose950,
-                                  ),
-                                ),
-                                child: child!,
-                              );
-                            },
-                          );
-                          if (picked != null) {
-                            setSheetState(() {
-                              _customStartTime = picked;
-                            });
-                            setState(() {});
-                          }
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: _rose900.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: _rose500.withValues(alpha: 0.3)),
+                  // Start Time Section
+                  Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: _rose500,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Start Time',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: _rose200,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: buildDropdown(
+                          label: 'HOUR',
+                          value: startHour,
+                          options: hours,
+                          onChanged: (val) => setSheetState(() => startHour = val),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: buildDropdown(
+                          label: 'MIN',
+                          value: startMinute,
+                          options: minutes,
+                          onChanged: (val) => setSheetState(() => startMinute = val),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: buildDropdown(
+                          label: '',
+                          value: startPeriod,
+                          options: periods,
+                          onChanged: (val) => setSheetState(() => startPeriod = val),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Divider with "to"
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: _rose500.withValues(alpha: 0.3))),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'to',
+                          style: TextStyle(color: _rose400, fontSize: 14),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: _rose500.withValues(alpha: 0.3))),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // End Time Section
+                  Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: _orange500,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'End Time',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: _rose200,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: buildDropdown(
+                          label: 'HOUR',
+                          value: endHour,
+                          options: hours,
+                          onChanged: (val) => setSheetState(() => endHour = val),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: buildDropdown(
+                          label: 'MIN',
+                          value: endMinute,
+                          options: minutes,
+                          onChanged: (val) => setSheetState(() => endMinute = val),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: buildDropdown(
+                          label: '',
+                          value: endPeriod,
+                          options: periods,
+                          onChanged: (val) => setSheetState(() => endPeriod = val),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Done Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        // Convert dropdown values back to TimeOfDay
+                        final startHour24 = startPeriod == 'AM'
+                            ? (startHour == 12 ? 0 : startHour)
+                            : (startHour == 12 ? 12 : startHour + 12);
+                        final endHour24 = endPeriod == 'AM'
+                            ? (endHour == 12 ? 0 : endHour)
+                            : (endHour == 12 ? 12 : endHour + 12);
+
+                        setState(() {
+                          _customStartTime = TimeOfDay(hour: startHour24, minute: startMinute);
+                          _customEndTime = TimeOfDay(hour: endHour24, minute: endMinute);
+                          _selectedTimeFilters = {TimeFilter.allDay};
+                        });
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                      ).copyWith(
+                        backgroundColor: WidgetStateProperty.all(Colors.transparent),
+                      ),
+                      child: Ink(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [_rose500, _orange500],
                           ),
-                          child: Column(
-                            children: [
-                              Text(
-                                'Start',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: _rose300,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                formatTime(_customStartTime),
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: _rose50,
-                                ),
-                              ),
-                            ],
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Container(
+                          alignment: Alignment.center,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: const Text(
+                            'Done',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        'to',
-                        style: TextStyle(color: _rose300),
-                      ),
-                    ),
-                    // End time
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () async {
-                          final picked = await showTimePicker(
-                            context: context,
-                            initialTime: _customEndTime,
-                            builder: (context, child) {
-                              return Theme(
-                                data: Theme.of(context).copyWith(
-                                  colorScheme: const ColorScheme.dark(
-                                    primary: _rose500,
-                                    surface: _rose950,
-                                  ),
-                                ),
-                                child: child!,
-                              );
-                            },
-                          );
-                          if (picked != null) {
-                            setSheetState(() {
-                              _customEndTime = picked;
-                            });
-                            setState(() {});
-                          }
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: _rose900.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: _rose500.withValues(alpha: 0.3)),
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                'End',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: _rose300,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                formatTime(_customEndTime),
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: _rose50,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Apply button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _selectedTimeFilters = {TimeFilter.allDay};
-                      });
-                      Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _rose500,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Apply Custom Range',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-              ],
+                  const SizedBox(height: 8),
+                ],
+              ),
             ),
           );
         },
