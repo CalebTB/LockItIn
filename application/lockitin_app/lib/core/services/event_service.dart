@@ -269,12 +269,6 @@ class EventService {
     required DateTime endDate,
   }) async {
     try {
-      Logger.info(
-        'Fetching events for ${memberUserIds.length} group members: '
-        '${startDate.toIso8601String()} to ${endDate.toIso8601String()}',
-      );
-      Logger.info('Member IDs: $memberUserIds');
-
       // Fetch events for all members that overlap with the date range
       // An event overlaps if: start_time < endDate AND end_time > startDate
       // Include all non-private events (shared_with_name or busy_only)
@@ -285,11 +279,6 @@ class EventService {
           .neq('visibility', 'private') // Exclude private events
           .lt('start_time', endDate.toIso8601String()) // Event starts before end of range
           .gt('end_time', startDate.toIso8601String()); // Event ends after start of range
-
-      Logger.info('Raw response count: ${(response as List).length}');
-      for (final json in response) {
-        Logger.info('  Event user_id: ${json['user_id']}, title: ${json['title']}, visibility: ${json['visibility']}');
-      }
 
       // Group events by user_id
       final Map<String, List<EventModel>> eventsByUser = {};

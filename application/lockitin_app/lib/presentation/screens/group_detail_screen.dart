@@ -6,7 +6,6 @@ import '../../data/models/event_model.dart';
 import '../../core/services/event_service.dart';
 import '../../core/services/availability_calculator_service.dart';
 import '../../core/utils/time_filter_utils.dart';
-import '../../core/utils/logger.dart';
 import '../providers/group_provider.dart';
 import '../providers/calendar_provider.dart';
 import '../theme/sunset_coral_theme.dart';
@@ -111,14 +110,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         startDate: startDate,
         endDate: endDate,
       );
-
-      // Debug: Log loaded events per member
-      for (final entry in events.entries) {
-        Logger.info('Member ${entry.key}: ${entry.value.length} events loaded');
-        for (final event in entry.value) {
-          Logger.info('  - ${event.title}: ${event.startTime} to ${event.endTime}');
-        }
-      }
 
       if (mounted) {
         setState(() {
