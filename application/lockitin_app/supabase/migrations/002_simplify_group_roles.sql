@@ -2,9 +2,8 @@
 --
 -- Changes:
 -- 1. Add members_can_invite column to groups table
--- 2. Convert existing 'admin' roles to 'member'
--- 3. Update role constraint to allow 'owner', 'co_owner', and 'member'
--- 4. Update RPC functions if needed
+-- 2. Recreate enum with only: owner, co_owner, member (remove admin)
+-- 3. Update RPC functions
 --
 -- Role system:
 -- - owner: Original creator, full control, can promote to co-owner
@@ -17,18 +16,25 @@ ADD COLUMN IF NOT EXISTS members_can_invite BOOLEAN DEFAULT true;
 
 COMMENT ON COLUMN groups.members_can_invite IS 'Whether non-owner members can invite others to the group';
 
--- Step 2: Add 'co_owner' to the enum type
--- NOTE: Run this statement FIRST, separately in the SQL editor before running the rest:
---   ALTER TYPE group_member_role ADD VALUE IF NOT EXISTS 'co_owner' AFTER 'owner';
---
--- PostgreSQL 9.3+ supports IF NOT EXISTS for ADD VALUE
-ALTER TYPE group_member_role ADD VALUE IF NOT EXISTS 'co_owner' AFTER 'owner';
-
--- Step 3: Convert existing admin roles to member (if any exist)
--- (Admins become regular members)
+-- Step 2: Convert any existing admin roles to member before changing enum
 UPDATE group_members
 SET role = 'member'
 WHERE role = 'admin';
+
+-- Step 3: Recreate the enum type without 'admin'
+-- First, change column to TEXT temporarily
+ALTER TABLE group_members
+ALTER COLUMN role TYPE TEXT;
+
+-- Drop the old enum
+DROP TYPE IF EXISTS group_member_role;
+
+-- Create new enum with only the 3 valid roles
+CREATE TYPE group_member_role AS ENUM ('owner', 'co_owner', 'member');
+
+-- Convert column back to enum
+ALTER TABLE group_members
+ALTER COLUMN role TYPE group_member_role USING role::group_member_role;
 
 -- Step 4: Update the get_user_groups function to include members_can_invite
 -- Must drop first because return type changed
