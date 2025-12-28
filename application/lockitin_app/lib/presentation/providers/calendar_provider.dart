@@ -227,6 +227,7 @@ class CalendarProvider extends ChangeNotifier {
 
   /// Index events by date for efficient lookup
   /// Groups events by their start date (YYYY-MM-DD format)
+  /// Event times are already in local timezone (converted in EventModel.fromJson)
   void _indexEventsByDate(List<EventModel> events) {
     _eventsByDate.clear();
 
@@ -272,6 +273,7 @@ class CalendarProvider extends ChangeNotifier {
   }
 
   /// Add a new event to the calendar
+  /// Event times are already in local timezone (converted in EventModel.fromJson)
   void addEvent(EventModel event) {
     final dateKey = _dateKey(event.startTime);
 

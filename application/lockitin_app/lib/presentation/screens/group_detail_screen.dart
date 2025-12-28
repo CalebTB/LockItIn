@@ -2,8 +2,83 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/group_model.dart';
+import '../../data/models/event_model.dart';
 import '../providers/group_provider.dart';
 import '../providers/calendar_provider.dart';
+
+/// Time range filter options for availability
+enum TimeFilter {
+  allDay,
+  morning,    // 6am - 12pm
+  afternoon,  // 12pm - 5pm
+  evening,    // 5pm - 10pm
+  night,      // 10pm - 6am
+}
+
+
+extension TimeFilterExtension on TimeFilter {
+  String get label {
+    switch (this) {
+      case TimeFilter.allDay:
+        return 'All Day';
+      case TimeFilter.morning:
+        return 'Morning';
+      case TimeFilter.afternoon:
+        return 'Afternoon';
+      case TimeFilter.evening:
+        return 'Evening';
+      case TimeFilter.night:
+        return 'Night';
+    }
+  }
+
+  String get timeRange {
+    switch (this) {
+      case TimeFilter.allDay:
+        return '12am - 12am';
+      case TimeFilter.morning:
+        return '6am - 12pm';
+      case TimeFilter.afternoon:
+        return '12pm - 5pm';
+      case TimeFilter.evening:
+        return '5pm - 10pm';
+      case TimeFilter.night:
+        return '10pm - 6am';
+    }
+  }
+
+  /// Get start hour (0-23)
+  int get startHour {
+    switch (this) {
+      case TimeFilter.allDay:
+        return 0;
+      case TimeFilter.morning:
+        return 6;
+      case TimeFilter.afternoon:
+        return 12;
+      case TimeFilter.evening:
+        return 17;
+      case TimeFilter.night:
+        return 22;
+    }
+  }
+
+  /// Get end hour (0-23)
+  int get endHour {
+    switch (this) {
+      case TimeFilter.allDay:
+        return 24;
+      case TimeFilter.morning:
+        return 12;
+      case TimeFilter.afternoon:
+        return 17;
+      case TimeFilter.evening:
+        return 22;
+      case TimeFilter.night:
+        return 6; // Wraps to next day
+    }
+  }
+}
 
 /// Group detail screen showing group calendar with availability heatmap
 /// Adapted from CalendarScreen with Sunset Coral Dark theme
@@ -38,6 +113,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   late DateTime _focusedMonth;
   int? _selectedDay;
   late PageController _pageController;
+  Set<TimeFilter> _selectedTimeFilters = {TimeFilter.allDay};
+  DateTimeRange? _selectedDateRange;
+
+  // Custom time range (used when allDay/Custom is selected)
+  TimeOfDay _customStartTime = const TimeOfDay(hour: 9, minute: 0);
+  TimeOfDay _customEndTime = const TimeOfDay(hour: 17, minute: 0);
 
   @override
   void initState() {
@@ -51,11 +132,241 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     });
   }
 
-  /// Check if user has any events on a specific date
-  /// Returns 0 if busy (has events), 1 if available (no events)
+  /// Minimum contiguous free time required to be considered "available" (in minutes)
+  static const int _minContiguousFreeMinutes = 120; // 2 hours
+
+  /// Check if user has any events on a specific date within the selected time filters
+  /// Returns 0 if busy, 1 if available
+  ///
+  /// Availability Logic (Contiguous Free Time):
+  /// - Available if there's at least 2 hours of UNINTERRUPTED free time
+  /// - Events at the edges are fine as long as they leave enough contiguous time
+  /// - This answers "Can we actually schedule something here?"
+  ///
+  /// See: lockitin_docs/availability-logic.md for full documentation
   int _getAvailabilityForDay(CalendarProvider calendarProvider, DateTime date) {
-    final events = calendarProvider.getEventsForDay(date);
-    return events.isEmpty ? 1 : 0; // 1 = available, 0 = busy
+    // Filter out holidays - they don't count as busy time
+    final events = calendarProvider.getEventsForDay(date)
+        .where((e) => e.category != EventCategory.holiday)
+        .toList();
+
+    // If "Custom" filter is selected, use custom time range
+    if (_selectedTimeFilters.contains(TimeFilter.allDay)) {
+      final filterStart = DateTime(
+        date.year, date.month, date.day,
+        _customStartTime.hour, _customStartTime.minute,
+      );
+      final filterEnd = DateTime(
+        date.year, date.month, date.day,
+        _customEndTime.hour, _customEndTime.minute,
+      );
+
+      // Find the longest contiguous free block
+      final longestFreeMinutes = _findLongestFreeBlock(events, filterStart, filterEnd);
+
+      // Available if there's at least 2 hours of contiguous free time
+      return longestFreeMinutes >= _minContiguousFreeMinutes ? 1 : 0;
+    }
+
+    // Check each selected time filter
+    for (final filter in _selectedTimeFilters) {
+      final startHour = filter.startHour;
+      final endHour = filter.endHour;
+
+      // Create time boundaries for this filter on this date
+      final DateTime filterStart;
+      final DateTime filterEnd;
+
+      if (filter == TimeFilter.night) {
+        // Night spans 10pm - 6am (crosses midnight)
+        filterStart = DateTime(date.year, date.month, date.day, startHour);
+        filterEnd = DateTime(date.year, date.month, date.day + 1, endHour);
+      } else {
+        filterStart = DateTime(date.year, date.month, date.day, startHour);
+        filterEnd = DateTime(date.year, date.month, date.day, endHour);
+      }
+
+      // Find the longest contiguous free block
+      final longestFreeMinutes = _findLongestFreeBlock(
+        events,
+        filterStart,
+        filterEnd,
+      );
+
+      // Available if there's at least 2 hours of contiguous free time
+      if (longestFreeMinutes < _minContiguousFreeMinutes) {
+        return 0; // Busy - not enough contiguous free time
+      }
+    }
+
+    return 1; // Available - has sufficient contiguous free time
+  }
+
+  /// Find the longest contiguous free block within a time range
+  /// Returns the duration in minutes
+  int _findLongestFreeBlock(
+    List<dynamic> events,
+    DateTime rangeStart,
+    DateTime rangeEnd,
+  ) {
+    // Get events that overlap with this range, sorted by start time
+    // Use stored hour/minute directly (wall clock time - no timezone conversion)
+    final overlappingEvents = events
+        .where((e) {
+          final eventStart = DateTime(
+            rangeStart.year, rangeStart.month, rangeStart.day,
+            e.startTime.hour, e.startTime.minute,
+          );
+          final eventEnd = DateTime(
+            rangeStart.year, rangeStart.month, rangeStart.day,
+            e.endTime.hour, e.endTime.minute,
+          );
+          return eventStart.isBefore(rangeEnd) && eventEnd.isAfter(rangeStart);
+        })
+        .toList()
+      ..sort((a, b) => a.startTime.hour.compareTo(b.startTime.hour));
+
+    if (overlappingEvents.isEmpty) {
+      // No events - entire range is free
+      return rangeEnd.difference(rangeStart).inMinutes;
+    }
+
+    var longestFreeBlock = 0;
+    var currentFreeStart = rangeStart;
+
+    for (final event in overlappingEvents) {
+      // Use stored hour/minute directly
+      final eventStartWall = DateTime(
+        rangeStart.year, rangeStart.month, rangeStart.day,
+        event.startTime.hour, event.startTime.minute,
+      );
+      final eventEndWall = DateTime(
+        rangeStart.year, rangeStart.month, rangeStart.day,
+        event.endTime.hour, event.endTime.minute,
+      );
+
+      // Clamp event times to the filter range
+      final eventStart = eventStartWall.isAfter(rangeStart)
+          ? eventStartWall
+          : rangeStart;
+      final eventEnd = eventEndWall.isBefore(rangeEnd)
+          ? eventEndWall
+          : rangeEnd;
+
+      // Free block before this event
+      if (eventStart.isAfter(currentFreeStart)) {
+        final freeMinutes = eventStart.difference(currentFreeStart).inMinutes;
+        if (freeMinutes > longestFreeBlock) {
+          longestFreeBlock = freeMinutes;
+        }
+      }
+
+      // Move current position past this event (if it extends further)
+      if (eventEnd.isAfter(currentFreeStart)) {
+        currentFreeStart = eventEnd;
+      }
+    }
+
+    // Check free block after last event
+    if (rangeEnd.isAfter(currentFreeStart)) {
+      final freeMinutes = rangeEnd.difference(currentFreeStart).inMinutes;
+      if (freeMinutes > longestFreeBlock) {
+        longestFreeBlock = freeMinutes;
+      }
+    }
+
+    return longestFreeBlock;
+  }
+
+  /// Get a human-readable description of availability
+  /// Returns "Free" if no conflicts, or shows conflict count and times
+  String _getAvailabilityDescription(
+    CalendarProvider calendarProvider,
+    DateTime date,
+    TimeFilter filter,
+  ) {
+    final events = calendarProvider.getEventsForDay(date)
+        .where((e) => e.category != EventCategory.holiday)
+        .toList();
+
+    // Get filter time boundaries
+    final DateTime filterStart;
+    final DateTime filterEnd;
+    final startHour = filter.startHour;
+    final endHour = filter.endHour;
+
+    if (filter == TimeFilter.allDay) {
+      // Use custom time range
+      filterStart = DateTime(
+        date.year, date.month, date.day,
+        _customStartTime.hour, _customStartTime.minute,
+      );
+      filterEnd = DateTime(
+        date.year, date.month, date.day,
+        _customEndTime.hour, _customEndTime.minute,
+      );
+    } else if (filter == TimeFilter.night) {
+      filterStart = DateTime(date.year, date.month, date.day, startHour);
+      filterEnd = DateTime(date.year, date.month, date.day + 1, endHour);
+    } else {
+      filterStart = DateTime(date.year, date.month, date.day, startHour);
+      filterEnd = DateTime(date.year, date.month, date.day, endHour);
+    }
+
+    // Get overlapping events (conflicts) sorted by start time
+    // Use stored hour/minute directly (wall clock time - no timezone conversion)
+    final conflicts = events
+        .where((e) {
+          final eventStart = DateTime(
+            date.year, date.month, date.day,
+            e.startTime.hour, e.startTime.minute,
+          );
+          final eventEnd = DateTime(
+            date.year, date.month, date.day,
+            e.endTime.hour, e.endTime.minute,
+          );
+          return eventStart.isBefore(filterEnd) && eventEnd.isAfter(filterStart);
+        })
+        .toList()
+      ..sort((a, b) => a.startTime.hour.compareTo(b.startTime.hour));
+
+    // No conflicts - completely free
+    if (conflicts.isEmpty) {
+      return 'Free';
+    }
+
+    // Format time helper
+    final timeFormat = DateFormat('h:mma');
+    final hourFormat = DateFormat('ha');
+
+    String formatTime(DateTime dt) {
+      if (dt.minute == 0) {
+        return hourFormat.format(dt).toLowerCase();
+      }
+      return timeFormat.format(dt).toLowerCase();
+    }
+
+    // Single conflict - show the busy time range
+    if (conflicts.length == 1) {
+      final event = conflicts.first;
+      final eventStart = DateTime(
+        date.year, date.month, date.day,
+        event.startTime.hour, event.startTime.minute,
+      );
+      final eventEnd = DateTime(
+        date.year, date.month, date.day,
+        event.endTime.hour, event.endTime.minute,
+      );
+
+      // Clamp to filter range for display
+      final displayStart = eventStart.isBefore(filterStart) ? filterStart : eventStart;
+      final displayEnd = eventEnd.isAfter(filterEnd) ? filterEnd : eventEnd;
+
+      return 'Busy ${formatTime(displayStart)} - ${formatTime(displayEnd)}';
+    }
+
+    // Multiple conflicts - show count
+    return '${conflicts.length} conflicts';
   }
 
   @override
@@ -104,6 +415,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
                   // Month navigation
                   _buildMonthNavigation(),
+
+                  // Time filter chips
+                  _buildTimeFilterChips(),
 
                   // Availability legend
                   _buildLegend(),
@@ -216,6 +530,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             ),
           ),
 
+          // Date range picker
+          _buildHeaderDateRangePicker(),
+
+          const SizedBox(width: 4),
+
           // Members button
           IconButton(
             onPressed: () => _showMembersSheet(context),
@@ -262,6 +581,399 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showDateRangePicker() async {
+    final now = DateTime.now();
+    final initialRange = _selectedDateRange ?? DateTimeRange(
+      start: now,
+      end: now.add(const Duration(days: 14)),
+    );
+
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: now.subtract(const Duration(days: 30)),
+      lastDate: now.add(const Duration(days: 365)),
+      initialDateRange: initialRange,
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: ColorScheme.dark(
+              primary: _rose500,
+              onPrimary: Colors.white,
+              surface: const Color(0xFF1a1a2e),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDateRange = picked;
+      });
+    }
+  }
+
+  void _clearDateRange() {
+    setState(() {
+      _selectedDateRange = null;
+    });
+  }
+
+  void _toggleTimeFilter(TimeFilter filter) {
+    setState(() {
+      if (filter == TimeFilter.allDay) {
+        // Selecting "All Day" clears other selections
+        _selectedTimeFilters = {TimeFilter.allDay};
+      } else {
+        // Remove "All Day" if selecting a specific range
+        _selectedTimeFilters.remove(TimeFilter.allDay);
+
+        // Toggle the specific filter
+        if (_selectedTimeFilters.contains(filter)) {
+          _selectedTimeFilters.remove(filter);
+          // If nothing selected, default back to "All Day"
+          if (_selectedTimeFilters.isEmpty) {
+            _selectedTimeFilters = {TimeFilter.allDay};
+          }
+        } else {
+          _selectedTimeFilters.add(filter);
+        }
+      }
+    });
+  }
+
+  Widget _buildTimeFilterChips() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: TimeFilter.values.map((filter) {
+          final isSelected = _selectedTimeFilters.contains(filter);
+
+          // For "All Day", show "Custom" label instead
+          final label = filter == TimeFilter.allDay ? 'Custom' : filter.label;
+
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: GestureDetector(
+                onTap: () {
+                  if (filter == TimeFilter.allDay) {
+                    // Show custom time picker
+                    _showCustomTimeRangePicker();
+                  } else {
+                    _toggleTimeFilter(filter);
+                  }
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  decoration: BoxDecoration(
+                    gradient: isSelected
+                        ? const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [_rose500, _orange500],
+                          )
+                        : null,
+                    color: isSelected ? null : _rose900.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected
+                          ? Colors.transparent
+                          : _rose500.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        color: isSelected ? Colors.white : _rose300,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  void _showCustomTimeRangePicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _rose950,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          String formatTime(TimeOfDay time) {
+            final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+            final period = time.period == DayPeriod.am ? 'am' : 'pm';
+            return '$hour:${time.minute.toString().padLeft(2, '0')}$period';
+          }
+
+          return Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: _rose500.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Title
+                Text(
+                  'Custom Time Range',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: _rose50,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Time pickers row
+                Row(
+                  children: [
+                    // Start time
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: _customStartTime,
+                            builder: (context, child) {
+                              return Theme(
+                                data: Theme.of(context).copyWith(
+                                  colorScheme: const ColorScheme.dark(
+                                    primary: _rose500,
+                                    surface: _rose950,
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (picked != null) {
+                            setSheetState(() {
+                              _customStartTime = picked;
+                            });
+                            setState(() {});
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: _rose900.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: _rose500.withValues(alpha: 0.3)),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Start',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: _rose300,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                formatTime(_customStartTime),
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: _rose50,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'to',
+                        style: TextStyle(color: _rose300),
+                      ),
+                    ),
+                    // End time
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: _customEndTime,
+                            builder: (context, child) {
+                              return Theme(
+                                data: Theme.of(context).copyWith(
+                                  colorScheme: const ColorScheme.dark(
+                                    primary: _rose500,
+                                    surface: _rose950,
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (picked != null) {
+                            setSheetState(() {
+                              _customEndTime = picked;
+                            });
+                            setState(() {});
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: _rose900.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: _rose500.withValues(alpha: 0.3)),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'End',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: _rose300,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                formatTime(_customEndTime),
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: _rose50,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Apply button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedTimeFilters = {TimeFilter.allDay};
+                      });
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _rose500,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Apply Custom Range',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildHeaderDateRangePicker() {
+    final dateFormat = DateFormat('M/d');
+    final hasRange = _selectedDateRange != null;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: _showDateRangePicker,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              gradient: hasRange
+                  ? const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [_rose500, _orange500],
+                    )
+                  : null,
+              color: hasRange ? null : _rose900.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: hasRange
+                    ? Colors.transparent
+                    : _rose500.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.date_range_rounded,
+                  size: 12,
+                  color: hasRange ? Colors.white : _rose300,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  hasRange
+                      ? '${dateFormat.format(_selectedDateRange!.start)} - ${dateFormat.format(_selectedDateRange!.end)}'
+                      : 'All',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: hasRange ? FontWeight.w600 : FontWeight.w500,
+                    color: hasRange ? Colors.white : _rose300,
+                  ),
+                ),
+                if (hasRange) ...[
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: _clearDateRange,
+                    child: Icon(
+                      Icons.close,
+                      size: 12,
+                      color: Colors.white.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -624,92 +1336,310 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  Widget _buildBestDaysSection() {
-    return Consumer<CalendarProvider>(
-      builder: (context, calendarProvider, _) {
-        // Find days in current month where user has no events (is available)
-        final lastDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
-        final daysInMonth = lastDayOfMonth.day;
+  /// Get best days for a specific set of time filters
+  List<int> _getBestDaysForFilters(
+    CalendarProvider calendarProvider,
+    Set<TimeFilter> filters,
+  ) {
+    final lastDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
+    final daysInMonth = lastDayOfMonth.day;
 
-        final bestDays = <int>[];
-        for (int day = 1; day <= daysInMonth && bestDays.length < 4; day++) {
-          final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
-          // Only consider today or future days
-          if (date.isAfter(DateTime.now().subtract(const Duration(days: 1)))) {
-            final events = calendarProvider.getEventsForDay(date);
-            if (events.isEmpty) {
-              bestDays.add(day);
+    final bestDays = <int>[];
+    for (int day = 1; day <= daysInMonth && bestDays.length < 4; day++) {
+      final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+
+      // Skip if outside selected date range
+      if (_selectedDateRange != null) {
+        if (date.isBefore(_selectedDateRange!.start) ||
+            date.isAfter(_selectedDateRange!.end)) {
+          continue;
+        }
+      }
+
+      // Only consider today or future days
+      if (date.isAfter(DateTime.now().subtract(const Duration(days: 1)))) {
+        // Check availability for this specific filter set
+        final events = calendarProvider.getEventsForDay(date)
+            .where((e) => e.category != EventCategory.holiday)
+            .toList();
+
+        bool isAvailable = true;
+
+        if (filters.contains(TimeFilter.allDay)) {
+          // Use custom time range
+          final filterStart = DateTime(
+            date.year, date.month, date.day,
+            _customStartTime.hour, _customStartTime.minute,
+          );
+          final filterEnd = DateTime(
+            date.year, date.month, date.day,
+            _customEndTime.hour, _customEndTime.minute,
+          );
+
+          // Find the longest contiguous free block
+          final longestFreeMinutes = _findLongestFreeBlock(events, filterStart, filterEnd);
+          isAvailable = longestFreeMinutes >= _minContiguousFreeMinutes;
+        } else {
+          // Check each filter
+          for (final filter in filters) {
+            final startHour = filter.startHour;
+            final endHour = filter.endHour;
+
+            final DateTime filterStart;
+            final DateTime filterEnd;
+
+            if (filter == TimeFilter.night) {
+              filterStart = DateTime(date.year, date.month, date.day, startHour);
+              filterEnd = DateTime(date.year, date.month, date.day + 1, endHour);
+            } else {
+              filterStart = DateTime(date.year, date.month, date.day, startHour);
+              filterEnd = DateTime(date.year, date.month, date.day, endHour);
             }
+
+            for (final event in events) {
+              if (event.startTime.isBefore(filterEnd) && event.endTime.isAfter(filterStart)) {
+                isAvailable = false;
+                break;
+              }
+            }
+            if (!isAvailable) break;
           }
         }
 
-        if (bestDays.isEmpty) return const SizedBox.shrink();
+        if (isAvailable) {
+          bestDays.add(day);
+        }
+      }
+    }
+    return bestDays;
+  }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: _rose500.withValues(alpha: 0.2)),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'BEST DAYS THIS MONTH',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-              color: Colors.white,
+  /// Format TimeOfDay to string like "9am" or "5:30pm"
+  String _formatTimeOfDay(TimeOfDay time) {
+    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final period = time.period == DayPeriod.am ? 'am' : 'pm';
+    if (time.minute == 0) {
+      return '$hour$period';
+    }
+    return '$hour:${time.minute.toString().padLeft(2, '0')}$period';
+  }
+
+  Widget _buildBestDaysSection() {
+    final hasSpecificFilters = !_selectedTimeFilters.contains(TimeFilter.allDay);
+    final customTimeLabel = '${_formatTimeOfDay(_customStartTime)} - ${_formatTimeOfDay(_customEndTime)}';
+
+    return Consumer<CalendarProvider>(
+      builder: (context, calendarProvider, _) {
+        // Get best days for custom time range (when Custom filter is selected)
+        final customBestDays = _getBestDaysForFilters(
+          calendarProvider,
+          {TimeFilter.allDay},
+        );
+
+        // Get best days for selected filters if specific ones are selected
+        List<int> filteredBestDays = [];
+        String filterLabel = '';
+        if (hasSpecificFilters) {
+          filteredBestDays = _getBestDaysForFilters(
+            calendarProvider,
+            _selectedTimeFilters,
+          );
+          // Consolidate time ranges into earliest start - latest end
+          final filters = _selectedTimeFilters.toList();
+          int earliestStart = 24;
+          int latestEnd = 0;
+          for (final filter in filters) {
+            if (filter.startHour < earliestStart) {
+              earliestStart = filter.startHour;
+            }
+            // Handle night filter (ends at 6am next day = 30 in 24h terms)
+            final effectiveEnd = filter == TimeFilter.night ? 30 : filter.endHour;
+            if (effectiveEnd > latestEnd) {
+              latestEnd = effectiveEnd;
+            }
+          }
+          // Format the consolidated range
+          String formatHour(int hour) {
+            final h = hour % 24;
+            if (h == 0) return '12am';
+            if (h == 12) return '12pm';
+            if (h < 12) return '${h}am';
+            return '${h - 12}pm';
+          }
+          filterLabel = '${formatHour(earliestStart)} - ${formatHour(latestEnd % 24)}';
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(color: _rose500.withValues(alpha: 0.2)),
             ),
           ),
-          const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: bestDays.map((day) {
-                final monthName = DateFormat('MMM').format(_focusedMonth);
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedDay = day),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Show custom time range when Custom filter is selected
+              if (!hasSpecificFilters) ...[
+                Row(
+                  children: [
+                    Text(
+                      'BEST DAYS THIS MONTH',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                        color: Colors.white,
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [_rose500, _orange500],
                         ),
                         borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _rose500.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
                       ),
                       child: Text(
-                        '$monthName $day',
+                        customTimeLabel,
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
                       ),
                     ),
-                  ),
-                );
-              }).toList(),
-            ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (customBestDays.isNotEmpty)
+                  _buildBestDayChips(customBestDays)
+                else
+                  _buildNoDatesMessage(),
+              ],
+
+              // Show filtered best days when specific filters are selected
+              if (hasSpecificFilters) ...[
+                Row(
+                  children: [
+                    Text(
+                      'BEST DAYS THIS MONTH',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [_rose500, _orange500],
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        filterLabel,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (filteredBestDays.isNotEmpty)
+                  _buildBestDayChips(filteredBestDays)
+                else
+                  _buildNoDatesMessage(),
+              ],
+            ],
           ),
-        ],
+        );
+      },
+    );
+  }
+
+  Widget _buildBestDayChips(List<int> days) {
+    final monthName = DateFormat('MMM').format(_focusedMonth);
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: days.map((day) {
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedDay = day),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [_rose500, _orange500],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _rose500.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  '$monthName $day',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
-      },
+  }
+
+  Widget _buildNoDatesMessage() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: _rose900.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: _rose500.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.event_busy_rounded,
+              size: 16,
+              color: _rose400.withValues(alpha: 0.6),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'No dates to propose this month',
+              style: TextStyle(
+                fontSize: 13,
+                color: _rose300.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -867,7 +1797,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             ),
                             const SizedBox(width: 12),
 
-                            // Name and time
+                            // Name and availability time
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -882,24 +1812,107 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                           : _rose400.withValues(alpha: 0.6),
                                     ),
                                   ),
-                                  if (isAvailable)
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.access_time,
-                                          size: 12,
-                                          color: Colors.white,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'All day', // Placeholder
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                  // Show availability time description
+                                  Builder(
+                                    builder: (context) {
+                                      // Get availability descriptions for selected filters
+                                      final descriptions = <String>[];
+
+                                      if (_selectedTimeFilters.contains(TimeFilter.allDay)) {
+                                        final desc = _getAvailabilityDescription(
+                                          calendarProvider,
+                                          date,
+                                          TimeFilter.allDay,
+                                        );
+                                        descriptions.add(desc);
+                                      } else {
+                                        for (final filter in _selectedTimeFilters) {
+                                          final desc = _getAvailabilityDescription(
+                                            calendarProvider,
+                                            date,
+                                            filter,
+                                          );
+                                          // Add filter prefix if multiple filters
+                                          if (_selectedTimeFilters.length > 1) {
+                                            descriptions.add('${filter.label}: $desc');
+                                          } else {
+                                            descriptions.add(desc);
+                                          }
+                                        }
+                                      }
+
+                                      // Show the description(s)
+                                      if (descriptions.length == 1) {
+                                        final desc = descriptions.first;
+                                        final isFree = desc == 'Free';
+
+                                        return Row(
+                                          children: [
+                                            Icon(
+                                              isFree
+                                                  ? Icons.check_circle_outline
+                                                  : Icons.event_busy_rounded,
+                                              size: 12,
+                                              color: isFree
+                                                  ? _emerald500
+                                                  : _orange400,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Flexible(
+                                              child: Text(
+                                                desc,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: isFree
+                                                      ? _emerald500
+                                                      : _orange400,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      }
+
+                                      // Multiple filters - show each on its own line
+                                      return Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: descriptions.map((desc) {
+                                          final isFree = desc == 'Free' || desc.endsWith('Free');
+
+                                          return Padding(
+                                            padding: const EdgeInsets.only(top: 2),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  isFree
+                                                      ? Icons.check_circle_outline
+                                                      : Icons.event_busy_rounded,
+                                                  size: 11,
+                                                  color: isFree
+                                                      ? _emerald500
+                                                      : _orange400,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Flexible(
+                                                  child: Text(
+                                                    desc,
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      color: isFree
+                                                          ? _emerald500
+                                                          : _orange400,
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }).toList(),
+                                      );
+                                    },
+                                  ),
                                 ],
                               ),
                             ),
