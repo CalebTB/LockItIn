@@ -459,7 +459,7 @@ class GroupService {
 
       Logger.info('Fetching groups for user');
 
-      // Get groups with member count using a join
+      // Get groups with member count using a join and count aggregation
       final response = await SupabaseClientManager.client
           .from('group_members')
           .select('''
@@ -470,27 +470,44 @@ class GroupService {
               emoji,
               created_by,
               created_at,
-              updated_at
+              updated_at,
+              members_can_invite
             )
           ''')
           .eq('user_id', currentUserId);
 
-      // Get member counts for each group
-      final groups = <GroupModel>[];
+      // Collect all group IDs for batch member count query
+      final groupIds = <String>[];
+      final groupDataMap = <String, Map<String, dynamic>>{};
+
       for (final row in response as List) {
         final groupData = row['groups'] as Map<String, dynamic>;
         final groupId = groupData['id'] as String;
+        groupIds.add(groupId);
+        groupDataMap[groupId] = groupData;
+      }
 
-        // Get member count
+      // Batch query for member counts - single query for all groups
+      final memberCounts = <String, int>{};
+      if (groupIds.isNotEmpty) {
         final countResponse = await SupabaseClientManager.client
             .from('group_members')
-            .select()
-            .eq('group_id', groupId);
+            .select('group_id')
+            .inFilter('group_id', groupIds);
 
-        groups.add(GroupModel.fromJson(groupData).copyWith(
-          memberCount: (countResponse as List).length,
-        ));
+        // Count members per group
+        for (final row in countResponse as List) {
+          final gid = row['group_id'] as String;
+          memberCounts[gid] = (memberCounts[gid] ?? 0) + 1;
+        }
       }
+
+      // Build group models with counts
+      final groups = groupIds.map((groupId) {
+        return GroupModel.fromJson(groupDataMap[groupId]!).copyWith(
+          memberCount: memberCounts[groupId] ?? 0,
+        );
+      }).toList();
 
       Logger.info('Fetched ${groups.length} groups');
       return groups;

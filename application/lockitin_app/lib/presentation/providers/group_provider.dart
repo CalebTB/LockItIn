@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../../data/models/group_model.dart';
 import '../../core/services/group_service.dart';
+import '../../core/network/supabase_client.dart';
 import '../../core/utils/logger.dart';
 
 /// Provider for group system state management
@@ -403,9 +404,15 @@ class GroupProvider extends ChangeNotifier {
   Future<bool> leaveGroup(String groupId) async {
     _actionError = null;
 
+    final currentUserId = SupabaseClientManager.currentUserId;
+    if (currentUserId == null) {
+      _actionError = 'User not authenticated';
+      notifyListeners();
+      return false;
+    }
+
     try {
-      // removeMember with own userId
-      await _groupService.removeMember(groupId: groupId, userId: '');
+      await _groupService.removeMember(groupId: groupId, userId: currentUserId);
 
       // Remove from local list (we're no longer a member)
       _groups.removeWhere((g) => g.id == groupId);

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'user_display_mixin.dart';
 
 /// Role of a member within a group
 ///
@@ -198,10 +199,12 @@ class GroupMemberModel extends Equatable {
 }
 
 /// Group member with profile info for display
-class GroupMemberProfile extends Equatable {
+class GroupMemberProfile extends Equatable with UserDisplayMixin {
   final String memberId; // group_members.id
   final String userId;
+  @override
   final String? fullName;
+  @override
   final String email;
   final String? avatarUrl;
   final GroupMemberRole role;
@@ -228,21 +231,6 @@ class GroupMemberProfile extends Equatable {
       role: GroupMemberModel.roleFromString(json['role'] as String),
       joinedAt: DateTime.parse(json['joined_at'] as String),
     );
-  }
-
-  /// Display name (full name or email if no name)
-  String get displayName => fullName?.isNotEmpty == true ? fullName! : email;
-
-  /// Initials for avatar placeholder
-  String get initials {
-    if (fullName?.isNotEmpty == true) {
-      final parts = fullName!.split(' ');
-      if (parts.length >= 2) {
-        return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-      }
-      return fullName![0].toUpperCase();
-    }
-    return email[0].toUpperCase();
   }
 
   /// Role display string
