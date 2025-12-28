@@ -410,30 +410,43 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             children: [
               Column(
                 children: [
-                  // Header with group info
+                  // Header with group info (compact)
                   _buildHeader(context),
 
                   // Month navigation
                   _buildMonthNavigation(),
 
+                  // Date range filter row
+                  _buildDateRangeFilterRow(),
+
                   // Time filter chips
                   _buildTimeFilterChips(),
 
-                  // Availability legend
-                  _buildLegend(),
-
-                  // Calendar grid
+                  // Scrollable content: legend + calendar + members + best days
                   Expanded(
-                    child: _buildCalendarPageView(),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          // Availability legend
+                          _buildLegend(),
+
+                          // Calendar grid (fixed height for 6 rows)
+                          SizedBox(
+                            height: 360, // Increased height for 6 rows
+                            child: _buildCalendarPageView(),
+                          ),
+
+                          // Group members section
+                          _buildMembersSection(),
+
+                          // Best days section
+                          _buildBestDaysSection(),
+
+                          const SizedBox(height: 16),
+                        ],
+                      ),
+                    ),
                   ),
-
-                  // Group members section
-                  _buildMembersSection(),
-
-                  // Best days section
-                  _buildBestDaysSection(),
-
-                  const SizedBox(height: 16),
                 ],
               ),
 
@@ -458,7 +471,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(color: _rose500.withValues(alpha: 0.2)),
@@ -469,78 +482,60 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           // Back button
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.chevron_left, size: 28),
+            icon: const Icon(Icons.chevron_left, size: 24),
             color: Colors.white,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
+          const SizedBox(width: 8),
 
-          // Group emoji
+          // Group emoji (compact)
           Container(
-            width: 44,
-            height: 44,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [_amber500, _orange600],
               ),
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: _orange500.withValues(alpha: 0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Center(
               child: Text(
                 widget.group.emoji,
-                style: const TextStyle(fontSize: 22),
+                style: const TextStyle(fontSize: 18),
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
 
-          // Group name and member count
+          // Group name only (member count moved to members section)
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [_rose200, Color(0xFFFED7AA)], // rose-200 to orange-200
-                  ).createShader(bounds),
-                  child: Text(
-                    widget.group.name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
+            child: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [_rose200, Color(0xFFFED7AA)], // rose-200 to orange-200
+              ).createShader(bounds),
+              child: Text(
+                widget.group.name,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
-                Text(
-                  '${widget.group.memberCount} members',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-
-          // Date range picker
-          _buildHeaderDateRangePicker(),
-
-          const SizedBox(width: 4),
 
           // Members button
           IconButton(
             onPressed: () => _showMembersSheet(context),
-            icon: const Icon(Icons.people_rounded, size: 22),
+            icon: const Icon(Icons.people_rounded, size: 20),
             color: Colors.white,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
+          const SizedBox(width: 8),
         ],
       ),
     );
@@ -584,38 +579,380 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  Future<void> _showDateRangePicker() async {
+  void _showDateRangePicker() {
     final now = DateTime.now();
-    final initialRange = _selectedDateRange ?? DateTimeRange(
-      start: now,
-      end: now.add(const Duration(days: 14)),
-    );
+    final today = DateTime(now.year, now.month, now.day);
 
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: now.subtract(const Duration(days: 30)),
-      lastDate: now.add(const Duration(days: 365)),
-      initialDateRange: initialRange,
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.dark().copyWith(
-            colorScheme: ColorScheme.dark(
-              primary: _rose500,
-              onPrimary: Colors.white,
-              surface: const Color(0xFF1a1a2e),
-              onSurface: Colors.white,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
+    // Start date selection (defaults to today)
+    DateTime selectedStartDate = _selectedDateRange?.start ?? today;
+    // End date selection (defaults to 7 days out)
+    DateTime selectedEndDate = _selectedDateRange?.end ?? today.add(const Duration(days: 7));
 
-    if (picked != null) {
-      setState(() {
-        _selectedDateRange = picked;
-      });
+    final monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    // Show current year through 5 years out
+    final years = List.generate(6, (i) => now.year + i);
+
+    // Get days in a month
+    int daysInMonth(int month, int year) {
+      return DateTime(year, month + 1, 0).day;
     }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _rose950,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          // Get days for start date
+          final startDays = List.generate(
+            daysInMonth(selectedStartDate.month, selectedStartDate.year),
+            (i) => i + 1,
+          );
+          // Get days for end date
+          final endDays = List.generate(
+            daysInMonth(selectedEndDate.month, selectedEndDate.year),
+            (i) => i + 1,
+          );
+
+          // Dropdown builder widget
+          Widget buildDropdown({
+            required String label,
+            required dynamic value,
+            required List<dynamic> options,
+            required Function(dynamic) onChanged,
+            String Function(dynamic)? displayFn,
+          }) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: _rose400,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  decoration: BoxDecoration(
+                    color: _rose900.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _rose500.withValues(alpha: 0.3)),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<dynamic>(
+                      value: value,
+                      isExpanded: true,
+                      dropdownColor: _rose900,
+                      borderRadius: BorderRadius.circular(12),
+                      menuMaxHeight: 200,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      icon: Icon(Icons.keyboard_arrow_down, color: _rose400, size: 20),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: _rose50,
+                      ),
+                      items: options.map((option) {
+                        final display = displayFn != null
+                            ? displayFn(option)
+                            : option.toString();
+                        return DropdownMenuItem(
+                          value: option,
+                          child: Text(display),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) onChanged(val);
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle bar
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: _rose500.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Title
+                  Text(
+                    'Select Date Range',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: _rose50,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Start Date Section
+                  Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: _rose500,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Start Date',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: _rose200,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: buildDropdown(
+                          label: 'MONTH',
+                          value: selectedStartDate.month,
+                          options: months,
+                          displayFn: (m) => monthNames[m - 1],
+                          onChanged: (val) {
+                            setSheetState(() {
+                              final maxDay = daysInMonth(val, selectedStartDate.year);
+                              final newDay = selectedStartDate.day > maxDay ? maxDay : selectedStartDate.day;
+                              selectedStartDate = DateTime(selectedStartDate.year, val, newDay);
+                              // If start is now after end, update end to match start
+                              if (selectedStartDate.isAfter(selectedEndDate)) {
+                                selectedEndDate = selectedStartDate;
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: buildDropdown(
+                          label: 'DAY',
+                          value: selectedStartDate.day,
+                          options: startDays,
+                          displayFn: (d) => d.toString().padLeft(2, '0'),
+                          onChanged: (val) {
+                            setSheetState(() {
+                              selectedStartDate = DateTime(selectedStartDate.year, selectedStartDate.month, val);
+                              // If start is now after end, update end to match start
+                              if (selectedStartDate.isAfter(selectedEndDate)) {
+                                selectedEndDate = selectedStartDate;
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: buildDropdown(
+                          label: 'YEAR',
+                          value: selectedStartDate.year,
+                          options: years,
+                          onChanged: (val) {
+                            setSheetState(() {
+                              final maxDay = daysInMonth(selectedStartDate.month, val);
+                              final newDay = selectedStartDate.day > maxDay ? maxDay : selectedStartDate.day;
+                              selectedStartDate = DateTime(val, selectedStartDate.month, newDay);
+                              // If start is now after end, update end to match start
+                              if (selectedStartDate.isAfter(selectedEndDate)) {
+                                selectedEndDate = selectedStartDate;
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Divider with "to"
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: _rose500.withValues(alpha: 0.3))),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'to',
+                          style: TextStyle(color: _rose400, fontSize: 14),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: _rose500.withValues(alpha: 0.3))),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // End Date Section
+                  Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: _orange500,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'End Date',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: _rose200,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: buildDropdown(
+                          label: 'MONTH',
+                          value: selectedEndDate.month,
+                          options: months,
+                          displayFn: (m) => monthNames[m - 1],
+                          onChanged: (val) {
+                            setSheetState(() {
+                              final maxDay = daysInMonth(val, selectedEndDate.year);
+                              final newDay = selectedEndDate.day > maxDay ? maxDay : selectedEndDate.day;
+                              selectedEndDate = DateTime(selectedEndDate.year, val, newDay);
+                              // If end is now before start, update start to match end
+                              if (selectedEndDate.isBefore(selectedStartDate)) {
+                                selectedStartDate = selectedEndDate;
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: buildDropdown(
+                          label: 'DAY',
+                          value: selectedEndDate.day,
+                          options: endDays,
+                          displayFn: (d) => d.toString().padLeft(2, '0'),
+                          onChanged: (val) {
+                            setSheetState(() {
+                              selectedEndDate = DateTime(selectedEndDate.year, selectedEndDate.month, val);
+                              // If end is now before start, update start to match end
+                              if (selectedEndDate.isBefore(selectedStartDate)) {
+                                selectedStartDate = selectedEndDate;
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: buildDropdown(
+                          label: 'YEAR',
+                          value: selectedEndDate.year,
+                          options: years,
+                          onChanged: (val) {
+                            setSheetState(() {
+                              final maxDay = daysInMonth(selectedEndDate.month, val);
+                              final newDay = selectedEndDate.day > maxDay ? maxDay : selectedEndDate.day;
+                              selectedEndDate = DateTime(val, selectedEndDate.month, newDay);
+                              // If end is now before start, update start to match end
+                              if (selectedEndDate.isBefore(selectedStartDate)) {
+                                selectedStartDate = selectedEndDate;
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Done Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _selectedDateRange = DateTimeRange(
+                            start: selectedStartDate,
+                            end: selectedEndDate,
+                          );
+                        });
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                      ).copyWith(
+                        backgroundColor: WidgetStateProperty.all(Colors.transparent),
+                      ),
+                      child: Ink(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [_rose500, _orange500],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Container(
+                          alignment: Alignment.center,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: const Text(
+                            'Done',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _clearDateRange() {
@@ -762,6 +1099,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       isExpanded: true,
                       dropdownColor: _rose900,
                       borderRadius: BorderRadius.circular(12),
+                      menuMaxHeight: 200,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       icon: Icon(Icons.keyboard_arrow_down, color: _rose400, size: 20),
                       style: TextStyle(
@@ -1013,68 +1351,86 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  Widget _buildHeaderDateRangePicker() {
-    final dateFormat = DateFormat('M/d');
+  Widget _buildDateRangeFilterRow() {
     final hasRange = _selectedDateRange != null;
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GestureDetector(
-          onTap: _showDateRangePicker,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              gradient: hasRange
-                  ? const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [_rose500, _orange500],
-                    )
-                  : null,
-              color: hasRange ? null : _rose900.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: hasRange
-                    ? Colors.transparent
-                    : _rose500.withValues(alpha: 0.3),
-              ),
+    // Format date with year if years differ
+    String formatDateRange() {
+      if (!hasRange) return 'All dates';
+      final start = _selectedDateRange!.start;
+      final end = _selectedDateRange!.end;
+      final monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+      if (start.year != end.year) {
+        // Format with year when crossing years: Dec 29 '25 - Jan 3 '26
+        final startYr = start.year.toString().substring(2);
+        final endYr = end.year.toString().substring(2);
+        return "${monthNames[start.month - 1]} ${start.day} '$startYr - ${monthNames[end.month - 1]} ${end.day} '$endYr";
+      } else {
+        // Format without year: Dec 27 - Jan 3
+        return '${monthNames[start.month - 1]} ${start.day} - ${monthNames[end.month - 1]} ${end.day}';
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: GestureDetector(
+        onTap: _showDateRangePicker,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: hasRange
+                ? const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [_rose500, _orange500],
+                  )
+                : null,
+            color: hasRange ? null : _rose900.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: hasRange
+                  ? Colors.transparent
+                  : _rose500.withValues(alpha: 0.3),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.date_range_rounded,
-                  size: 12,
-                  color: hasRange ? Colors.white : _rose300,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  hasRange
-                      ? '${dateFormat.format(_selectedDateRange!.start)} - ${dateFormat.format(_selectedDateRange!.end)}'
-                      : 'All',
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.date_range_rounded,
+                size: 18,
+                color: hasRange ? Colors.white : _rose300,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  formatDateRange(),
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 14,
                     fontWeight: hasRange ? FontWeight.w600 : FontWeight.w500,
                     color: hasRange ? Colors.white : _rose300,
                   ),
                 ),
-                if (hasRange) ...[
-                  const SizedBox(width: 4),
-                  GestureDetector(
-                    onTap: _clearDateRange,
-                    child: Icon(
-                      Icons.close,
-                      size: 12,
-                      color: Colors.white.withValues(alpha: 0.8),
-                    ),
+              ),
+              if (hasRange)
+                GestureDetector(
+                  onTap: _clearDateRange,
+                  child: Icon(
+                    Icons.close,
+                    size: 18,
+                    color: Colors.white.withValues(alpha: 0.8),
                   ),
-                ],
-              ],
-            ),
+                )
+              else
+                Icon(
+                  Icons.keyboard_arrow_down,
+                  size: 18,
+                  color: _rose300,
+                ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -1190,7 +1546,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             children: [
               // Day headers
               Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(top: 8, bottom: 4),
                 child: Row(
                   children: days
                       .map((day) => Expanded(
@@ -1209,15 +1565,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 ),
               ),
 
-              // Calendar cells
+              // Calendar cells (fills remaining space)
               Expanded(
                 child: GridView.builder(
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 7,
                     childAspectRatio: 1.0,
-                    crossAxisSpacing: 4,
-                    mainAxisSpacing: 4,
+                    crossAxisSpacing: 3,
+                    mainAxisSpacing: 3,
                   ),
                   itemCount: 42, // 6 rows * 7 days
                   itemBuilder: (context, index) {
@@ -1230,13 +1586,24 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
                     // Get availability based on real events
                     final date = DateTime(month.year, month.month, dayNumber);
-                    final available = _getAvailabilityForDay(calendarProvider, date);
                     final isSelected = _selectedDay == dayNumber &&
                         month.month == _focusedMonth.month;
-                    final textColor = _getHeatmapTextColor(available, totalMembers);
+
+                    // Check if date is within selected range (if a range is set)
+                    final isInRange = _selectedDateRange == null ||
+                        (!date.isBefore(_selectedDateRange!.start) &&
+                         !date.isAfter(_selectedDateRange!.end));
+
+                    // Only calculate availability if in range
+                    final available = isInRange
+                        ? _getAvailabilityForDay(calendarProvider, date)
+                        : 0;
+                    final textColor = isInRange
+                        ? _getHeatmapTextColor(available, totalMembers)
+                        : _rose500.withValues(alpha: 0.4);
 
                     // Check if fully available (use gradient) or busy (solid color)
-                    final isFullyAvailable = available == totalMembers && totalMembers > 0;
+                    final isFullyAvailable = isInRange && available == totalMembers && totalMembers > 0;
 
                     return GestureDetector(
                       onTap: () {
@@ -1248,7 +1615,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
                         decoration: BoxDecoration(
-                          // Use gradient for available, solid color for busy
+                          // Use gradient for available, solid color for busy, dimmed for out of range
                           gradient: isFullyAvailable
                               ? const LinearGradient(
                                   begin: Alignment.topLeft,
@@ -1256,7 +1623,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                   colors: [_rose400, _orange400],
                                 )
                               : null,
-                          color: isFullyAvailable ? null : _rose950,
+                          color: isFullyAvailable
+                              ? null
+                              : (isInRange ? _rose950 : _rose950.withValues(alpha: 0.3)),
                           borderRadius: BorderRadius.circular(8),
                           border: isSelected
                               ? Border.all(color: _orange400, width: 2)
@@ -1282,14 +1651,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                 color: textColor,
                               ),
                             ),
-                            Text(
-                              '$available/$totalMembers',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w500,
-                                color: textColor,
+                            // Only show availability info if in range
+                            if (isInRange)
+                              Text(
+                                '$available/$totalMembers',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w500,
+                                  color: textColor,
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),
@@ -1310,125 +1681,116 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         final members = provider.selectedGroupMembers;
 
         return Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             border: Border(
               top: BorderSide(color: _rose500.withValues(alpha: 0.2)),
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'GROUP MEMBERS',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                      color: Colors.white,
-                    ),
+              // Member avatars (stacked)
+              if (provider.isLoadingMembers)
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: _rose400,
                   ),
-                  Text(
-                    '${widget.group.memberCount} people',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  // Member avatars (stacked)
-                  if (provider.isLoadingMembers)
-                    SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: _rose400,
-                      ),
-                    )
-                  else
-                    SizedBox(
-                      width: (members.length.clamp(0, 6) * 28.0) + 8,
-                      height: 36,
-                      child: Stack(
-                        children: [
-                          ...members.take(6).toList().asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final member = entry.value;
-                            return Positioned(
-                              left: index * 28.0,
-                              child: Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: index == 0
-                                      ? null
-                                      : _rose900.withValues(alpha: 0.8),
-                                  gradient: index == 0
-                                      ? const LinearGradient(
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                          colors: [_rose400, _orange400],
-                                        )
-                                      : null,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: _rose950, width: 2),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    member.initials,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: index == 0 ? Colors.white : _rose200,
-                                    ),
-                                  ),
+                )
+              else
+                SizedBox(
+                  width: (members.length.clamp(0, 5) * 22.0) + 8,
+                  height: 28,
+                  child: Stack(
+                    children: [
+                      ...members.take(5).toList().asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final member = entry.value;
+                        return Positioned(
+                          left: index * 22.0,
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: index == 0
+                                  ? null
+                                  : _rose900.withValues(alpha: 0.8),
+                              gradient: index == 0
+                                  ? const LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [_rose400, _orange400],
+                                    )
+                                  : null,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: _rose950, width: 2),
+                            ),
+                            child: Center(
+                              child: Text(
+                                member.initials,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: index == 0 ? Colors.white : _rose200,
                                 ),
                               ),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
 
-                  if (members.length > 6)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: Text(
-                        '+${members.length - 6}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-
-                  const Spacer(),
-
-                  // Invite button
-                  TextButton.icon(
-                    onPressed: () => _showInviteFlow(context),
-                    icon: Icon(Icons.person_add_rounded, size: 18, color: Colors.white),
-                    label: Text(
-                      'Invite',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        side: BorderSide(color: _rose500.withValues(alpha: 0.3)),
-                      ),
+              if (members.length > 5)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Text(
+                    '+${members.length - 5}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: _rose300,
                     ),
                   ),
-                ],
+                ),
+
+              const SizedBox(width: 8),
+              Text(
+                '${widget.group.memberCount} members',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: _rose300,
+                ),
+              ),
+
+              const Spacer(),
+
+              // Invite button (compact)
+              GestureDetector(
+                onTap: () => _showInviteFlow(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: _rose500.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.person_add_rounded, size: 14, color: _rose300),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Invite',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _rose300,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
