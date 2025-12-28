@@ -31,6 +31,9 @@ SET role = 'member'
 WHERE role = 'admin';
 
 -- Step 4: Update the get_user_groups function to include members_can_invite
+-- Must drop first because return type changed
+DROP FUNCTION IF EXISTS get_user_groups(UUID);
+
 CREATE OR REPLACE FUNCTION get_user_groups(user_uuid UUID)
 RETURNS TABLE (
   group_id UUID,
