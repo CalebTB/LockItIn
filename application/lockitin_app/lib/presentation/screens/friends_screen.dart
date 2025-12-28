@@ -669,17 +669,6 @@ class _FriendProfileSheet extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 4),
-
-          // Email
-          Text(
-            friend.email,
-            style: TextStyle(
-              fontSize: 14,
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-
           // Friends since
           if (friend.friendshipSince != null) ...[
             const SizedBox(height: 16),

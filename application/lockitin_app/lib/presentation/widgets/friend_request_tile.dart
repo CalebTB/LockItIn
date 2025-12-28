@@ -40,14 +40,6 @@ class FriendRequestTile extends StatelessWidget {
                       fontSize: 15,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    request.email,
-                    style: TextStyle(
-                      color: colorScheme.onSurfaceVariant,
-                      fontSize: 13,
-                    ),
-                  ),
                   const SizedBox(height: 4),
                   Text(
                     _formatTimeAgo(request.requestedAt),

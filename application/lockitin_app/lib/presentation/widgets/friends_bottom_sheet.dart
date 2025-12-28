@@ -444,13 +444,6 @@ class _FriendsBottomSheetState extends State<FriendsBottomSheet> {
                     color: _rose50,
                   ),
                 ),
-                Text(
-                  request.email,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: _rose300.withValues(alpha: 0.5),
-                  ),
-                ),
               ],
             ),
           ),
@@ -744,14 +737,6 @@ class _FriendsBottomSheetState extends State<FriendsBottomSheet> {
                           color: _rose50,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        friend.email,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: _rose300.withValues(alpha: 0.5),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -957,13 +942,6 @@ class _FriendsBottomSheetState extends State<FriendsBottomSheet> {
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                               color: Color(0xFF1F2937),
-                            ),
-                          ),
-                          Text(
-                            friend.email,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[500],
                             ),
                           ),
                         ],
