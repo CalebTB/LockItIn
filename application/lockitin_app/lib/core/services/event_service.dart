@@ -255,4 +255,63 @@ class EventService {
       return [];
     }
   }
+
+  /// Fetch visible events for all group members in a date range
+  ///
+  /// Respects privacy settings:
+  /// - 'private' events are excluded (not visible to group)
+  /// - 'busyOnly' and 'sharedWithName' events are included (they block time)
+  ///
+  /// Returns a map of userId to list of events
+  Future<Map<String, List<EventModel>>> fetchGroupMembersEvents({
+    required List<String> memberUserIds,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    try {
+      Logger.info(
+        'Fetching events for ${memberUserIds.length} group members: '
+        '${startDate.toIso8601String()} to ${endDate.toIso8601String()}',
+      );
+
+      // Fetch events for all members in one query
+      // Only include events that are visible (not 'private')
+      final response = await SupabaseClientManager.client
+          .from('events')
+          .select()
+          .inFilter('user_id', memberUserIds)
+          .neq('visibility', 'private') // Exclude private events
+          .gte('start_time', startDate.toIso8601String())
+          .lte('start_time', endDate.toIso8601String());
+
+      // Group events by user_id
+      final Map<String, List<EventModel>> eventsByUser = {};
+
+      // Initialize empty lists for all members
+      for (final userId in memberUserIds) {
+        eventsByUser[userId] = [];
+      }
+
+      // Parse and group events
+      for (final json in response as List) {
+        final event = EventModel.fromJson(json as Map<String, dynamic>);
+        final userId = event.userId;
+        if (eventsByUser.containsKey(userId)) {
+          eventsByUser[userId]!.add(event);
+        }
+      }
+
+      final totalEvents = eventsByUser.values.fold<int>(
+        0,
+        (sum, events) => sum + events.length,
+      );
+      Logger.info('Fetched $totalEvents total events for group members');
+
+      return eventsByUser;
+    } catch (e) {
+      Logger.error('Failed to fetch group members events: $e');
+      // Return empty map to allow app to continue
+      return {};
+    }
+  }
 }

@@ -3,82 +3,12 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/group_model.dart';
 import '../../data/models/event_model.dart';
+import '../../core/services/event_service.dart';
+import '../../core/services/availability_calculator_service.dart';
+import '../../core/utils/time_filter_utils.dart';
 import '../providers/group_provider.dart';
 import '../providers/calendar_provider.dart';
-
-/// Time range filter options for availability
-enum TimeFilter {
-  allDay,
-  morning,    // 6am - 12pm
-  afternoon,  // 12pm - 5pm
-  evening,    // 5pm - 10pm
-  night,      // 10pm - 6am
-}
-
-
-extension TimeFilterExtension on TimeFilter {
-  String get label {
-    switch (this) {
-      case TimeFilter.allDay:
-        return 'All Day';
-      case TimeFilter.morning:
-        return 'Morning';
-      case TimeFilter.afternoon:
-        return 'Afternoon';
-      case TimeFilter.evening:
-        return 'Evening';
-      case TimeFilter.night:
-        return 'Night';
-    }
-  }
-
-  String get timeRange {
-    switch (this) {
-      case TimeFilter.allDay:
-        return '12am - 12am';
-      case TimeFilter.morning:
-        return '6am - 12pm';
-      case TimeFilter.afternoon:
-        return '12pm - 5pm';
-      case TimeFilter.evening:
-        return '5pm - 10pm';
-      case TimeFilter.night:
-        return '10pm - 6am';
-    }
-  }
-
-  /// Get start hour (0-23)
-  int get startHour {
-    switch (this) {
-      case TimeFilter.allDay:
-        return 0;
-      case TimeFilter.morning:
-        return 6;
-      case TimeFilter.afternoon:
-        return 12;
-      case TimeFilter.evening:
-        return 17;
-      case TimeFilter.night:
-        return 22;
-    }
-  }
-
-  /// Get end hour (0-23)
-  int get endHour {
-    switch (this) {
-      case TimeFilter.allDay:
-        return 24;
-      case TimeFilter.morning:
-        return 12;
-      case TimeFilter.afternoon:
-        return 17;
-      case TimeFilter.evening:
-        return 22;
-      case TimeFilter.night:
-        return 6; // Wraps to next day
-    }
-  }
-}
+import '../theme/sunset_coral_theme.dart';
 
 /// Group detail screen showing group calendar with availability heatmap
 /// Adapted from CalendarScreen with Sunset Coral Dark theme
@@ -92,23 +22,26 @@ class GroupDetailScreen extends StatefulWidget {
 }
 
 class _GroupDetailScreenState extends State<GroupDetailScreen> {
-  // Sunset Coral Dark Theme Colors
-  static const Color _rose950 = Color(0xFF4C0519);
-  static const Color _rose900 = Color(0xFF881337);
-  static const Color _rose800 = Color(0xFF9F1239);
-  static const Color _rose700 = Color(0xFFBE123C);
-  static const Color _rose600 = Color(0xFFE11D48);
-  static const Color _rose500 = Color(0xFFF43F5E);
-  static const Color _rose400 = Color(0xFFFB7185);
-  static const Color _rose300 = Color(0xFFFDA4AF);
-  static const Color _rose200 = Color(0xFFFECDD3);
-  static const Color _rose50 = Color(0xFFFFF1F2);
-  static const Color _orange400 = Color(0xFFFB923C);
-  static const Color _orange500 = Color(0xFFF97316);
-  static const Color _orange600 = Color(0xFFEA580C);
-  static const Color _amber500 = Color(0xFFF59E0B);
-  static const Color _emerald500 = Color(0xFF10B981);
-  static const Color _slate950 = Color(0xFF020617);
+  // Use theme colors from SunsetCoralTheme
+  static const _rose950 = SunsetCoralTheme.rose950;
+  static const _rose900 = SunsetCoralTheme.rose900;
+  static const _rose800 = SunsetCoralTheme.rose800;
+  static const _rose700 = SunsetCoralTheme.rose700;
+  static const _rose600 = SunsetCoralTheme.rose600;
+  static const _rose500 = SunsetCoralTheme.rose500;
+  static const _rose400 = SunsetCoralTheme.rose400;
+  static const _rose300 = SunsetCoralTheme.rose300;
+  static const _rose200 = SunsetCoralTheme.rose200;
+  static const _rose50 = SunsetCoralTheme.rose50;
+  static const _orange400 = SunsetCoralTheme.orange400;
+  static const _orange500 = SunsetCoralTheme.orange500;
+  static const _orange600 = SunsetCoralTheme.orange600;
+  static const _amber500 = SunsetCoralTheme.amber500;
+  static const _emerald500 = SunsetCoralTheme.emerald500;
+  static const _slate950 = SunsetCoralTheme.slate950;
+
+  // Availability calculation service
+  final _availabilityService = AvailabilityCalculatorService();
 
   late DateTime _focusedMonth;
   int? _selectedDay;
@@ -120,166 +53,88 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   TimeOfDay _customStartTime = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _customEndTime = const TimeOfDay(hour: 17, minute: 0);
 
+  // Group members' events for availability calculation
+  Map<String, List<EventModel>> _memberEvents = {};
+  bool _isLoadingMemberEvents = false;
+
   @override
   void initState() {
     super.initState();
     _focusedMonth = DateTime.now();
     _pageController = PageController(initialPage: 12); // Start at current month
 
-    // Load group members
+    // Load group members and their events
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<GroupProvider>().selectGroup(widget.group.id);
+      _initializeGroupData();
     });
   }
 
-  /// Minimum contiguous free time required to be considered "available" (in minutes)
-  static const int _minContiguousFreeMinutes = 120; // 2 hours
+  /// Initialize group data - load members, then their events
+  Future<void> _initializeGroupData() async {
+    final groupProvider = context.read<GroupProvider>();
 
-  /// Check if user has any events on a specific date within the selected time filters
-  /// Returns 0 if busy, 1 if available
-  ///
-  /// Availability Logic (Contiguous Free Time):
-  /// - Available if there's at least 2 hours of UNINTERRUPTED free time
-  /// - Events at the edges are fine as long as they leave enough contiguous time
-  /// - This answers "Can we actually schedule something here?"
-  ///
-  /// See: lockitin_docs/availability-logic.md for full documentation
-  int _getAvailabilityForDay(CalendarProvider calendarProvider, DateTime date) {
-    // Filter out holidays - they don't count as busy time
-    final events = calendarProvider.getEventsForDay(date)
-        .where((e) => e.category != EventCategory.holiday)
-        .toList();
+    // Wait for group selection and member loading to complete
+    await groupProvider.selectGroup(widget.group.id);
 
-    // If "Custom" filter is selected, use custom time range
-    if (_selectedTimeFilters.contains(TimeFilter.allDay)) {
-      final filterStart = DateTime(
-        date.year, date.month, date.day,
-        _customStartTime.hour, _customStartTime.minute,
-      );
-      final filterEnd = DateTime(
-        date.year, date.month, date.day,
-        _customEndTime.hour, _customEndTime.minute,
-      );
-
-      // Find the longest contiguous free block
-      final longestFreeMinutes = _findLongestFreeBlock(events, filterStart, filterEnd);
-
-      // Available if there's at least 2 hours of contiguous free time
-      return longestFreeMinutes >= _minContiguousFreeMinutes ? 1 : 0;
-    }
-
-    // Check each selected time filter
-    for (final filter in _selectedTimeFilters) {
-      final startHour = filter.startHour;
-      final endHour = filter.endHour;
-
-      // Create time boundaries for this filter on this date
-      final DateTime filterStart;
-      final DateTime filterEnd;
-
-      if (filter == TimeFilter.night) {
-        // Night spans 10pm - 6am (crosses midnight)
-        filterStart = DateTime(date.year, date.month, date.day, startHour);
-        filterEnd = DateTime(date.year, date.month, date.day + 1, endHour);
-      } else {
-        filterStart = DateTime(date.year, date.month, date.day, startHour);
-        filterEnd = DateTime(date.year, date.month, date.day, endHour);
-      }
-
-      // Find the longest contiguous free block
-      final longestFreeMinutes = _findLongestFreeBlock(
-        events,
-        filterStart,
-        filterEnd,
-      );
-
-      // Available if there's at least 2 hours of contiguous free time
-      if (longestFreeMinutes < _minContiguousFreeMinutes) {
-        return 0; // Busy - not enough contiguous free time
-      }
-    }
-
-    return 1; // Available - has sufficient contiguous free time
+    // Now load member events
+    await _loadMemberEvents();
   }
 
-  /// Find the longest contiguous free block within a time range
-  /// Returns the duration in minutes
-  int _findLongestFreeBlock(
-    List<dynamic> events,
-    DateTime rangeStart,
-    DateTime rangeEnd,
-  ) {
-    // Get events that overlap with this range, sorted by start time
-    // Use stored hour/minute directly (wall clock time - no timezone conversion)
-    final overlappingEvents = events
-        .where((e) {
-          final eventStart = DateTime(
-            rangeStart.year, rangeStart.month, rangeStart.day,
-            e.startTime.hour, e.startTime.minute,
-          );
-          final eventEnd = DateTime(
-            rangeStart.year, rangeStart.month, rangeStart.day,
-            e.endTime.hour, e.endTime.minute,
-          );
-          return eventStart.isBefore(rangeEnd) && eventEnd.isAfter(rangeStart);
-        })
-        .toList()
-      ..sort((a, b) => a.startTime.hour.compareTo(b.startTime.hour));
+  /// Load events for all group members
+  Future<void> _loadMemberEvents() async {
+    final groupProvider = context.read<GroupProvider>();
+    final members = groupProvider.selectedGroupMembers;
 
-    if (overlappingEvents.isEmpty) {
-      // No events - entire range is free
-      return rangeEnd.difference(rangeStart).inMinutes;
+    if (members.isEmpty) {
+      // If members still empty, wait a bit and check again
+      // (could happen if network is slow)
+      return;
     }
 
-    var longestFreeBlock = 0;
-    var currentFreeStart = rangeStart;
+    setState(() => _isLoadingMemberEvents = true);
 
-    for (final event in overlappingEvents) {
-      // Use stored hour/minute directly
-      final eventStartWall = DateTime(
-        rangeStart.year, rangeStart.month, rangeStart.day,
-        event.startTime.hour, event.startTime.minute,
-      );
-      final eventEndWall = DateTime(
-        rangeStart.year, rangeStart.month, rangeStart.day,
-        event.endTime.hour, event.endTime.minute,
+    try {
+      // Get member user IDs
+      final memberIds = members.map((m) => m.userId).toList();
+
+      // Fetch events for 2 months before and after current month
+      final now = DateTime.now();
+      final startDate = DateTime(now.year, now.month - 2, 1);
+      final endDate = DateTime(now.year, now.month + 3, 0);
+
+      final events = await EventService.instance.fetchGroupMembersEvents(
+        memberUserIds: memberIds,
+        startDate: startDate,
+        endDate: endDate,
       );
 
-      // Clamp event times to the filter range
-      final eventStart = eventStartWall.isAfter(rangeStart)
-          ? eventStartWall
-          : rangeStart;
-      final eventEnd = eventEndWall.isBefore(rangeEnd)
-          ? eventEndWall
-          : rangeEnd;
-
-      // Free block before this event
-      if (eventStart.isAfter(currentFreeStart)) {
-        final freeMinutes = eventStart.difference(currentFreeStart).inMinutes;
-        if (freeMinutes > longestFreeBlock) {
-          longestFreeBlock = freeMinutes;
-        }
+      if (mounted) {
+        setState(() {
+          _memberEvents = events;
+          _isLoadingMemberEvents = false;
+        });
       }
-
-      // Move current position past this event (if it extends further)
-      if (eventEnd.isAfter(currentFreeStart)) {
-        currentFreeStart = eventEnd;
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingMemberEvents = false);
       }
     }
+  }
 
-    // Check free block after last event
-    if (rangeEnd.isAfter(currentFreeStart)) {
-      final freeMinutes = rangeEnd.difference(currentFreeStart).inMinutes;
-      if (freeMinutes > longestFreeBlock) {
-        longestFreeBlock = freeMinutes;
-      }
-    }
-
-    return longestFreeBlock;
+  /// Calculate how many group members are available on a specific date
+  /// Delegates to AvailabilityCalculatorService
+  int _getAvailabilityForDay(CalendarProvider calendarProvider, DateTime date) {
+    return _availabilityService.calculateGroupAvailability(
+      memberEvents: _memberEvents,
+      date: date,
+      timeFilters: _selectedTimeFilters,
+      customStartTime: _customStartTime,
+      customEndTime: _customEndTime,
+    );
   }
 
   /// Get a human-readable description of availability
-  /// Returns "Free" if no conflicts, or shows conflict count and times
+  /// Delegates to AvailabilityCalculatorService
   String _getAvailabilityDescription(
     CalendarProvider calendarProvider,
     DateTime date,
@@ -289,84 +144,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         .where((e) => e.category != EventCategory.holiday)
         .toList();
 
-    // Get filter time boundaries
-    final DateTime filterStart;
-    final DateTime filterEnd;
-    final startHour = filter.startHour;
-    final endHour = filter.endHour;
-
-    if (filter == TimeFilter.allDay) {
-      // Use custom time range
-      filterStart = DateTime(
-        date.year, date.month, date.day,
-        _customStartTime.hour, _customStartTime.minute,
-      );
-      filterEnd = DateTime(
-        date.year, date.month, date.day,
-        _customEndTime.hour, _customEndTime.minute,
-      );
-    } else if (filter == TimeFilter.night) {
-      filterStart = DateTime(date.year, date.month, date.day, startHour);
-      filterEnd = DateTime(date.year, date.month, date.day + 1, endHour);
-    } else {
-      filterStart = DateTime(date.year, date.month, date.day, startHour);
-      filterEnd = DateTime(date.year, date.month, date.day, endHour);
-    }
-
-    // Get overlapping events (conflicts) sorted by start time
-    // Use stored hour/minute directly (wall clock time - no timezone conversion)
-    final conflicts = events
-        .where((e) {
-          final eventStart = DateTime(
-            date.year, date.month, date.day,
-            e.startTime.hour, e.startTime.minute,
-          );
-          final eventEnd = DateTime(
-            date.year, date.month, date.day,
-            e.endTime.hour, e.endTime.minute,
-          );
-          return eventStart.isBefore(filterEnd) && eventEnd.isAfter(filterStart);
-        })
-        .toList()
-      ..sort((a, b) => a.startTime.hour.compareTo(b.startTime.hour));
-
-    // No conflicts - completely free
-    if (conflicts.isEmpty) {
-      return 'Free';
-    }
-
-    // Format time helper
-    final timeFormat = DateFormat('h:mma');
-    final hourFormat = DateFormat('ha');
-
-    String formatTime(DateTime dt) {
-      if (dt.minute == 0) {
-        return hourFormat.format(dt).toLowerCase();
-      }
-      return timeFormat.format(dt).toLowerCase();
-    }
-
-    // Single conflict - show the busy time range
-    if (conflicts.length == 1) {
-      final event = conflicts.first;
-      final eventStart = DateTime(
-        date.year, date.month, date.day,
-        event.startTime.hour, event.startTime.minute,
-      );
-      final eventEnd = DateTime(
-        date.year, date.month, date.day,
-        event.endTime.hour, event.endTime.minute,
-      );
-
-      // Clamp to filter range for display
-      final displayStart = eventStart.isBefore(filterStart) ? filterStart : eventStart;
-      final displayEnd = eventEnd.isAfter(filterEnd) ? filterEnd : eventEnd;
-
-      return 'Busy ${formatTime(displayStart)} - ${formatTime(displayEnd)}';
-    }
-
-    // Multiple conflicts - show count
-    return '${conflicts.length} conflicts';
+    return _availabilityService.getAvailabilityDescription(
+      events: events,
+      date: date,
+      filter: filter,
+      customStartTime: _customStartTime,
+      customEndTime: _customEndTime,
+    );
   }
 
   @override
@@ -1527,9 +1311,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   Widget _buildCalendarGrid(DateTime month) {
-    // For now, show 0/1 based on current user's events only
-    // In the future, this will aggregate availability from all group members
-    const totalMembers = 1; // Just the current user for now
     final days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     // Calculate first day offset and days in month
@@ -1538,8 +1319,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final startWeekday = firstDayOfMonth.weekday % 7; // 0 = Sunday
     final daysInMonth = lastDayOfMonth.day;
 
-    return Consumer<CalendarProvider>(
-      builder: (context, calendarProvider, _) {
+    return Consumer2<CalendarProvider, GroupProvider>(
+      builder: (context, calendarProvider, groupProvider, _) {
+        // Get actual member count from the group
+        final totalMembers = groupProvider.selectedGroupMembers.isNotEmpty
+            ? groupProvider.selectedGroupMembers.length
+            : (groupProvider.selectedGroup?.memberCount ?? 1);
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Column(
@@ -1653,7 +1438,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             ),
                             // Only show availability info if in range
                             if (isInRange)
-                              Text(
+                              _isLoadingMemberEvents
+                                ? SizedBox(
+                                    width: 8,
+                                    height: 8,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1,
+                                      color: textColor.withValues(alpha: 0.5),
+                                    ),
+                                  )
+                                : Text(
                                 '$available/$totalMembers',
                                 style: TextStyle(
                                   fontSize: 9,
@@ -1800,81 +1594,30 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   /// Get best days for a specific set of time filters
+  /// Uses AvailabilityCalculatorService for consistent availability logic
   List<int> _getBestDaysForFilters(
     CalendarProvider calendarProvider,
     Set<TimeFilter> filters,
   ) {
-    final lastDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
-    final daysInMonth = lastDayOfMonth.day;
+    // Use the service to find best days based on group availability
+    final allBestDays = _availabilityService.findBestDaysInMonth(
+      memberEvents: _memberEvents,
+      month: _focusedMonth,
+      timeFilters: filters,
+      dateRange: _selectedDateRange,
+      customStartTime: _customStartTime,
+      customEndTime: _customEndTime,
+    );
 
-    final bestDays = <int>[];
-    for (int day = 1; day <= daysInMonth && bestDays.length < 4; day++) {
-      final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
-
-      // Skip if outside selected date range
-      if (_selectedDateRange != null) {
-        if (date.isBefore(_selectedDateRange!.start) ||
-            date.isAfter(_selectedDateRange!.end)) {
-          continue;
-        }
-      }
-
-      // Only consider today or future days
-      if (date.isAfter(DateTime.now().subtract(const Duration(days: 1)))) {
-        // Check availability for this specific filter set
-        final events = calendarProvider.getEventsForDay(date)
-            .where((e) => e.category != EventCategory.holiday)
-            .toList();
-
-        bool isAvailable = true;
-
-        if (filters.contains(TimeFilter.allDay)) {
-          // Use custom time range
-          final filterStart = DateTime(
-            date.year, date.month, date.day,
-            _customStartTime.hour, _customStartTime.minute,
-          );
-          final filterEnd = DateTime(
-            date.year, date.month, date.day,
-            _customEndTime.hour, _customEndTime.minute,
-          );
-
-          // Find the longest contiguous free block
-          final longestFreeMinutes = _findLongestFreeBlock(events, filterStart, filterEnd);
-          isAvailable = longestFreeMinutes >= _minContiguousFreeMinutes;
-        } else {
-          // Check each filter
-          for (final filter in filters) {
-            final startHour = filter.startHour;
-            final endHour = filter.endHour;
-
-            final DateTime filterStart;
-            final DateTime filterEnd;
-
-            if (filter == TimeFilter.night) {
-              filterStart = DateTime(date.year, date.month, date.day, startHour);
-              filterEnd = DateTime(date.year, date.month, date.day + 1, endHour);
-            } else {
-              filterStart = DateTime(date.year, date.month, date.day, startHour);
-              filterEnd = DateTime(date.year, date.month, date.day, endHour);
-            }
-
-            for (final event in events) {
-              if (event.startTime.isBefore(filterEnd) && event.endTime.isAfter(filterStart)) {
-                isAvailable = false;
-                break;
-              }
-            }
-            if (!isAvailable) break;
-          }
-        }
-
-        if (isAvailable) {
-          bestDays.add(day);
-        }
-      }
-    }
-    return bestDays;
+    // Filter to only include today or future days, limit to 4
+    final now = DateTime.now().subtract(const Duration(days: 1));
+    return allBestDays
+        .where((day) {
+          final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+          return date.isAfter(now);
+        })
+        .take(4)
+        .toList();
   }
 
   /// Format TimeOfDay to string like "9am" or "5:30pm"
