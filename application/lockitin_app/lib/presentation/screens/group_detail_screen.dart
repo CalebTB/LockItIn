@@ -2472,7 +2472,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 }
 
-/// Full members list bottom sheet
+/// Full members list bottom sheet with role-based management
 class _MembersBottomSheet extends StatelessWidget {
   final GroupModel group;
 
@@ -2487,6 +2487,7 @@ class _MembersBottomSheet extends StatelessWidget {
   static const Color _rose50 = Color(0xFFFFF1F2);
   static const Color _orange400 = Color(0xFFFB923C);
   static const Color _slate950 = Color(0xFF020617);
+  static const Color _red500 = Color(0xFFEF4444);
 
   @override
   Widget build(BuildContext context) {
@@ -2502,179 +2503,619 @@ class _MembersBottomSheet extends StatelessWidget {
         ),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Column(
-        children: [
-          // Handle bar
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 12),
-            width: 48,
-            height: 6,
-            decoration: BoxDecoration(
-              color: _rose500.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
+      child: Consumer<GroupProvider>(
+        builder: (context, provider, _) {
+          final canManage = provider.canManageMembers;
+          final isOwner = provider.isOwner;
 
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 8, 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [_rose200, Color(0xFFFED7AA)],
-                  ).createShader(bounds),
-                  child: Text(
-                    'Members (${group.memberCount})',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+          return Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 48,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: _rose500.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(3),
                 ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
-                  color: _rose300,
-                ),
-              ],
-            ),
-          ),
+              ),
 
-          // Members list
-          Expanded(
-            child: Consumer<GroupProvider>(
-              builder: (context, provider, _) {
-                if (provider.isLoadingMembers) {
-                  return Center(
-                    child: CircularProgressIndicator(color: _rose400),
-                  );
-                }
-
-                final members = provider.selectedGroupMembers;
-
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: members.length,
-                  itemBuilder: (context, index) {
-                    final member = members[index];
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: _rose900.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: _rose500.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          // Avatar
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              gradient: index == 0
-                                  ? const LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [_rose400, _orange400],
-                                    )
-                                  : null,
-                              color: index == 0 ? null : _rose900,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Text(
-                                member.initials,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: index == 0 ? Colors.white : _rose200,
-                                ),
-                              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 8, 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ShaderMask(
+                          shaderCallback: (bounds) => const LinearGradient(
+                            colors: [_rose200, Color(0xFFFED7AA)],
+                          ).createShader(bounds),
+                          child: Text(
+                            'Members (${group.memberCount})',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
                           ),
-                          const SizedBox(width: 14),
+                        ),
+                        if (canManage)
+                          Text(
+                            'Tap member to manage',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _rose300.withValues(alpha: 0.6),
+                            ),
+                          ),
+                      ],
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                      color: _rose300,
+                    ),
+                  ],
+                ),
+              ),
 
-                          // Name and role
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+              // Members list
+              Expanded(
+                child: Builder(
+                  builder: (context) {
+                    if (provider.isLoadingMembers) {
+                      return Center(
+                        child: CircularProgressIndicator(color: _rose400),
+                      );
+                    }
+
+                    final members = provider.selectedGroupMembers;
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: members.length,
+                      itemBuilder: (context, index) {
+                        final member = members[index];
+
+                        return GestureDetector(
+                          onTap: canManage
+                              ? () => _showMemberOptions(context, member, provider)
+                              : null,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: _rose900.withValues(alpha: 0.4),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: _rose500.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Row(
                               children: [
-                                Text(
-                                  member.displayName,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    color: _rose50,
+                                // Avatar
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    gradient: member.role == GroupMemberRole.owner
+                                        ? const LinearGradient(
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                            colors: [_rose400, _orange400],
+                                          )
+                                        : null,
+                                    color: member.role == GroupMemberRole.owner ? null : _rose900,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      member.initials,
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: member.role == GroupMemberRole.owner
+                                            ? Colors.white
+                                            : _rose200,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                                Text(
-                                  member.roleDisplayName,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: member.role == GroupMemberRole.owner
-                                        ? _orange400
-                                        : _rose300.withValues(alpha: 0.6),
+                                const SizedBox(width: 14),
+
+                                // Name and role
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        member.displayName,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                          color: _rose50,
+                                        ),
+                                      ),
+                                      Text(
+                                        member.roleDisplayName,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: member.role == GroupMemberRole.owner
+                                              ? _orange400
+                                              : _rose300.withValues(alpha: 0.6),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
+
+                                // Role badge
+                                if (member.role == GroupMemberRole.owner)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [_rose500, _orange400],
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Text(
+                                      'Owner',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                else if (member.role == GroupMemberRole.admin)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _rose500.withValues(alpha: 0.3),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'Admin',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: _rose300,
+                                      ),
+                                    ),
+                                  ),
+
+                                // Chevron for manageable members
+                                if (canManage && member.role != GroupMemberRole.owner)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8),
+                                    child: Icon(
+                                      Icons.chevron_right,
+                                      size: 20,
+                                      color: _rose400.withValues(alpha: 0.5),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
-
-                          // Role badge
-                          if (member.role == GroupMemberRole.owner)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [_rose500, _orange400],
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                'Owner',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            )
-                          else if (member.role == GroupMemberRole.admin)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _rose500.withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                'Admin',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: _rose300,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
+                        );
+                      },
                     );
                   },
-                );
-              },
+                ),
+              ),
+
+              // Leave group button (for non-owners)
+              if (!isOwner && provider.currentUserRole != null)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _confirmLeaveGroup(context, provider),
+                      icon: const Icon(Icons.exit_to_app, size: 18),
+                      label: const Text('Leave Group'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _red500,
+                        side: BorderSide(color: _red500.withValues(alpha: 0.5)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showMemberOptions(
+    BuildContext context,
+    GroupMemberProfile member,
+    GroupProvider provider,
+  ) {
+    // Can't manage owner
+    if (member.role == GroupMemberRole.owner) return;
+
+    // Admins can't manage other admins
+    if (provider.isAdmin && member.role == GroupMemberRole.admin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Admins cannot manage other admins'),
+          backgroundColor: _rose500,
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _rose950,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => _MemberOptionsSheet(
+        member: member,
+        groupId: group.id,
+        isOwner: provider.isOwner,
+      ),
+    );
+  }
+
+  void _confirmLeaveGroup(BuildContext context, GroupProvider provider) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _rose950,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Leave Group?',
+          style: TextStyle(color: _rose50),
+        ),
+        content: Text(
+          'Are you sure you want to leave "${group.name}"? You will need to be invited again to rejoin.',
+          style: TextStyle(color: _rose200),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: _rose300)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Close members sheet
+
+              final success = await provider.removeMember(
+                groupId: group.id,
+                userId: '', // Empty string triggers self-removal in service
+              );
+
+              if (context.mounted) {
+                if (success) {
+                  Navigator.pop(context); // Close group detail screen
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Left ${group.name}'),
+                      backgroundColor: _rose500,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(provider.actionError ?? 'Failed to leave group'),
+                      backgroundColor: _red500,
+                    ),
+                  );
+                }
+              }
+            },
+            child: Text('Leave', style: TextStyle(color: _red500)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Member options bottom sheet
+class _MemberOptionsSheet extends StatelessWidget {
+  final GroupMemberProfile member;
+  final String groupId;
+  final bool isOwner;
+
+  const _MemberOptionsSheet({
+    required this.member,
+    required this.groupId,
+    required this.isOwner,
+  });
+
+  static const Color _rose950 = Color(0xFF4C0519);
+  static const Color _rose500 = Color(0xFFF43F5E);
+  static const Color _rose400 = Color(0xFFFB7185);
+  static const Color _rose300 = Color(0xFFFDA4AF);
+  static const Color _rose200 = Color(0xFFFECDD3);
+  static const Color _rose50 = Color(0xFFFFF1F2);
+  static const Color _orange400 = Color(0xFFFB923C);
+  static const Color _red500 = Color(0xFFEF4444);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle bar
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: _rose500.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(2),
             ),
+          ),
+          const SizedBox(height: 16),
+
+          // Member info
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: _rose500.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    member.initials,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _rose200,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      member.displayName,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: _rose50,
+                      ),
+                    ),
+                    Text(
+                      member.roleDisplayName,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: _rose300,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Options (only owner can change roles)
+          if (isOwner) ...[
+            // Toggle admin role
+            _buildOptionTile(
+              context,
+              icon: member.role == GroupMemberRole.admin
+                  ? Icons.person_outline
+                  : Icons.admin_panel_settings,
+              label: member.role == GroupMemberRole.admin
+                  ? 'Remove Admin'
+                  : 'Make Admin',
+              color: _orange400,
+              onTap: () => _toggleAdminRole(context),
+            ),
+            const SizedBox(height: 8),
+
+            // Transfer ownership
+            _buildOptionTile(
+              context,
+              icon: Icons.swap_horiz,
+              label: 'Transfer Ownership',
+              color: _rose400,
+              onTap: () => _confirmTransferOwnership(context),
+            ),
+            const SizedBox(height: 8),
+          ],
+
+          // Remove from group (owners and admins can do this)
+          _buildOptionTile(
+            context,
+            icon: Icons.person_remove,
+            label: 'Remove from Group',
+            color: _red500,
+            onTap: () => _confirmRemoveMember(context),
+          ),
+
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOptionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _toggleAdminRole(BuildContext context) async {
+    final provider = context.read<GroupProvider>();
+    final newRole = member.role == GroupMemberRole.admin
+        ? GroupMemberRole.member
+        : GroupMemberRole.admin;
+
+    Navigator.pop(context); // Close options sheet
+
+    final success = await provider.updateMemberRole(
+      groupId: groupId,
+      userId: member.userId,
+      newRole: newRole,
+    );
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? '${member.displayName} is now ${newRole == GroupMemberRole.admin ? "an admin" : "a member"}'
+                : provider.actionError ?? 'Failed to update role',
+          ),
+          backgroundColor: success ? _rose500 : _red500,
+        ),
+      );
+    }
+  }
+
+  void _confirmTransferOwnership(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: _rose950,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Transfer Ownership?',
+          style: TextStyle(color: _rose50),
+        ),
+        content: Text(
+          'Are you sure you want to make ${member.displayName} the owner? You will become an admin.',
+          style: TextStyle(color: _rose200),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('Cancel', style: TextStyle(color: _rose300)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext); // Close dialog
+              Navigator.pop(context); // Close options sheet
+
+              final provider = context.read<GroupProvider>();
+              final success = await provider.transferOwnership(
+                groupId: groupId,
+                newOwnerId: member.userId,
+              );
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? '${member.displayName} is now the owner'
+                          : provider.actionError ?? 'Failed to transfer ownership',
+                    ),
+                    backgroundColor: success ? _rose500 : _red500,
+                  ),
+                );
+              }
+            },
+            child: Text('Transfer', style: TextStyle(color: _orange400)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmRemoveMember(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: _rose950,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Remove Member?',
+          style: TextStyle(color: _rose50),
+        ),
+        content: Text(
+          'Are you sure you want to remove ${member.displayName} from the group?',
+          style: TextStyle(color: _rose200),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('Cancel', style: TextStyle(color: _rose300)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext); // Close dialog
+              Navigator.pop(context); // Close options sheet
+
+              final provider = context.read<GroupProvider>();
+              final success = await provider.removeMember(
+                groupId: groupId,
+                userId: member.userId,
+              );
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? '${member.displayName} has been removed'
+                          : provider.actionError ?? 'Failed to remove member',
+                    ),
+                    backgroundColor: success ? _rose500 : _red500,
+                  ),
+                );
+              }
+            },
+            child: Text('Remove', style: TextStyle(color: _red500)),
           ),
         ],
       ),

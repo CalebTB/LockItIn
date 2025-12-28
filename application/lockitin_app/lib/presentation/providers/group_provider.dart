@@ -18,6 +18,9 @@ class GroupProvider extends ChangeNotifier {
   /// Members of the currently selected group
   List<GroupMemberProfile> _selectedGroupMembers = [];
 
+  /// Current user's role in the selected group
+  GroupMemberRole? _currentUserRole;
+
   /// Pending group invites for the current user
   List<GroupInvite> _pendingInvites = [];
 
@@ -44,7 +47,19 @@ class GroupProvider extends ChangeNotifier {
   List<GroupModel> get groups => _groups;
   GroupModel? get selectedGroup => _selectedGroup;
   List<GroupMemberProfile> get selectedGroupMembers => _selectedGroupMembers;
+  GroupMemberRole? get currentUserRole => _currentUserRole;
   List<GroupInvite> get pendingInvites => _pendingInvites;
+
+  /// Check if current user is owner of selected group
+  bool get isOwner => _currentUserRole == GroupMemberRole.owner;
+
+  /// Check if current user is admin of selected group
+  bool get isAdmin => _currentUserRole == GroupMemberRole.admin;
+
+  /// Check if current user can manage members (owner or admin)
+  bool get canManageMembers =>
+      _currentUserRole == GroupMemberRole.owner ||
+      _currentUserRole == GroupMemberRole.admin;
 
   bool get isLoadingGroups => _isLoadingGroups;
   bool get isLoadingMembers => _isLoadingMembers;
@@ -145,13 +160,30 @@ class GroupProvider extends ChangeNotifier {
     _selectedGroup = group;
     notifyListeners();
 
-    await loadGroupMembers(groupId);
+    // Load members and user's role in parallel
+    await Future.wait([
+      loadGroupMembers(groupId),
+      _loadCurrentUserRole(groupId),
+    ]);
+  }
+
+  /// Load current user's role in a group
+  Future<void> _loadCurrentUserRole(String groupId) async {
+    try {
+      _currentUserRole = await _groupService.getUserRole(groupId);
+      Logger.info('Current user role: $_currentUserRole');
+      notifyListeners();
+    } catch (e) {
+      Logger.error('Failed to load user role: $e');
+      _currentUserRole = null;
+    }
   }
 
   /// Clear the selected group
   void clearSelectedGroup() {
     _selectedGroup = null;
     _selectedGroupMembers = [];
+    _currentUserRole = null;
     _membersError = null;
     notifyListeners();
   }
