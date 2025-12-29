@@ -1413,6 +1413,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       right: 0,
       bottom: 0,
       child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             begin: Alignment.topCenter,
@@ -1427,7 +1430,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Handle bar - tap to close
+            // Handle bar - tap to close (FIXED at top)
             GestureDetector(
               onTap: () => setState(() => _selectedDay = null),
               child: Container(
@@ -1459,6 +1462,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               ),
             ),
 
+            // Scrollable content
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
             // Header
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1541,13 +1550,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               builder: (context, provider, _) {
                 final members = provider.selectedGroupMembers;
 
-                return Container(
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.35,
-                  ),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                     itemCount: members.length,
                     itemBuilder: (context, index) {
                       final member = members[index];
@@ -1748,8 +1754,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         ),
                       );
                     },
-                  ),
-                );
+                  );
               },
             ),
 
@@ -1792,6 +1797,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               )
             else
               const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
