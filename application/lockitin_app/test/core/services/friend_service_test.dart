@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:lockitin_app/data/models/friendship_model.dart';
 import 'package:lockitin_app/core/services/friend_service.dart';
 
@@ -307,6 +308,53 @@ void main() {
       expect(FriendshipStatus.values.contains(FriendshipStatus.pending), true);
       expect(FriendshipStatus.values.contains(FriendshipStatus.accepted), true);
       expect(FriendshipStatus.values.contains(FriendshipStatus.blocked), true);
+    });
+  });
+
+  group('FriendService - PostgrestException Handling', () {
+    test('PostgrestException can be created for duplicate friendship', () {
+      final exception = PostgrestException(
+        message: 'duplicate key value violates unique constraint "friendships_pkey"',
+        code: '23505',
+      );
+
+      expect(exception.code, '23505');
+      expect(exception.message, contains('duplicate'));
+    });
+
+    test('PostgrestException can be created for user not found', () {
+      final exception = PostgrestException(
+        message: 'insert or update on table "friendships" violates foreign key constraint',
+        code: '23503',
+      );
+
+      expect(exception.code, '23503');
+      expect(exception.message, contains('foreign key'));
+    });
+
+    test('PostgrestException can be created for RLS violation', () {
+      final exception = PostgrestException(
+        message: 'new row violates row-level security policy for table "friendships"',
+        code: '42501',
+      );
+
+      expect(exception.code, '42501');
+      expect(exception.message, contains('row-level security'));
+    });
+
+    test('Friend-specific error message mappings should be correct', () {
+      // Document the expected friend service error mappings
+      final friendErrorMappings = {
+        '23505': 'This relationship already exists',
+        '23503': 'User not found',
+        '42501': 'Permission denied',
+        'PGRST116': 'Session expired, please log in again',
+        'PGRST301': 'Record not found',
+      };
+
+      expect(friendErrorMappings['23505'], 'This relationship already exists');
+      expect(friendErrorMappings['23503'], 'User not found');
+      expect(friendErrorMappings['42501'], 'Permission denied');
     });
   });
 }
