@@ -1,3 +1,5 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../data/models/friendship_model.dart';
 import '../network/supabase_client.dart';
 import '../utils/logger.dart';
@@ -80,6 +82,8 @@ class FriendService {
 
       Logger.info('Friend request sent successfully');
       return FriendshipModel.fromJson(response);
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
       Logger.error('Failed to send friend request: $e');
@@ -113,6 +117,8 @@ class FriendService {
 
       Logger.info('Friend request accepted successfully');
       return FriendshipModel.fromJson(response);
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
       Logger.error('Failed to accept friend request: $e');
@@ -140,6 +146,8 @@ class FriendService {
           .eq('status', 'pending');
 
       Logger.info('Friend request declined successfully');
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
       Logger.error('Failed to decline friend request: $e');
@@ -167,6 +175,8 @@ class FriendService {
           .eq('status', 'pending');
 
       Logger.info('Friend request canceled successfully');
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
       Logger.error('Failed to cancel friend request: $e');
@@ -194,6 +204,8 @@ class FriendService {
           .eq('status', 'accepted');
 
       Logger.info('Friend removed successfully');
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
       Logger.error('Failed to remove friend: $e');
@@ -239,6 +251,8 @@ class FriendService {
       }
 
       Logger.info('User blocked successfully');
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
       Logger.error('Failed to block user: $e');
@@ -266,6 +280,8 @@ class FriendService {
           .eq('status', 'blocked');
 
       Logger.info('User unblocked successfully');
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
       Logger.error('Failed to unblock user: $e');
@@ -298,6 +314,8 @@ class FriendService {
 
       Logger.info('Fetched ${friends.length} friends');
       return friends;
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
       Logger.error('Failed to fetch friends: $e');
@@ -326,6 +344,8 @@ class FriendService {
 
       Logger.info('Fetched ${requests.length} pending requests');
       return requests;
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
       Logger.error('Failed to fetch pending requests: $e');
@@ -374,6 +394,8 @@ class FriendService {
 
       Logger.info('Fetched ${requests.length} sent requests');
       return requests;
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
       Logger.error('Failed to fetch sent requests: $e');
@@ -403,6 +425,8 @@ class FriendService {
 
       Logger.info('Fetched ${blocked.length} blocked users');
       return blocked;
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
       Logger.error('Failed to fetch blocked users: $e');
@@ -440,6 +464,8 @@ class FriendService {
 
       Logger.info('Found ${users.length} users matching query');
       return users;
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
       Logger.error('Failed to search users: $e');
@@ -488,6 +514,44 @@ class FriendService {
     } catch (e) {
       Logger.error('Failed to get friendship status: $e');
       return null;
+    }
+  }
+
+  /// Convert PostgrestException to user-friendly FriendServiceException
+  FriendServiceException _handlePostgrestError(PostgrestException e) {
+    Logger.error('Supabase error: ${e.code} - ${e.message}');
+
+    switch (e.code) {
+      case '23505': // unique_violation
+        return FriendServiceException(
+          'This relationship already exists',
+          code: e.code,
+        );
+      case '23503': // foreign_key_violation
+        return FriendServiceException(
+          'User not found',
+          code: e.code,
+        );
+      case '42501': // insufficient_privilege (RLS)
+        return FriendServiceException(
+          'Permission denied',
+          code: e.code,
+        );
+      case 'PGRST116': // JWT expired
+        return FriendServiceException(
+          'Session expired, please log in again',
+          code: e.code,
+        );
+      case 'PGRST301': // Row not found
+        return FriendServiceException(
+          'Record not found',
+          code: e.code,
+        );
+      default:
+        return FriendServiceException(
+          'Database error: ${e.message}',
+          code: e.code,
+        );
     }
   }
 }
