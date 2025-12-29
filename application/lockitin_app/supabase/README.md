@@ -2,6 +2,103 @@
 
 This directory contains SQL scripts for setting up the LockItIn database schema and security policies.
 
+---
+
+## Schema Execution Order
+
+### Fresh Install (New Database)
+
+Execute files in this exact order:
+
+| Order | File | Description |
+|-------|------|-------------|
+| 1 | `schema.sql` | Base tables: `users`, `events`, triggers |
+| 2 | `rls_policies.sql` | RLS for users & events tables |
+| 3 | `groups_schema.sql` | Groups, group_members, group RLS |
+| 4 | `friendships_schema.sql` | Friendships table & RLS |
+| 5 | `shadow_calendar_schema.sql` | Shadow calendar for group availability |
+| 6 | `migrations/002_simplify_group_roles.sql` | Add co_owner role, deprecate admin |
+| 7 | `migrations/003_group_events_rls.sql` | Group events RLS policies |
+| 8 | `migrations/004_transfer_ownership_rpc.sql` | Ownership transfer RPC |
+| 9 | `migrations/005_get_sent_requests_rpc.sql` | Sent friend requests RPC |
+| 10 | `migrations/006_fix_group_members_insert_policy.sql` | Fix member insert policy |
+
+### Existing Database (Apply Migrations Only)
+
+If your database was set up before a certain migration, only apply migrations after your current version:
+
+```bash
+# Check which migrations you need by reviewing migration file dates/numbers
+ls -la migrations/
+```
+
+---
+
+## File Descriptions
+
+### Base Schema Files (Source of Truth)
+
+| File | Purpose | Dependencies |
+|------|---------|--------------|
+| `schema.sql` | Users & events tables | None |
+| `rls_policies.sql` | Base RLS policies | schema.sql |
+| `groups_schema.sql` | Groups system | schema.sql |
+| `friendships_schema.sql` | Friend system | schema.sql |
+| `shadow_calendar_schema.sql` | Privacy-respecting availability | schema.sql, groups_schema.sql |
+
+### Migrations (Incremental Changes)
+
+| File | Purpose |
+|------|---------|
+| `002_simplify_group_roles.sql` | Add co_owner role, deprecate admin |
+| `003_group_events_rls.sql` | RLS for group event visibility |
+| `004_transfer_ownership_rpc.sql` | RPC for ownership transfer |
+| `005_get_sent_requests_rpc.sql` | RPC for sent friend requests |
+| `006_fix_group_members_insert_policy.sql` | Fix INSERT policy for group_members |
+
+### Seed Files (Development/Testing Only)
+
+| File | Purpose |
+|------|---------|
+| `seed_test_events.sql` | Sample events for testing |
+| `seed_test_friends.sql` | Sample friendships for testing |
+
+> **Warning:** Never run seed files on production!
+
+---
+
+## Migration Strategy
+
+### Adding New Changes
+
+All new database changes MUST be added as numbered migrations:
+
+```
+migrations/
+  002_simplify_group_roles.sql
+  003_group_events_rls.sql
+  ...
+  007_your_new_migration.sql  ← New changes go here
+```
+
+**Migration naming convention:** `{number}_{descriptive_name}.sql`
+
+### Why Migrations?
+
+- Base schema files are for **reference** and fresh installs
+- Migrations are for **incremental updates** to existing databases
+- Never modify base schema files for existing features
+
+### Creating a New Migration
+
+1. Create file: `migrations/{next_number}_{description}.sql`
+2. Add descriptive header comment
+3. Make changes idempotent where possible (`IF NOT EXISTS`, `IF EXISTS`)
+4. Test on development database first
+5. Document in this README
+
+---
+
 ## Quick Start
 
 ### 0. Create Database Schema (First Time Only)
@@ -236,4 +333,5 @@ USING (your_condition);
 ---
 
 **Last Updated:** December 29, 2025
-**Schema Version:** 1.1.0 (Shadow Calendar)
+**Schema Version:** 1.2.0 (Migration Documentation)
+**Latest Migration:** 006_fix_group_members_insert_policy.sql
