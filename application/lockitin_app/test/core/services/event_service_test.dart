@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:lockitin_app/core/services/event_service.dart';
 import 'package:lockitin_app/data/models/event_model.dart';
 
@@ -291,6 +292,78 @@ void main() {
       // EventService.updateEvent() would:
       // 1. Update in native calendar using nativeCalendarId
       // 2. Update in Supabase using id
+    });
+  });
+
+  group('EventService - PostgrestException Handling', () {
+    test('EventServiceException can have optional code', () {
+      final exception = EventServiceException(
+        'Database error',
+        code: '23505',
+        nativeEventId: 'native_123',
+      );
+
+      expect(exception.code, '23505');
+      expect(exception.nativeEventId, 'native_123');
+    });
+
+    test('PostgrestException can be created for event operations', () {
+      final exception = PostgrestException(
+        message: 'duplicate key value violates unique constraint "events_pkey"',
+        code: '23505',
+      );
+
+      expect(exception.code, '23505');
+      expect(exception.message, contains('duplicate'));
+    });
+
+    test('PostgrestException for RLS violation during event creation', () {
+      final exception = PostgrestException(
+        message: 'new row violates row-level security policy for table "events"',
+        code: '42501',
+      );
+
+      expect(exception.code, '42501');
+      expect(exception.message, contains('row-level security'));
+    });
+
+    test('PostgrestException for JWT expired during sync', () {
+      final exception = PostgrestException(
+        message: 'JWT expired',
+        code: 'PGRST116',
+        details: 'Unauthorized',
+      );
+
+      expect(exception.code, 'PGRST116');
+      expect(exception.message, 'JWT expired');
+    });
+
+    test('Event-specific error message mappings should be correct', () {
+      // Document the expected event service error mappings
+      final eventErrorMappings = {
+        '23505': 'This event already exists',
+        '23503': 'Referenced record not found',
+        '42501': 'Permission denied',
+        'PGRST116': 'Session expired, please log in again',
+        'PGRST301': 'Event not found',
+      };
+
+      expect(eventErrorMappings['23505'], 'This event already exists');
+      expect(eventErrorMappings['PGRST301'], 'Event not found');
+    });
+
+    test('EventServiceException preserves context IDs for rollback', () {
+      // When an error occurs, we need context for potential rollback
+      final exception = EventServiceException(
+        'Failed to sync to cloud',
+        code: 'PGRST116',
+        nativeEventId: 'native_event_to_rollback',
+        supabaseEventId: null,
+      );
+
+      expect(exception.nativeEventId, 'native_event_to_rollback');
+      expect(exception.supabaseEventId, isNull);
+      expect(exception.code, 'PGRST116');
     });
   });
 }

@@ -1,3 +1,5 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../data/models/group_model.dart';
 import '../network/supabase_client.dart';
 import '../utils/logger.dart';
@@ -75,6 +77,8 @@ class GroupService {
       Logger.info('Group created successfully: $groupId');
 
       return GroupModel.fromJson(groupResponse).copyWith(memberCount: 1);
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
       Logger.error('Failed to create group: $e');
@@ -117,6 +121,8 @@ class GroupService {
 
       Logger.info('Group updated successfully');
       return GroupModel.fromJson(response);
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
       Logger.error('Failed to update group: $e');
@@ -155,6 +161,8 @@ class GroupService {
           .eq('id', groupId);
 
       Logger.info('Group deleted successfully');
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
       Logger.error('Failed to delete group: $e');
@@ -206,6 +214,8 @@ class GroupService {
 
       Logger.info('Member added successfully');
       return GroupMemberModel.fromJson(response);
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
       Logger.error('Failed to add member: $e');
@@ -278,6 +288,8 @@ class GroupService {
           .eq('user_id', userId);
 
       Logger.info('Member removed successfully');
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
       Logger.error('Failed to remove member: $e');
@@ -334,6 +346,8 @@ class GroupService {
           .eq('user_id', userId);
 
       Logger.info('Member promoted to co-owner successfully');
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
       Logger.error('Failed to promote member: $e');
@@ -389,6 +403,8 @@ class GroupService {
           .eq('user_id', userId);
 
       Logger.info('Co-owner demoted to member successfully');
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
       Logger.error('Failed to demote co-owner: $e');
@@ -438,6 +454,8 @@ class GroupService {
           .eq('user_id', currentUserId);
 
       Logger.info('Ownership transferred successfully');
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
       Logger.error('Failed to transfer ownership: $e');
@@ -511,6 +529,8 @@ class GroupService {
 
       Logger.info('Fetched ${groups.length} groups');
       return groups;
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
       Logger.error('Failed to fetch groups: $e');
@@ -549,6 +569,8 @@ class GroupService {
       return GroupModel.fromJson(response).copyWith(
         memberCount: (countResponse as List).length,
       );
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
       Logger.error('Failed to fetch group: $e');
@@ -616,6 +638,8 @@ class GroupService {
 
       Logger.info('Fetched ${members.length} members');
       return members;
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
       Logger.error('Failed to fetch group members: $e');
@@ -689,6 +713,8 @@ class GroupService {
       });
 
       Logger.info('Invite sent successfully');
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
       Logger.error('Failed to invite user: $e');
@@ -741,6 +767,8 @@ class GroupService {
 
       Logger.info('Invite accepted, now a member of group $groupId');
       return GroupMemberModel.fromJson(memberResponse);
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
       Logger.error('Failed to accept invite: $e');
@@ -765,6 +793,8 @@ class GroupService {
           .eq('invited_user_id', currentUserId);
 
       Logger.info('Invite declined');
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
       Logger.error('Failed to decline invite: $e');
@@ -807,6 +837,8 @@ class GroupService {
           .eq('id', inviteId);
 
       Logger.info('Invite canceled');
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
       Logger.error('Failed to cancel invite: $e');
@@ -833,6 +865,8 @@ class GroupService {
 
       Logger.info('Fetched ${invites.length} pending invites');
       return invites;
+    } on PostgrestException catch (e) {
+      throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
       Logger.error('Failed to fetch pending invites: $e');
@@ -882,5 +916,43 @@ class GroupService {
         .maybeSingle();
 
     return response;
+  }
+
+  /// Convert PostgrestException to user-friendly GroupServiceException
+  GroupServiceException _handlePostgrestError(PostgrestException e) {
+    Logger.error('Supabase error: ${e.code} - ${e.message}');
+
+    switch (e.code) {
+      case '23505': // unique_violation
+        return GroupServiceException(
+          'This already exists',
+          code: e.code,
+        );
+      case '23503': // foreign_key_violation
+        return GroupServiceException(
+          'Referenced record not found',
+          code: e.code,
+        );
+      case '42501': // insufficient_privilege (RLS)
+        return GroupServiceException(
+          'Permission denied',
+          code: e.code,
+        );
+      case 'PGRST116': // JWT expired
+        return GroupServiceException(
+          'Session expired, please log in again',
+          code: e.code,
+        );
+      case 'PGRST301': // Row not found
+        return GroupServiceException(
+          'Record not found',
+          code: e.code,
+        );
+      default:
+        return GroupServiceException(
+          'Database error: ${e.message}',
+          code: e.code,
+        );
+    }
   }
 }
