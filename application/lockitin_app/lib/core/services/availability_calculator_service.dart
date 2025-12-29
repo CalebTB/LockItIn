@@ -158,18 +158,10 @@ class AvailabilityCalculatorService {
       final localStart = event.startTime.toLocal();
       final localEnd = event.endTime.toLocal();
 
-      // Create event times on the same date as the range
-      final eventStart = DateTime(
-        rangeStart.year, rangeStart.month, rangeStart.day,
-        localStart.hour, localStart.minute,
-      );
-      final eventEnd = DateTime(
-        rangeStart.year, rangeStart.month, rangeStart.day,
-        localEnd.hour, localEnd.minute,
-      );
-
-      // Event overlaps if it starts before range ends AND ends after range starts
-      if (eventStart.isBefore(rangeEnd) && eventEnd.isAfter(rangeStart)) {
+      // First check if the event actually occurs on/overlaps with this date
+      // An event overlaps with the date if it starts before range end AND ends after range start
+      // This handles multi-day events and events on different days
+      if (localStart.isBefore(rangeEnd) && localEnd.isAfter(rangeStart)) {
         return true;
       }
     }
