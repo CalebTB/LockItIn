@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/friend_provider.dart';
+import '../providers/group_provider.dart';
 import '../providers/settings_provider.dart';
 import 'auth/login_screen.dart';
 
@@ -79,6 +81,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _handleLogout() async {
+    // Clear provider state BEFORE signing out to prevent data leaks
+    // This ensures cached data from this user won't be visible to the next user
+    context.read<FriendProvider>().reset();
+    context.read<GroupProvider>().reset();
+
     final authProvider = context.read<AuthProvider>();
     await authProvider.signOut();
 
