@@ -158,18 +158,10 @@ class AvailabilityCalculatorService {
       final localStart = event.startTime.toLocal();
       final localEnd = event.endTime.toLocal();
 
-      // Create event times on the same date as the range
-      final eventStart = DateTime(
-        rangeStart.year, rangeStart.month, rangeStart.day,
-        localStart.hour, localStart.minute,
-      );
-      final eventEnd = DateTime(
-        rangeStart.year, rangeStart.month, rangeStart.day,
-        localEnd.hour, localEnd.minute,
-      );
-
-      // Event overlaps if it starts before range ends AND ends after range starts
-      if (eventStart.isBefore(rangeEnd) && eventEnd.isAfter(rangeStart)) {
+      // First check if the event actually occurs on/overlaps with this date
+      // An event overlaps with the date if it starts before range end AND ends after range start
+      // This handles multi-day events and events on different days
+      if (localStart.isBefore(rangeEnd) && localEnd.isAfter(rangeStart)) {
         return true;
       }
     }
@@ -274,24 +266,17 @@ class AvailabilityCalculatorService {
     );
 
     // Get overlapping events (conflicts) sorted by start time
-    // Convert UTC times to local for correct hour/minute
+    // Use actual event times (not reconstructed) to handle multi-day events correctly
     final conflicts = events
         .where((e) => e.category != EventCategory.holiday)
         .where((e) {
           final localStart = e.startTime.toLocal();
           final localEnd = e.endTime.toLocal();
-          final eventStart = DateTime(
-            date.year, date.month, date.day,
-            localStart.hour, localStart.minute,
-          );
-          final eventEnd = DateTime(
-            date.year, date.month, date.day,
-            localEnd.hour, localEnd.minute,
-          );
-          return eventStart.isBefore(bounds.end) && eventEnd.isAfter(bounds.start);
+          // Event overlaps if it starts before bounds end AND ends after bounds start
+          return localStart.isBefore(bounds.end) && localEnd.isAfter(bounds.start);
         })
         .toList()
-      ..sort((a, b) => a.startTime.toLocal().hour.compareTo(b.startTime.toLocal().hour));
+      ..sort((a, b) => a.startTime.toLocal().compareTo(b.startTime.toLocal()));
 
     // No conflicts - completely free
     if (conflicts.isEmpty) {
@@ -314,18 +299,10 @@ class AvailabilityCalculatorService {
       final event = conflicts.first;
       final localStart = event.startTime.toLocal();
       final localEnd = event.endTime.toLocal();
-      final eventStart = DateTime(
-        date.year, date.month, date.day,
-        localStart.hour, localStart.minute,
-      );
-      final eventEnd = DateTime(
-        date.year, date.month, date.day,
-        localEnd.hour, localEnd.minute,
-      );
 
-      // Clamp to filter range for display
-      final displayStart = eventStart.isBefore(bounds.start) ? bounds.start : eventStart;
-      final displayEnd = eventEnd.isAfter(bounds.end) ? bounds.end : eventEnd;
+      // Clamp to filter range for display (use actual times, not reconstructed)
+      final displayStart = localStart.isBefore(bounds.start) ? bounds.start : localStart;
+      final displayEnd = localEnd.isAfter(bounds.end) ? bounds.end : localEnd;
 
       return 'Busy ${formatTime(displayStart)} - ${formatTime(displayEnd)}';
     }

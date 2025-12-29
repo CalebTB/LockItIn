@@ -14,6 +14,7 @@ import '../widgets/group_members_section.dart';
 import '../widgets/group_time_filter_chips.dart';
 import '../widgets/group_date_range_filter.dart';
 import '../widgets/group_best_days_section.dart';
+import '../widgets/suggested_time_slots_card.dart';
 
 /// Group detail screen showing group calendar with availability heatmap
 /// Adapted from CalendarScreen with Sunset Coral Dark theme
@@ -1412,6 +1413,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       right: 0,
       bottom: 0,
       child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             begin: Alignment.topCenter,
@@ -1426,17 +1430,44 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 48,
-              height: 6,
-              decoration: BoxDecoration(
-                color: _rose500.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(3),
+            // Handle bar - tap to close (FIXED at top)
+            GestureDetector(
+              onTap: () => setState(() => _selectedDay = null),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                color: Colors.transparent,
+                child: Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: _rose500.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Tap to close',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: _rose400.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
 
+            // Scrollable content
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
             // Header
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1479,18 +1510,72 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
             const SizedBox(height: 16),
 
+            // Suggested time slots section
+            Builder(
+              builder: (context) {
+                final groupProvider = context.read<GroupProvider>();
+                final members = groupProvider.selectedGroupMembers;
+
+                // Calculate time range from selected filters
+                int startHour = 8;
+                int endHour = 22;
+
+                if (_selectedTimeFilters.contains(TimeFilter.allDay)) {
+                  // Use custom times if set, otherwise default 8am-10pm
+                  startHour = _customStartTime.hour;
+                  endHour = _customEndTime.hour;
+                } else if (_selectedTimeFilters.isNotEmpty) {
+                  // Find min start and max end from selected filters
+                  startHour = _selectedTimeFilters
+                      .map((f) => f.startHour)
+                      .reduce((a, b) => a < b ? a : b);
+                  endHour = _selectedTimeFilters
+                      .map((f) => f.endHour)
+                      .reduce((a, b) => a > b ? a : b);
+                  // Handle night filter wrapping
+                  if (endHour < startHour) {
+                    endHour = 24;
+                  }
+                }
+
+                // Compute best time slots for this date
+                final timeSlots = _availabilityService.findBestTimeSlots(
+                  memberEvents: _memberEvents,
+                  date: date,
+                  startHour: startHour,
+                  endHour: endHour,
+                );
+
+                return SuggestedTimeSlotsCard(
+                  date: date,
+                  timeSlots: timeSlots,
+                  members: members,
+                  onSlotSelected: (slot) {
+                    // TODO: Navigate to event proposal flow with pre-selected time
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Selected ${slot.formattedTimeRange} - Event proposals coming in Sprint 3!',
+                        ),
+                        backgroundColor: _rose500,
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+
+            const SizedBox(height: 8),
+
             // Member availability list
             Consumer<GroupProvider>(
               builder: (context, provider, _) {
                 final members = provider.selectedGroupMembers;
 
-                return Container(
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.35,
-                  ),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                     itemCount: members.length,
                     itemBuilder: (context, index) {
                       final member = members[index];
@@ -1691,8 +1776,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         ),
                       );
                     },
-                  ),
-                );
+                  );
               },
             ),
 
@@ -1735,6 +1819,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               )
             else
               const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
