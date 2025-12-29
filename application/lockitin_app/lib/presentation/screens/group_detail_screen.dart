@@ -1516,12 +1516,34 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 final groupProvider = context.read<GroupProvider>();
                 final members = groupProvider.selectedGroupMembers;
 
+                // Calculate time range from selected filters
+                int startHour = 8;
+                int endHour = 22;
+
+                if (_selectedTimeFilters.contains(TimeFilter.allDay)) {
+                  // Use custom times if set, otherwise default 8am-10pm
+                  startHour = _customStartTime.hour;
+                  endHour = _customEndTime.hour;
+                } else if (_selectedTimeFilters.isNotEmpty) {
+                  // Find min start and max end from selected filters
+                  startHour = _selectedTimeFilters
+                      .map((f) => f.startHour)
+                      .reduce((a, b) => a < b ? a : b);
+                  endHour = _selectedTimeFilters
+                      .map((f) => f.endHour)
+                      .reduce((a, b) => a > b ? a : b);
+                  // Handle night filter wrapping
+                  if (endHour < startHour) {
+                    endHour = 24;
+                  }
+                }
+
                 // Compute best time slots for this date
                 final timeSlots = _availabilityService.findBestTimeSlots(
                   memberEvents: _memberEvents,
                   date: date,
-                  startHour: 8,
-                  endHour: 22,
+                  startHour: startHour,
+                  endHour: endHour,
                 );
 
                 return SuggestedTimeSlotsCard(
