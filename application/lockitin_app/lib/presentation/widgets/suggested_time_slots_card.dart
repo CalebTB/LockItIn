@@ -139,8 +139,8 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
               children: [
                 // Time range
                 Container(
-                  width: 100,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  width: 85,
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                   decoration: BoxDecoration(
                     color: _getAvailabilityColor(slot.availabilityRatio).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
@@ -152,13 +152,13 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
                     slot.formattedTimeRange,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: _getAvailabilityColor(slot.availabilityRatio),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
 
                 // Availability indicator
                 Expanded(
@@ -167,12 +167,15 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
                     children: [
                       Row(
                         children: [
-                          Text(
-                            slot.availabilityDescription,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white,
+                          Flexible(
+                            child: Text(
+                              slot.availabilityDescription,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           if (slot.isFullyAvailable) ...[
@@ -224,11 +227,11 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
                       size: 20,
                     ),
                     if (widget.onSlotSelected != null) ...[
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 2),
                       GestureDetector(
                         onTap: () => widget.onSlotSelected!(slot),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [
