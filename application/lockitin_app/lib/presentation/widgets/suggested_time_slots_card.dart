@@ -263,18 +263,45 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
   }
 
   Widget _buildMemberList(TimeSlotAvailability slot) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: SunsetCoralTheme.rose900.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Free members
-          if (slot.availableMembers.isNotEmpty) ...[
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _expandedSlotId = null;
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: SunsetCoralTheme.rose900.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Close hint row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.keyboard_arrow_up_rounded,
+                  color: Colors.white38,
+                  size: 16,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Tap to close',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white38,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Free members
+            if (slot.availableMembers.isNotEmpty) ...[
             Row(
               children: [
                 Icon(
@@ -338,6 +365,7 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
             ),
           ],
         ],
+        ),
       ),
     );
   }
