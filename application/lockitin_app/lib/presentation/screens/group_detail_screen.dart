@@ -1427,14 +1427,35 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 48,
-              height: 6,
-              decoration: BoxDecoration(
-                color: _rose500.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(3),
+            // Handle bar - tap to close
+            GestureDetector(
+              onTap: () => setState(() => _selectedDay = null),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                color: Colors.transparent,
+                child: Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: _rose500.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Tap to close',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: _rose400.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
 
