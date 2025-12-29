@@ -3,6 +3,51 @@ import 'package:intl/intl.dart';
 import '../../data/models/event_model.dart';
 import '../utils/time_filter_utils.dart';
 
+/// Represents availability for a specific time slot
+class TimeSlotAvailability {
+  final DateTime startTime;
+  final DateTime endTime;
+  final int availableCount;
+  final int totalMembers;
+  final List<String> availableMembers;
+  final List<String> busyMembers;
+
+  const TimeSlotAvailability({
+    required this.startTime,
+    required this.endTime,
+    required this.availableCount,
+    required this.totalMembers,
+    required this.availableMembers,
+    required this.busyMembers,
+  });
+
+  /// Percentage of members available (0.0 to 1.0)
+  double get availabilityRatio =>
+      totalMembers > 0 ? availableCount / totalMembers : 0.0;
+
+  /// Whether everyone is available
+  bool get isFullyAvailable => availableCount == totalMembers;
+
+  /// Whether no one is available
+  bool get isEmpty => availableCount == 0;
+
+  /// Duration of this time slot
+  Duration get duration => endTime.difference(startTime);
+
+  /// Formatted time range string (e.g., "2pm - 4pm")
+  String get formattedTimeRange {
+    final startFormat = DateFormat('ha');
+    final endFormat = DateFormat('ha');
+    return '${startFormat.format(startTime).toLowerCase()} - ${endFormat.format(endTime).toLowerCase()}';
+  }
+
+  /// Availability description (e.g., "7/8 available")
+  String get availabilityDescription => '$availableCount/$totalMembers available';
+
+  @override
+  String toString() => 'TimeSlotAvailability($formattedTimeRange: $availabilityDescription)';
+}
+
 /// Service for calculating group availability based on member events
 ///
 /// This service handles all availability logic:
@@ -287,6 +332,186 @@ class AvailabilityCalculatorService {
 
     // Multiple conflicts - show count
     return '${conflicts.length} conflicts';
+  }
+
+  /// Find the best time slots on a specific date when most members are free
+  ///
+  /// Returns a list of TimeSlotAvailability objects sorted by:
+  /// 1. Available count (highest first)
+  /// 2. Start time (earliest first for same availability)
+  ///
+  /// [memberEvents] - Map of userId to their events
+  /// [date] - The date to analyze
+  /// [startHour] - Start hour of the range to analyze (0-23)
+  /// [endHour] - End hour of the range to analyze (1-24)
+  /// [slotDurationMinutes] - Duration of each slot (default 60 minutes)
+  List<TimeSlotAvailability> findBestTimeSlots({
+    required Map<String, List<EventModel>> memberEvents,
+    required DateTime date,
+    int startHour = 8,
+    int endHour = 22,
+    int slotDurationMinutes = 60,
+  }) {
+    if (memberEvents.isEmpty) {
+      return [];
+    }
+
+    final slots = <TimeSlotAvailability>[];
+    final totalMembers = memberEvents.length;
+
+    // Generate time slots
+    var currentTime = DateTime(date.year, date.month, date.day, startHour);
+    final endTime = DateTime(date.year, date.month, date.day, endHour);
+
+    while (currentTime.isBefore(endTime)) {
+      final slotEnd = currentTime.add(Duration(minutes: slotDurationMinutes));
+      if (slotEnd.isAfter(endTime)) break;
+
+      // Count available members for this slot
+      int availableCount = 0;
+      final availableMembers = <String>[];
+      final busyMembers = <String>[];
+
+      for (final entry in memberEvents.entries) {
+        final userId = entry.key;
+        final events = entry.value;
+
+        // Check if this member has any event during this slot
+        final hasBusyBlock = _hasEventInRange(events, currentTime, slotEnd);
+
+        if (!hasBusyBlock) {
+          availableCount++;
+          availableMembers.add(userId);
+        } else {
+          busyMembers.add(userId);
+        }
+      }
+
+      slots.add(TimeSlotAvailability(
+        startTime: currentTime,
+        endTime: slotEnd,
+        availableCount: availableCount,
+        totalMembers: totalMembers,
+        availableMembers: availableMembers,
+        busyMembers: busyMembers,
+      ));
+
+      currentTime = slotEnd;
+    }
+
+    // Sort by availability (highest first), then by start time (earliest first)
+    slots.sort((a, b) {
+      final availCompare = b.availableCount.compareTo(a.availableCount);
+      if (availCompare != 0) return availCompare;
+      return a.startTime.compareTo(b.startTime);
+    });
+
+    return slots;
+  }
+
+  /// Get hour-by-hour availability breakdown for a specific date
+  ///
+  /// Returns a map of hour (0-23) to availability count.
+  /// Useful for displaying hourly heatmaps.
+  Map<int, int> getHourlyAvailability({
+    required Map<String, List<EventModel>> memberEvents,
+    required DateTime date,
+    int startHour = 0,
+    int endHour = 24,
+  }) {
+    final hourlyAvailability = <int, int>{};
+
+    for (int hour = startHour; hour < endHour; hour++) {
+      final slotStart = DateTime(date.year, date.month, date.day, hour);
+      final slotEnd = DateTime(date.year, date.month, date.day, hour + 1);
+
+      int availableCount = 0;
+      for (final events in memberEvents.values) {
+        if (!_hasEventInRange(events, slotStart, slotEnd)) {
+          availableCount++;
+        }
+      }
+
+      hourlyAvailability[hour] = availableCount;
+    }
+
+    return hourlyAvailability;
+  }
+
+  /// Find contiguous time blocks where a minimum number of members are available
+  ///
+  /// Returns merged time blocks where availability meets the threshold.
+  /// Useful for finding "windows" of availability.
+  List<TimeSlotAvailability> findAvailableWindows({
+    required Map<String, List<EventModel>> memberEvents,
+    required DateTime date,
+    required int minimumAvailable,
+    int startHour = 8,
+    int endHour = 22,
+  }) {
+    if (memberEvents.isEmpty) {
+      return [];
+    }
+
+    final totalMembers = memberEvents.length;
+    final windows = <TimeSlotAvailability>[];
+
+    // Get hourly availability first
+    final hourlySlots = findBestTimeSlots(
+      memberEvents: memberEvents,
+      date: date,
+      startHour: startHour,
+      endHour: endHour,
+      slotDurationMinutes: 60,
+    );
+
+    // Sort by time for merging
+    hourlySlots.sort((a, b) => a.startTime.compareTo(b.startTime));
+
+    // Merge contiguous slots that meet the threshold
+    TimeSlotAvailability? currentWindow;
+
+    for (final slot in hourlySlots) {
+      if (slot.availableCount >= minimumAvailable) {
+        if (currentWindow == null) {
+          // Start a new window
+          currentWindow = slot;
+        } else if (slot.startTime == currentWindow.endTime) {
+          // Extend the current window
+          currentWindow = TimeSlotAvailability(
+            startTime: currentWindow.startTime,
+            endTime: slot.endTime,
+            availableCount: (currentWindow.availableCount + slot.availableCount) ~/ 2,
+            totalMembers: totalMembers,
+            availableMembers: currentWindow.availableMembers
+                .toSet()
+                .intersection(slot.availableMembers.toSet())
+                .toList(),
+            busyMembers: currentWindow.busyMembers
+                .toSet()
+                .union(slot.busyMembers.toSet())
+                .toList(),
+          );
+        } else {
+          // Gap found - save current window and start new
+          windows.add(currentWindow);
+          currentWindow = slot;
+        }
+      } else {
+        // Below threshold - save current window if exists
+        if (currentWindow != null) {
+          windows.add(currentWindow);
+          currentWindow = null;
+        }
+      }
+    }
+
+    // Don't forget the last window
+    if (currentWindow != null) {
+      windows.add(currentWindow);
+    }
+
+    return windows;
   }
 
   /// Find the best days in a month based on group availability
