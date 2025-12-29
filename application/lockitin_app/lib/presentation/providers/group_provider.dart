@@ -114,6 +114,40 @@ class GroupProvider extends ChangeNotifier {
     _isInitialized = true;
   }
 
+  /// Reset all state - call this on logout to prevent data leaking between accounts
+  ///
+  /// CRITICAL: This must be called when user logs out to clear cached data
+  /// from the previous session. Without this, a new user would see the
+  /// previous user's groups, members, and invites.
+  void reset() {
+    Logger.info('Resetting GroupProvider state', 'GroupProvider');
+
+    // Clear all cached data
+    _groups = [];
+    _selectedGroup = null;
+    _selectedGroupMembers = [];
+    _currentUserRole = null;
+    _pendingInvites = [];
+
+    // Reset loading states
+    _isLoadingGroups = false;
+    _isLoadingMembers = false;
+    _isLoadingInvites = false;
+    _isCreatingGroup = false;
+    _isUpdatingGroup = false;
+
+    // Clear errors
+    _groupsError = null;
+    _membersError = null;
+    _invitesError = null;
+    _actionError = null;
+
+    // Reset initialization flag so data reloads for new user
+    _isInitialized = false;
+
+    notifyListeners();
+  }
+
   // ============================================================================
   // Data Loading
   // ============================================================================

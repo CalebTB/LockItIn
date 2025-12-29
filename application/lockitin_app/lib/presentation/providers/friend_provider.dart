@@ -90,6 +90,41 @@ class FriendProvider extends ChangeNotifier {
     _isInitialized = true;
   }
 
+  /// Reset all state - call this on logout to prevent data leaking between accounts
+  ///
+  /// CRITICAL: This must be called when user logs out to clear cached data
+  /// from the previous session. Without this, a new user would see the
+  /// previous user's friends, requests, and search results.
+  void reset() {
+    Logger.info('Resetting FriendProvider state', 'FriendProvider');
+
+    // Clear all cached data
+    _friends = [];
+    _pendingRequests = [];
+    _sentRequests = [];
+    _searchResults = [];
+
+    // Reset loading states
+    _isLoadingFriends = false;
+    _isLoadingRequests = false;
+    _isSearching = false;
+    _isSendingRequest = false;
+
+    // Clear errors
+    _friendsError = null;
+    _requestsError = null;
+    _searchError = null;
+    _actionError = null;
+
+    // Reset search
+    _searchQuery = '';
+
+    // Reset initialization flag so data reloads for new user
+    _isInitialized = false;
+
+    notifyListeners();
+  }
+
   // ============================================================================
   // Data Loading
   // ============================================================================
