@@ -151,16 +151,51 @@ Ensure:
 2. `user_id` in EventModel matches `auth.uid()`
 3. RLS policies are applied
 
+### 4. Apply Shadow Calendar Schema
+
+The shadow calendar enables privacy-respecting group availability views:
+
+1. Open `shadow_calendar_schema.sql` from this directory
+2. Copy the entire contents
+3. Paste into the SQL Editor
+4. Click **Run** (or press Cmd+Enter)
+
+This creates:
+- ✅ `shadow_calendar` table for availability blocks
+- ✅ Automatic sync trigger from events → shadow_calendar
+- ✅ RLS policies for group member access
+- ✅ `get_group_shadow_calendar` RPC function
+
+#### `shadow_calendar` table
+Stores denormalized availability blocks for efficient group queries.
+
+```sql
+CREATE TABLE shadow_calendar (
+  id UUID PRIMARY KEY,
+  event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  visibility event_visibility NOT NULL,  -- 'busyOnly' or 'sharedWithName'
+  event_title TEXT,  -- NULL for busyOnly (privacy enforced)
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE
+);
+```
+
+**How it works:**
+- When you create/update an event with `busyOnly` or `sharedWithName` visibility, a trigger automatically syncs it to `shadow_calendar`
+- Private events are **never** synced (privacy enforcement)
+- Group members can query `shadow_calendar` to see availability without accessing your actual events
+- The RPC function `get_group_shadow_calendar` provides efficient batch queries
+
 ## Future Database Tables
 
 These tables will be added in future sprints:
 
-- `groups` - Friend groups for event coordination
-- `group_members` - Many-to-many relationship
 - `event_proposals` - Proposed event times
 - `proposal_time_options` - Time options for proposals
 - `proposal_votes` - Voting on time options
-- `calendar_sharing` - Privacy settings per group
 - `notifications` - In-app notification queue
 
 Each table will have its own RLS policies to maintain security.
@@ -200,5 +235,5 @@ USING (your_condition);
 
 ---
 
-**Last Updated:** December 26, 2024
-**Schema Version:** 1.0.0 (MVP - Events only)
+**Last Updated:** December 29, 2025
+**Schema Version:** 1.1.0 (Shadow Calendar)

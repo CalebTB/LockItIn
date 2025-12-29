@@ -101,7 +101,8 @@ enum EventVisibility {
 
 **Key Tables (PostgreSQL):**
 - `users` - Profiles, settings, subscription status
-- `events` - Calendar events with privacy settings
+- `events` - Calendar events with privacy settings (source of truth)
+- `shadow_calendar` - Synced availability blocks for group queries (non-private events only)
 - `groups` + `group_members` - Friend groups with role-based access
 - `event_proposals` + `proposal_time_options` + `proposal_votes` - Voting system
 - `calendar_sharing` - Per-group visibility controls
@@ -109,11 +110,47 @@ enum EventVisibility {
 
 ### Critical Design Patterns
 
-**1. Shadow Calendar System**
-- Users set visibility per event: Private / Shared-With-Name / Busy-Only
-- Groups only see aggregated availability heatmaps (e.g., "5/8 people free")
+**1. Shadow Calendar System (Dual-Table Architecture)**
+
+Users set visibility per event: Private / Shared-With-Name / Busy-Only. Privacy is enforced at the database level through a dual-table architecture:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      EVENTS TABLE                            │
+│  Stores ALL events (private, busyOnly, sharedWithName)      │
+│                                                              │
+│  RLS Policy: Users can ONLY see their own events            │
+│  Used by: Personal calendar view                            │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           │ Trigger syncs non-private only
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  SHADOW_CALENDAR TABLE                       │
+│  Stores ONLY busyOnly + sharedWithName events               │
+│  (Private events NEVER exist here)                          │
+│                                                              │
+│  RLS Policy: Group members can see each other's entries     │
+│  Used by: Group availability heatmap, day detail views      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**How events flow:**
+- **Private event** → `events` table only (your eyes only)
+- **BusyOnly event** → `events` + `shadow_calendar` (title stored as NULL)
+- **SharedWithName event** → `events` + `shadow_calendar` (title visible)
+
+**Privacy guarantees:**
+- Private events physically don't exist in `shadow_calendar` - impossible to leak
+- BusyOnly events show as time blocks without titles in group views
+- SharedWithName events show titles to group members
+- Groups see aggregated availability heatmaps (e.g., "5/8 people free")
 - Tapping a time slot reveals who's free (respecting individual privacy settings)
-- Privacy enforced at database level via RLS policies
+
+**Database objects:**
+- `shadow_calendar` table with RLS policies
+- `sync_event_to_shadow_calendar()` trigger function
+- `get_group_shadow_calendar()` RPC function for efficient queries
 
 **2. Real-Time Voting**
 - WebSocket subscriptions on proposal screens for live vote updates

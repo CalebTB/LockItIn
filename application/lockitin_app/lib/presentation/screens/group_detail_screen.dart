@@ -83,7 +83,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     await _loadMemberEvents();
   }
 
-  /// Load events for all group members
+  /// Load shadow calendar entries for all group members
+  /// Uses the privacy-respecting shadow calendar system
   Future<void> _loadMemberEvents() async {
     final groupProvider = context.read<GroupProvider>();
     final members = groupProvider.selectedGroupMembers;
@@ -105,11 +106,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       final startDate = DateTime(now.year, now.month - 2, 1);
       final endDate = DateTime(now.year, now.month + 3, 0);
 
-      final events = await EventService.instance.fetchGroupMembersEvents(
+      // Use shadow calendar for privacy-respecting availability data
+      final shadowEntries = await EventService.instance.fetchGroupShadowCalendar(
         memberUserIds: memberIds,
         startDate: startDate,
         endDate: endDate,
       );
+
+      // Convert to EventModel format for compatibility with availability calculator
+      final events = EventService.instance.shadowToEventModels(shadowEntries);
 
       if (mounted) {
         setState(() {

@@ -1,4 +1,5 @@
 import '../../data/models/event_model.dart';
+import '../../data/models/shadow_calendar_entry.dart';
 import '../network/supabase_client.dart';
 import '../utils/logger.dart';
 import 'calendar_manager.dart';
@@ -309,5 +310,100 @@ class EventService {
       // Return empty map to allow app to continue
       return {};
     }
+  }
+
+  /// Fetch shadow calendar entries for group members
+  ///
+  /// Uses the optimized get_group_shadow_calendar RPC function
+  /// which enforces privacy at the database level.
+  ///
+  /// Returns a map of userId to list of shadow calendar entries
+  Future<Map<String, List<ShadowCalendarEntry>>> fetchGroupShadowCalendar({
+    required List<String> memberUserIds,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    try {
+      Logger.info(
+        'Fetching shadow calendar for ${memberUserIds.length} members: '
+        '${startDate.toIso8601String()} to ${endDate.toIso8601String()}',
+      );
+
+      // Call the RPC function
+      final response = await SupabaseClientManager.client.rpc(
+        'get_group_shadow_calendar',
+        params: {
+          'p_user_ids': memberUserIds,
+          'p_start_date': startDate.toIso8601String(),
+          'p_end_date': endDate.toIso8601String(),
+        },
+      );
+
+      // Group entries by user_id
+      final Map<String, List<ShadowCalendarEntry>> entriesByUser = {};
+
+      // Initialize empty lists for all members
+      for (final userId in memberUserIds) {
+        entriesByUser[userId] = [];
+      }
+
+      // Parse and group entries
+      for (final json in response as List) {
+        final entry = ShadowCalendarEntry.fromJson(json as Map<String, dynamic>);
+        final userId = entry.userId;
+        if (entriesByUser.containsKey(userId)) {
+          entriesByUser[userId]!.add(entry);
+        }
+      }
+
+      final totalEntries = entriesByUser.values.fold<int>(
+        0,
+        (sum, entries) => sum + entries.length,
+      );
+      Logger.info('Fetched $totalEntries shadow calendar entries for group');
+
+      return entriesByUser;
+    } catch (e) {
+      Logger.error('Failed to fetch shadow calendar: $e');
+      // Return empty map to allow app to continue
+      return {};
+    }
+  }
+
+  /// Convert shadow calendar entries to EventModel-like objects
+  /// for compatibility with existing availability calculator
+  ///
+  /// This creates minimal EventModel objects with just the data needed
+  /// for availability calculations (start/end times, category)
+  ///
+  /// IMPORTANT: Preserves all member entries (even empty ones) so the
+  /// availability calculator knows how many members exist.
+  Map<String, List<EventModel>> shadowToEventModels(
+    Map<String, List<ShadowCalendarEntry>> shadowEntries,
+  ) {
+    final Map<String, List<EventModel>> result = {};
+
+    for (final entry in shadowEntries.entries) {
+      final userId = entry.key;
+      final entries = entry.value;
+
+      // Always create an entry for each member (even if empty list)
+      // This ensures availability calculator counts all members
+      result[userId] = entries.map((shadow) {
+        return EventModel(
+          id: '', // Not needed for availability calculation
+          userId: shadow.userId,
+          title: shadow.displayText,
+          startTime: shadow.startTime,
+          endTime: shadow.endTime,
+          visibility: shadow.isBusyOnly
+              ? EventVisibility.busyOnly
+              : EventVisibility.sharedWithName,
+          createdAt: DateTime.now(),
+        );
+      }).toList();
+    }
+
+    return result;
   }
 }
