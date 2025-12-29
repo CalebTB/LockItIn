@@ -82,12 +82,17 @@ class FriendProvider extends ChangeNotifier {
     // Skip if already initialized to prevent duplicate API calls
     if (_isInitialized) return;
 
+    await _loadData();
+    _isInitialized = true;
+  }
+
+  /// Internal method to load all friend data
+  /// Used by both [initialize] and [refresh] to avoid duplication
+  Future<void> _loadData() async {
     await Future.wait([
       loadFriends(),
       loadPendingRequests(),
     ]);
-
-    _isInitialized = true;
   }
 
   /// Reset all state - call this on logout to prevent data leaking between accounts
@@ -177,10 +182,7 @@ class FriendProvider extends ChangeNotifier {
 
   /// Refresh all friend data (force reload)
   Future<void> refresh() async {
-    await Future.wait([
-      loadFriends(),
-      loadPendingRequests(),
-    ]);
+    await _loadData();
   }
 
   // ============================================================================
