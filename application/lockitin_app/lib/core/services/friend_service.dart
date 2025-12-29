@@ -354,6 +354,8 @@ class FriendService {
   }
 
   /// Get list of sent friend requests (outgoing pending) with recipient info
+  ///
+  /// Uses get_sent_requests RPC function for consistency with other friendship queries
   Future<List<SentRequest>> getSentRequests() async {
     try {
       final currentUserId = SupabaseClientManager.currentUserId;
@@ -363,34 +365,12 @@ class FriendService {
 
       Logger.info('Fetching sent friend requests');
 
-      // Join with users table to get recipient profile info
       final response = await SupabaseClientManager.client
-          .from('friendships')
-          .select('''
-            id,
-            friend_id,
-            created_at,
-            users!friendships_friend_id_fkey (
-              id,
-              email,
-              full_name,
-              avatar_url
-            )
-          ''')
-          .eq('user_id', currentUserId)
-          .eq('status', 'pending');
+          .rpc('get_sent_requests', params: {'user_uuid': currentUserId});
 
-      final requests = (response as List).map((json) {
-        final userData = json['users'] as Map<String, dynamic>?;
-        return SentRequest(
-          requestId: json['id'] as String,
-          recipientId: json['friend_id'] as String,
-          fullName: userData?['full_name'] as String?,
-          email: userData?['email'] as String? ?? 'Unknown',
-          avatarUrl: userData?['avatar_url'] as String?,
-          sentAt: DateTime.parse(json['created_at'] as String),
-        );
-      }).toList();
+      final requests = (response as List)
+          .map((json) => SentRequest.fromJson(json as Map<String, dynamic>))
+          .toList();
 
       Logger.info('Fetched ${requests.length} sent requests');
       return requests;

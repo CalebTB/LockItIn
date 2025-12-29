@@ -302,6 +302,78 @@ void main() {
     });
   });
 
+  group('SentRequest - JSON Serialization', () {
+    test('should create SentRequest from get_sent_requests RPC result', () {
+      final json = {
+        'request_id': 'req-123',
+        'recipient_id': 'user-456',
+        'full_name': 'Jane Doe',
+        'email': 'jane@example.com',
+        'avatar_url': 'https://example.com/avatar.jpg',
+        'sent_at': '2025-12-27T10:30:00.000Z',
+      };
+
+      final request = SentRequest.fromJson(json);
+
+      expect(request.requestId, 'req-123');
+      expect(request.recipientId, 'user-456');
+      expect(request.fullName, 'Jane Doe');
+      expect(request.email, 'jane@example.com');
+      expect(request.avatarUrl, 'https://example.com/avatar.jpg');
+      expect(request.sentAt, isNotNull);
+    });
+
+    test('should handle null full_name and avatar_url', () {
+      final json = {
+        'request_id': 'req-789',
+        'recipient_id': 'user-012',
+        'full_name': null,
+        'email': 'user@example.com',
+        'avatar_url': null,
+        'sent_at': '2025-12-27T11:00:00.000Z',
+      };
+
+      final request = SentRequest.fromJson(json);
+
+      expect(request.requestId, 'req-789');
+      expect(request.fullName, isNull);
+      expect(request.email, 'user@example.com');
+      expect(request.avatarUrl, isNull);
+    });
+
+    test('displayName should prefer full name over email', () {
+      final requestWithName = SentRequest(
+        requestId: '123',
+        recipientId: '456',
+        fullName: 'John Doe',
+        email: 'john@example.com',
+        sentAt: DateTime.now(),
+      );
+
+      final requestWithoutName = SentRequest(
+        requestId: '789',
+        recipientId: '012',
+        email: 'jane@example.com',
+        sentAt: DateTime.now(),
+      );
+
+      expect(requestWithName.displayName, 'John Doe');
+      expect(requestWithoutName.displayName, 'jane@example.com');
+    });
+
+    test('initials should be calculated correctly', () {
+      final requestTwoNames = SentRequest(
+        requestId: '123',
+        recipientId: '456',
+        fullName: 'Bob Smith',
+        email: 'bob@example.com',
+        sentAt: DateTime.now(),
+      );
+
+      expect(requestTwoNames.initials, 'BS');
+    });
+  });
+
   group('FriendshipStatus Enum', () {
     test('should have all expected values', () {
       expect(FriendshipStatus.values.length, 3);
