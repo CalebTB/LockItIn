@@ -414,7 +414,9 @@ class GroupService {
 
   /// Transfer group ownership to another member
   ///
-  /// Current owner is demoted to member after transfer
+  /// Current owner is demoted to member after transfer.
+  /// Uses atomic RPC function to ensure transaction safety -
+  /// both role updates succeed or both fail (no orphaned/dual owners).
   Future<void> transferOwnership({
     required String groupId,
     required String newOwnerId,
@@ -425,36 +427,28 @@ class GroupService {
         throw GroupServiceException('User not authenticated');
       }
 
-      // Verify current user is owner
-      final currentMembership = await _getMembership(groupId, currentUserId);
-      if (currentMembership == null || currentMembership['role'] != 'owner') {
-        throw GroupServiceException('Only the owner can transfer ownership');
-      }
-
-      // Verify new owner is a member
-      final newOwnerMembership = await _getMembership(groupId, newOwnerId);
-      if (newOwnerMembership == null) {
-        throw GroupServiceException('New owner must be a member of the group');
-      }
-
       Logger.info('Transferring ownership of $groupId to $newOwnerId');
 
-      // Update new owner's role to owner
-      await SupabaseClientManager.client
-          .from('group_members')
-          .update({'role': 'owner'})
-          .eq('group_id', groupId)
-          .eq('user_id', newOwnerId);
-
-      // Demote current owner to member
-      await SupabaseClientManager.client
-          .from('group_members')
-          .update({'role': 'member'})
-          .eq('group_id', groupId)
-          .eq('user_id', currentUserId);
+      // Use RPC function for atomic transaction
+      // Function handles all validation and updates in a single transaction
+      await SupabaseClientManager.client.rpc(
+        'transfer_group_ownership',
+        params: {
+          'p_group_id': groupId,
+          'p_new_owner_id': newOwnerId,
+          'p_current_owner_id': currentUserId,
+        },
+      );
 
       Logger.info('Ownership transferred successfully');
     } on PostgrestException catch (e) {
+      // Map PostgreSQL exceptions to user-friendly messages
+      if (e.message.contains('Only the owner can transfer ownership')) {
+        throw GroupServiceException('Only the owner can transfer ownership');
+      }
+      if (e.message.contains('New owner must be a member')) {
+        throw GroupServiceException('New owner must be a member of the group');
+      }
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;

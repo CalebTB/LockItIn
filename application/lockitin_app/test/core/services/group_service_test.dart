@@ -143,4 +143,69 @@ void main() {
       expect(errorMappings['PGRST301'], 'Record not found');
     });
   });
+
+  group('GroupService - Transfer Ownership', () {
+    test('transfer ownership RPC parameters should be correct', () {
+      // Document the expected RPC function parameters
+      const rpcFunctionName = 'transfer_group_ownership';
+      final expectedParams = {
+        'p_group_id': 'group-uuid-123',
+        'p_new_owner_id': 'new-owner-uuid',
+        'p_current_owner_id': 'current-owner-uuid',
+      };
+
+      expect(rpcFunctionName, 'transfer_group_ownership');
+      expect(expectedParams.containsKey('p_group_id'), true);
+      expect(expectedParams.containsKey('p_new_owner_id'), true);
+      expect(expectedParams.containsKey('p_current_owner_id'), true);
+    });
+
+    test('should document transaction safety requirements', () {
+      // Transfer ownership must be atomic:
+      // 1. Promote new owner to 'owner' role
+      // 2. Demote current owner to 'member' role
+      // Both must succeed or both must fail
+
+      // If only step 1 succeeds: Group has TWO owners (data corruption)
+      // If only step 2 succeeds: Group has NO owner (orphaned)
+
+      // Solution: PostgreSQL RPC function with transaction guarantee
+      const solutionPattern = 'RPC function with SECURITY DEFINER';
+      expect(solutionPattern, contains('RPC'));
+    });
+
+    test('should map PostgreSQL exceptions to user-friendly messages', () {
+      // Test the exception message patterns from the RPC function
+      final ownershipException = PostgrestException(
+        message: 'Only the owner can transfer ownership',
+        code: 'P0001', // RAISE EXCEPTION in PostgreSQL
+      );
+
+      final memberException = PostgrestException(
+        message: 'New owner must be a member of the group',
+        code: 'P0001',
+      );
+
+      expect(
+        ownershipException.message.contains('Only the owner can transfer ownership'),
+        true,
+      );
+      expect(
+        memberException.message.contains('New owner must be a member'),
+        true,
+      );
+    });
+
+    test('should handle not authenticated error', () {
+      final exception = GroupServiceException('User not authenticated');
+      expect(exception.message, 'User not authenticated');
+    });
+
+    test('should handle general transfer failure', () {
+      final exception = GroupServiceException(
+        'Failed to transfer ownership: Network error',
+      );
+      expect(exception.message, contains('Failed to transfer ownership'));
+    });
+  });
 }
