@@ -107,11 +107,17 @@ class GroupProvider extends ChangeNotifier {
   Future<void> initialize() async {
     if (_isInitialized) return;
 
+    await _loadData();
+    _isInitialized = true;
+  }
+
+  /// Internal method to load all group data
+  /// Used by both [initialize] and [refresh] to avoid duplication
+  Future<void> _loadData() async {
     await Future.wait([
       loadGroups(),
       loadPendingInvites(),
     ]);
-    _isInitialized = true;
   }
 
   /// Reset all state - call this on logout to prevent data leaking between accounts
@@ -170,9 +176,9 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
-  /// Refresh groups (force reload)
+  /// Refresh all group data (force reload)
   Future<void> refresh() async {
-    await loadGroups();
+    await _loadData();
   }
 
   /// Load pending group invites for the current user
