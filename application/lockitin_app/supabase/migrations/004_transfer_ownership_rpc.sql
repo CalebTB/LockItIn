@@ -38,12 +38,12 @@ BEGIN
 
   -- Atomic update: promote new owner
   UPDATE group_members
-  SET role = 'owner', updated_at = NOW()
+  SET role = 'owner'
   WHERE group_id = p_group_id AND user_id = p_new_owner_id;
 
   -- Atomic update: demote current owner
   UPDATE group_members
-  SET role = 'member', updated_at = NOW()
+  SET role = 'member'
   WHERE group_id = p_group_id AND user_id = p_current_owner_id;
 
   RETURN TRUE;
