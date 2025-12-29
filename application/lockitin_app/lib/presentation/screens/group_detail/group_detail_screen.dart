@@ -56,6 +56,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   // Group members' events for availability calculation
   Map<String, List<EventModel>> _memberEvents = {};
   bool _isLoadingMemberEvents = false;
+  String? _memberEventsError;
 
   @override
   void initState() {
@@ -90,7 +91,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       return;
     }
 
-    setState(() => _isLoadingMemberEvents = true);
+    setState(() {
+      _isLoadingMemberEvents = true;
+      _memberEventsError = null;
+    });
 
     try {
       final memberIds = members.map((m) => m.userId).toList();
@@ -112,11 +116,27 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         setState(() {
           _memberEvents = events;
           _isLoadingMemberEvents = false;
+          _memberEventsError = null;
         });
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isLoadingMemberEvents = false);
+        setState(() {
+          _isLoadingMemberEvents = false;
+          _memberEventsError = 'Failed to load member availability';
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not load group availability'),
+            backgroundColor: _rose500,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: _loadMemberEvents,
+            ),
+          ),
+        );
       }
     }
   }
@@ -213,6 +233,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               Column(
                 children: [
                   _buildHeader(context),
+                  if (_memberEventsError != null) _buildErrorBanner(),
                   _buildMonthNavigation(),
                   GroupDateRangeFilter(
                     selectedDateRange: _selectedDateRange,
@@ -281,6 +302,41 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildErrorBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: _rose500.withValues(alpha: 0.2),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, size: 18, color: _orange400),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _memberEventsError ?? 'Error loading availability',
+              style: TextStyle(fontSize: 13, color: _rose200),
+            ),
+          ),
+          TextButton(
+            onPressed: _loadMemberEvents,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              'Retry',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _orange400,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
