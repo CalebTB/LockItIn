@@ -14,6 +14,7 @@ import '../widgets/group_members_section.dart';
 import '../widgets/group_time_filter_chips.dart';
 import '../widgets/group_date_range_filter.dart';
 import '../widgets/group_best_days_section.dart';
+import '../widgets/suggested_time_slots_card.dart';
 
 /// Group detail screen showing group calendar with availability heatmap
 /// Adapted from CalendarScreen with Sunset Coral Dark theme
@@ -1478,6 +1479,41 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             ),
 
             const SizedBox(height: 16),
+
+            // Suggested time slots section
+            Builder(
+              builder: (context) {
+                final groupProvider = context.read<GroupProvider>();
+                final members = groupProvider.selectedGroupMembers;
+
+                // Compute best time slots for this date
+                final timeSlots = _availabilityService.findBestTimeSlots(
+                  memberEvents: _memberEvents,
+                  date: date,
+                  startHour: 8,
+                  endHour: 22,
+                );
+
+                return SuggestedTimeSlotsCard(
+                  date: date,
+                  timeSlots: timeSlots,
+                  members: members,
+                  onSlotSelected: (slot) {
+                    // TODO: Navigate to event proposal flow with pre-selected time
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Selected ${slot.formattedTimeRange} - Event proposals coming in Sprint 3!',
+                        ),
+                        backgroundColor: _rose500,
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+
+            const SizedBox(height: 8),
 
             // Member availability list
             Consumer<GroupProvider>(
