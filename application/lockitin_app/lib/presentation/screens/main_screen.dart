@@ -2,10 +2,11 @@ import 'dart:io' show Platform;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/theme/app_colors.dart';
 import '../providers/friend_provider.dart';
 import 'card_calendar_screen.dart';
 import 'profile_screen.dart';
+import 'tabs/groups_tab.dart';
+import 'tabs/inbox_tab.dart';
 
 /// Main navigation screen with bottom tab bar
 /// Uses IndexedStack to preserve tab state across navigation
@@ -22,10 +23,10 @@ class _MainScreenState extends State<MainScreen> {
 
   // Tab content screens - using IndexedStack to preserve state
   final List<Widget> _screens = [
-    const _CalendarTab(),
-    const _GroupsTab(),
-    const _InboxTab(),
-    const _ProfileTab(),
+    const CardCalendarScreen(),
+    const GroupsTab(),
+    const InboxTab(),
+    const ProfileScreen(),
   ];
 
   void _onTabSelected(int index) {
@@ -162,161 +163,5 @@ class _MainScreenState extends State<MainScreen> {
         label: 'Profile',
       ),
     ];
-  }
-}
-
-/// Calendar tab - wraps CardCalendarScreen
-/// Removes AppBar since MainScreen handles navigation
-class _CalendarTab extends StatelessWidget {
-  const _CalendarTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return const CardCalendarScreen();
-  }
-}
-
-/// Groups tab - placeholder for #167
-/// Will show list of groups with quick access to group details
-class _GroupsTab extends StatelessWidget {
-  const _GroupsTab();
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final appColors = context.appColors;
-
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        title: const Text('Groups'),
-        centerTitle: true,
-        backgroundColor: colorScheme.surface,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.group_outlined,
-              size: 64,
-              color: appColors.textDisabled,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Groups',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Your groups will appear here',
-              style: TextStyle(
-                fontSize: 16,
-                color: appColors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Coming in #167',
-              style: TextStyle(
-                fontSize: 12,
-                color: appColors.textDisabled,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Inbox tab - placeholder for #167
-/// Will show notifications, friend requests, event invites
-class _InboxTab extends StatelessWidget {
-  const _InboxTab();
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final appColors = context.appColors;
-    final friendProvider = context.watch<FriendProvider>();
-    final pendingCount = friendProvider.pendingRequests.length;
-
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        title: const Text('Inbox'),
-        centerTitle: true,
-        backgroundColor: colorScheme.surface,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.inbox_outlined,
-              size: 64,
-              color: appColors.textDisabled,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Inbox',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (pendingCount > 0)
-              Text(
-                '$pendingCount pending friend request${pendingCount == 1 ? '' : 's'}',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.w500,
-                ),
-              )
-            else
-              Text(
-                'No new notifications',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: appColors.textMuted,
-                ),
-              ),
-            const SizedBox(height: 24),
-            Text(
-              'Coming in #167',
-              style: TextStyle(
-                fontSize: 12,
-                color: appColors.textDisabled,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Profile tab - wraps ProfileScreen
-/// Removes AppBar navigation since tab bar handles it
-class _ProfileTab extends StatelessWidget {
-  const _ProfileTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return const ProfileScreen();
   }
 }

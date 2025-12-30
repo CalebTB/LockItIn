@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/theme/app_colors.dart';
 import '../providers/auth_provider.dart';
+import '../providers/calendar_provider.dart';
+import '../providers/device_calendar_provider.dart';
 import '../providers/friend_provider.dart';
 import '../providers/group_provider.dart';
 import '../providers/settings_provider.dart';
@@ -381,6 +384,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // Settings Section (when not editing)
                   if (!_isEditing) ...[
                     const SizedBox(height: 32),
+
+                    // Calendar Sync Section
+                    _buildCalendarSyncSection(context, colorScheme),
+                    const SizedBox(height: 24),
+
+                    // Accessibility Section
                     Text(
                       'Accessibility',
                       style: TextStyle(
@@ -476,5 +485,123 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // Use HSL to generate vibrant colors
     final hue = (hash % 360).toDouble();
     return HSLColor.fromAHSL(1.0, hue, 0.7, 0.6).toColor();
+  }
+
+  Widget _buildCalendarSyncSection(BuildContext context, ColorScheme colorScheme) {
+    final deviceCalendarProvider = context.watch<DeviceCalendarProvider>();
+    final calendarProvider = context.watch<CalendarProvider>();
+    final appColors = context.appColors;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Calendar Sync',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Sync status card
+        Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: colorScheme.onSurface.withValues(alpha: 0.1),
+            ),
+          ),
+          child: Column(
+            children: [
+              // Permission status / Enable sync
+              ListTile(
+                leading: Icon(
+                  deviceCalendarProvider.hasPermission
+                      ? Icons.check_circle_rounded
+                      : Icons.calendar_month_outlined,
+                  color: deviceCalendarProvider.hasPermission
+                      ? appColors.success
+                      : colorScheme.primary,
+                ),
+                title: Text(
+                  deviceCalendarProvider.hasPermission
+                      ? 'Calendar Sync Enabled'
+                      : 'Enable Calendar Sync',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  deviceCalendarProvider.hasPermission
+                      ? 'Your device calendar is synced with LockItIn'
+                      : 'Sync your device calendar to see all events',
+                  style: TextStyle(fontSize: 14, color: appColors.textMuted),
+                ),
+                trailing: deviceCalendarProvider.hasPermission
+                    ? null
+                    : FilledButton(
+                        onPressed: () async {
+                          await deviceCalendarProvider.requestPermission();
+                          if (deviceCalendarProvider.hasPermission && mounted) {
+                            await calendarProvider.refreshEvents();
+                          }
+                        },
+                        child: const Text('Enable'),
+                      ),
+              ),
+
+              // Last sync time and manual sync button
+              if (deviceCalendarProvider.hasPermission) ...[
+                const Divider(height: 1),
+                ListTile(
+                  leading: Icon(
+                    Icons.sync_rounded,
+                    color: colorScheme.primary,
+                  ),
+                  title: const Text(
+                    'Manual Sync',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  subtitle: Text(
+                    calendarProvider.isLoadingEvents
+                        ? 'Syncing...'
+                        : 'Tap to refresh events from device calendar',
+                    style: TextStyle(fontSize: 14, color: appColors.textMuted),
+                  ),
+                  trailing: calendarProvider.isLoadingEvents
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : IconButton(
+                          onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            await calendarProvider.refreshEvents();
+                            if (mounted) {
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Calendar synced successfully!'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.refresh_rounded),
+                        ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

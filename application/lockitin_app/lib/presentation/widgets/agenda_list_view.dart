@@ -3,6 +3,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/models/event_model.dart';
 import 'day_header.dart';
 import 'agenda_event_card.dart';
+import 'empty_state.dart';
 
 /// Day group containing date and its events
 class DayGroup {
@@ -24,6 +25,9 @@ class AgendaListView extends StatelessWidget {
   final DateTime? startDate;
   final void Function(EventModel event)? onEventTap;
   final Widget? emptyWidget;
+  final VoidCallback? onCreateEvent;
+  final VoidCallback? onImportCalendar;
+  final VoidCallback? onViewGroups;
 
   const AgendaListView({
     super.key,
@@ -32,6 +36,9 @@ class AgendaListView extends StatelessWidget {
     this.startDate,
     this.onEventTap,
     this.emptyWidget,
+    this.onCreateEvent,
+    this.onImportCalendar,
+    this.onViewGroups,
   });
 
   @override
@@ -158,40 +165,23 @@ class AgendaListView extends StatelessWidget {
   }
 
   Widget _buildDefaultEmptyState(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final appColors = context.appColors;
+    // Determine the appropriate empty state type
+    final hasAnyEvents = events.isNotEmpty;
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.calendar_today_outlined,
-              size: 64,
-              color: appColors.textDisabled,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No upcoming events',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tap + to create your first event',
-              style: TextStyle(
-                fontSize: 14,
-                color: appColors.textMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    if (!hasAnyEvents) {
+      // New user or no events at all
+      return EmptyState(
+        type: EmptyStateType.noEventsNewUser,
+        onCreateEvent: onCreateEvent,
+        onImportCalendar: onImportCalendar,
+      );
+    } else {
+      // Has events but nothing in the current view period
+      return EmptyState(
+        type: EmptyStateType.noEventsThisWeek,
+        onCreateEvent: onCreateEvent,
+        onViewGroups: onViewGroups,
+      );
+    }
   }
 }
