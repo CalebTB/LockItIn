@@ -1,33 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../core/theme/app_colors.dart';
 import '../../data/models/event_model.dart';
 
-/// Card displaying an upcoming event with gradient background
+/// Card displaying an upcoming event with category-based styling
 /// Features emoji, title, time, location, and attendee avatars
+/// Uses theme-based colors from the Minimal theme design system
 class UpcomingEventCard extends StatelessWidget {
-  // Sunset Coral Dark Theme Colors
-  static const Color _rose500 = Color(0xFFF43F5E);
-  static const Color _rose400 = Color(0xFFFB7185);
-  static const Color _rose300 = Color(0xFFFDA4AF);
-  static const Color _rose200 = Color(0xFFFECDD3);
-  static const Color _rose50 = Color(0xFFFFF1F2);
-  static const Color _rose950 = Color(0xFF4C0519);
-  static const Color _orange400 = Color(0xFFFB923C);
-  static const Color _orange500 = Color(0xFFF97316);
-  static const Color _orange600 = Color(0xFFEA580C);
-  static const Color _orange950 = Color(0xFF1A0F0A);
-  static const Color _amber500 = Color(0xFFF59E0B);
-  static const Color _amber300 = Color(0xFFFCD34D);
-  static const Color _purple500 = Color(0xFFA855F7);
-  static const Color _purple600 = Color(0xFF9333EA);
-  static const Color _purple950 = Color(0xFF1A0A1F);
-  static const Color _violet500 = Color(0xFF8B5CF6);
-  static const Color _pink500 = Color(0xFFEC4899);
-  static const Color _pink600 = Color(0xFFDB2777);
-  static const Color _teal500 = Color(0xFF14B8A6);
-  static const Color _teal600 = Color(0xFF0D9488);
-  static const Color _cyan950 = Color(0xFF0A1A1F);
-
   final EventModel event;
   final VoidCallback? onTap;
   final List<String>? attendeeInitials;
@@ -47,18 +26,16 @@ class UpcomingEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final categoryColors = _getCategoryColors(event.category);
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
+    final categoryColors = _getCategoryColors(event.category, colorScheme);
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: categoryColors.cardGradient,
-          ),
+          color: appColors.cardBackground,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: categoryColors.borderColor,
@@ -73,11 +50,7 @@ class UpcomingEventCard extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: categoryColors.iconGradient,
-                ),
+                color: categoryColors.iconBackground,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
@@ -104,10 +77,10 @@ class UpcomingEventCard extends StatelessWidget {
                   // Title
                   Text(
                     event.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: _rose50,
+                      color: colorScheme.onSurface,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -120,14 +93,14 @@ class UpcomingEventCard extends StatelessWidget {
                       Icon(
                         Icons.access_time_rounded,
                         size: 14,
-                        color: _rose200.withValues(alpha: 0.6),
+                        color: appColors.textMuted,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         _formatEventTime(event),
                         style: TextStyle(
                           fontSize: 13,
-                          color: _rose200.withValues(alpha: 0.6),
+                          color: appColors.textMuted,
                         ),
                       ),
                     ],
@@ -141,7 +114,7 @@ class UpcomingEventCard extends StatelessWidget {
                         Icon(
                           Icons.location_on_outlined,
                           size: 14,
-                          color: _rose200.withValues(alpha: 0.6),
+                          color: appColors.textMuted,
                         ),
                         const SizedBox(width: 4),
                         Expanded(
@@ -149,7 +122,7 @@ class UpcomingEventCard extends StatelessWidget {
                             event.location!,
                             style: TextStyle(
                               fontSize: 13,
-                              color: _rose200.withValues(alpha: 0.6),
+                              color: appColors.textMuted,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -165,14 +138,14 @@ class UpcomingEventCard extends StatelessWidget {
                   Row(
                     children: [
                       if (attendeeInitials != null && attendeeInitials!.isNotEmpty) ...[
-                        _buildAttendeeAvatars(),
+                        _buildAttendeeAvatars(colorScheme),
                         if (additionalAttendees != null && additionalAttendees! > 0) ...[
                           const SizedBox(width: 4),
                           Text(
                             '+$additionalAttendees going',
                             style: TextStyle(
                               fontSize: 12,
-                              color: _rose300.withValues(alpha: 0.5),
+                              color: appColors.textMuted,
                             ),
                           ),
                         ],
@@ -181,10 +154,12 @@ class UpcomingEventCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: statusBadgeColor ?? _amber500.withValues(alpha: 0.2),
+                            color: statusBadgeColor?.withValues(alpha: 0.2) ??
+                                appColors.warningBackground,
                             borderRadius: BorderRadius.circular(9999),
                             border: Border.all(
-                              color: _amber500.withValues(alpha: 0.3),
+                              color: statusBadgeColor?.withValues(alpha: 0.3) ??
+                                  appColors.warning.withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),
@@ -193,9 +168,7 @@ class UpcomingEventCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
-                              color: statusBadgeColor != null
-                                  ? Colors.white
-                                  : _amber300,
+                              color: statusBadgeColor ?? appColors.warning,
                             ),
                           ),
                         ),
@@ -211,7 +184,7 @@ class UpcomingEventCard extends StatelessWidget {
     );
   }
 
-  Widget _buildAttendeeAvatars() {
+  Widget _buildAttendeeAvatars(ColorScheme colorScheme) {
     final avatarCount = attendeeInitials!.take(3).length;
     // Calculate width: first avatar is 24px, each subsequent adds 16px (overlap)
     final width = 24.0 + ((avatarCount - 1) * 16.0);
@@ -228,16 +201,15 @@ class UpcomingEventCard extends StatelessWidget {
               width: 24,
               height: 24,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [_rose400, _orange400],
-                ),
+                color: colorScheme.primary,
                 shape: BoxShape.circle,
-                border: Border.all(color: _rose950, width: 2),
+                border: Border.all(
+                  color: colorScheme.surface,
+                  width: 2,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: _rose500.withValues(alpha: 0.2),
+                    color: colorScheme.primary.withValues(alpha: 0.2),
                     blurRadius: 4,
                   ),
                 ],
@@ -245,10 +217,10 @@ class UpcomingEventCard extends StatelessWidget {
               child: Center(
                 child: Text(
                   entry.value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: colorScheme.onPrimary,
                   ),
                 ),
               ),
@@ -278,53 +250,44 @@ class UpcomingEventCard extends StatelessWidget {
     }
   }
 
-  _CategoryColors _getCategoryColors(EventCategory category) {
+  _CategoryColors _getCategoryColors(EventCategory category, ColorScheme colorScheme) {
+    // Use semantic colors based on category
     switch (category) {
       case EventCategory.work:
-        // Teal/Cyan theme for work
         return _CategoryColors(
-          cardGradient: [_cyan950, const Color(0xFF1A0F14)],
-          iconGradient: [_teal500, _teal600],
-          borderColor: _teal500.withValues(alpha: 0.2),
-          shadowColor: _teal500.withValues(alpha: 0.3),
+          iconBackground: AppColors.memberTeal.withValues(alpha: 0.15),
+          borderColor: AppColors.memberTeal.withValues(alpha: 0.2),
+          shadowColor: AppColors.memberTeal.withValues(alpha: 0.2),
         );
       case EventCategory.holiday:
-        // Amber/Orange theme for holidays (like Friendsgiving in mockup)
         return _CategoryColors(
-          cardGradient: [_rose950, _orange950],
-          iconGradient: [_amber500, _orange600],
-          borderColor: _rose500.withValues(alpha: 0.2),
-          shadowColor: _orange500.withValues(alpha: 0.3),
+          iconBackground: colorScheme.secondary.withValues(alpha: 0.15),
+          borderColor: colorScheme.secondary.withValues(alpha: 0.2),
+          shadowColor: colorScheme.secondary.withValues(alpha: 0.2),
         );
       case EventCategory.friend:
-        // Violet/Purple theme for friends (like Game Night in mockup)
         return _CategoryColors(
-          cardGradient: [_purple950, _rose950],
-          iconGradient: [_violet500, _purple600],
-          borderColor: _purple500.withValues(alpha: 0.2),
-          shadowColor: _purple500.withValues(alpha: 0.3),
+          iconBackground: AppColors.memberViolet.withValues(alpha: 0.15),
+          borderColor: AppColors.memberViolet.withValues(alpha: 0.2),
+          shadowColor: AppColors.memberViolet.withValues(alpha: 0.2),
         );
       case EventCategory.other:
-        // Rose/Pink theme for other events
         return _CategoryColors(
-          cardGradient: [_rose950, _purple950],
-          iconGradient: [_rose400, _pink600],
-          borderColor: _pink500.withValues(alpha: 0.2),
-          shadowColor: _pink500.withValues(alpha: 0.3),
+          iconBackground: colorScheme.primary.withValues(alpha: 0.15),
+          borderColor: colorScheme.primary.withValues(alpha: 0.2),
+          shadowColor: colorScheme.primary.withValues(alpha: 0.2),
         );
     }
   }
 }
 
 class _CategoryColors {
-  final List<Color> cardGradient;
-  final List<Color> iconGradient;
+  final Color iconBackground;
   final Color borderColor;
   final Color shadowColor;
 
   const _CategoryColors({
-    required this.cardGradient,
-    required this.iconGradient,
+    required this.iconBackground,
     required this.borderColor,
     required this.shadowColor,
   });

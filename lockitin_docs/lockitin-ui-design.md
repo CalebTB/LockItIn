@@ -2,7 +2,7 @@
 
 **Comprehensive design system, visual language, and component specifications for the LockItIn cross-platform mobile app (iOS & Android).**
 
-*Last Updated: December 6, 2025*
+*Last Updated: December 30, 2025 - Updated to Minimal theme color system*
 
 ---
 
@@ -86,58 +86,66 @@ All design decisions balance:
 
 ## 2. Color Palette
 
-**Color Scheme: Trust & Privacy (Option 1)**
-Deep Blue + Purple + Coral for a trustworthy, friendly, sophisticated brand identity.
+> **Implementation Reference:** See `LOCKIT_MINIMAL_THEME.md` for complete specification and `lib/core/theme/app_colors.dart` for Flutter implementation.
+
+**Color Scheme: Minimal**
+Rose/Orange accents with neutral foundation. Clean, professional, OLED-friendly.
 
 ### Primary Brand Colors
 
-| Color | Hex Code | Usage | Rationale |
-|-------|----------|-------|-----------|
-| **Primary - Deep Blue** | #2563EB | Buttons, links, highlights, primary actions | Conveys trust, reliability, privacy (perfect for Shadow Calendar) |
-| **Secondary - Purple** | #8B5CF6 | Accents, secondary actions, social features | Adds warmth, differentiates from corporate blues, represents friendship |
-| **Tertiary - Warm Coral** | #FB923C | Celebrations, confirmations, CTAs | Joy and energy for event confirmations and success moments |
+| Color | Hex Code | Tailwind | Usage | Rationale |
+|-------|----------|----------|-------|-----------|
+| **Primary** | #F43F5E | `rose-500` | Buttons, links, highlights, primary actions | Warm, modern, stands out on neutral backgrounds |
+| **Secondary** | #F97316 | `orange-500` | Secondary accents, CTAs, confirmations | Energetic complement to rose, joy and celebration |
+| **Tertiary** | #FB7185 | `rose-400` | Lighter accents, hover states (dark mode) | Softer version of primary for subtle highlights |
+
+**Primary Accent Gradient:** `from-rose-500 to-orange-500`
 
 ### Semantic Colors
 
-| Color | Hex Code | Usage | When to Use |
-|-------|----------|-------|-------------|
-| **Success Green** | #10B981 | Confirmations, positive feedback, availability | Event confirmed, action successful, high availability |
-| **Error Red** | #EF4444 | Errors, destructive actions, conflicts | Failed actions, declined events, low availability |
-| **Warning Amber** | #F59E0B | Cautions, pending states, medium availability | Pending votes, moderate availability, important notices |
-| **Info Blue** | #2563EB | Informational messages, hints | Same as primary - informational banners, tooltips |
+| Color | Hex Code | Tailwind | Usage | When to Use |
+|-------|----------|----------|-------|-------------|
+| **Success** | #10B981 | `emerald-500` | Confirmations, positive feedback, availability | Event confirmed, action successful, high availability |
+| **Error** | #F43F5E | `rose-500` | Errors, destructive actions, conflicts | Same as primary - failed actions, declined events |
+| **Warning** | #F59E0B | `amber-500` | Cautions, pending states, medium availability | Pending votes, moderate availability, important notices |
+| **Info** | #3B82F6 | `blue-500` | Informational messages, hints | Informational banners, tooltips |
 
-### Neutral Colors (Light Mode)
+### Neutral Colors (Light Mode - Gray Foundation)
 
-| Color Name | Hex Code | Usage |
-|------------|----------|-------|
-| Background | #FFFFFF | Main app background |
-| Secondary Background | #F2F2F7 | Cards, grouped content |
-| Tertiary Background | #E5E5EA | Subtle backgrounds, separators |
-| Text Primary | #000000 | Main text, headers |
-| Text Secondary | #3C3C43 | Secondary text, descriptions |
+| Color Name | Hex Code | Tailwind | Usage |
+|------------|----------|----------|-------|
+| Background | #F5F5F5 | `gray-100` | Main app background |
+| Surface | #FFFFFF | `white` | Cards, sheets, elevated content |
+| Card | #FFFFFF | `white` | Card backgrounds |
+| Border | #E5E5E5 | `gray-200` | Borders, dividers |
+| Text Primary | #171717 | `gray-900` | Main text, headers |
+| Text Secondary | #404040 | `gray-700` | Secondary text |
+| Text Muted | #737373 | `gray-500` | Muted text, placeholders |
 
-### Neutral Colors (Dark Mode)
+### Neutral Colors (Dark Mode - Neutral Foundation)
 
-| Color Name | Hex Code | Usage |
-|------------|----------|-------|
-| Background | #000000 | Main app background |
-| Secondary Background | #1C1C1E | Cards, grouped content |
-| Tertiary Background | #2C2C2E | Subtle backgrounds, separators |
-| Text Primary | #FFFFFF | Main text, headers |
-| Text Secondary | #AEAEB2 | Secondary text, descriptions |
+| Color Name | Hex Code | Tailwind | Usage |
+|------------|----------|----------|-------|
+| Background | #000000 | `black` | Main app background (OLED) |
+| Surface | #0A0A0A | `neutral-950` | Primary surface |
+| Card | #171717 | `neutral-900` | Card backgrounds |
+| Border | #262626 | `neutral-800` | Borders, dividers |
+| Text Primary | #FFFFFF | `white` | Main text, headers |
+| Text Secondary | #D4D4D4 | `neutral-300` | Secondary text |
+| Text Muted | #737373 | `neutral-500` | Muted text, placeholders |
 
 ### Event Category Colors (Personal Calendar)
 
 Event categories use distinct colors to help users quickly identify event types in their personal calendar view.
 
-| Category | Hex Code | Color | When Used |
-|----------|----------|-------|-----------|
-| **Work** | #10B981 | Green | Work meetings, deadlines, professional commitments |
-| **Holiday** | #EF4444 | Red | Holidays, celebrations, special occasions |
-| **Friend** | #8B5CF6 | Purple | Social events, hangouts, friend gatherings |
-| **Other** | #F59E0B | Yellow/Amber | Personal appointments, errands, miscellaneous |
+| Category | Hex Code | Tailwind | When Used |
+|----------|----------|----------|-----------|
+| **Work** | #14B8A6 | `teal-500` | Work meetings, deadlines, professional commitments |
+| **Holiday** | #F97316 | `orange-500` | Holidays, celebrations, special occasions |
+| **Friend** | #8B5CF6 | `violet-500` | Social events, hangouts, friend gatherings |
+| **Other** | #F43F5E | `rose-500` | Personal appointments, errands, miscellaneous |
 
-**Note:** Event category colors are distinct from brand colors and only appear in personal calendar view as colored circle indicators.
+**Note:** Event category colors are defined in `AppColors.category*` constants. See `lib/core/theme/app_colors.dart`.
 
 ### Heatmap Colors (Group Calendar Availability)
 
@@ -157,18 +165,19 @@ Used in Group Calendar view to show availability at a glance.
 All color combinations meet **WCAG AA** contrast requirements (4.5:1 for text, 3:1 for UI components):
 
 **Primary Color Contrasts:**
-- **Deep Blue (#2563EB) on White:** 7.6:1 ✅ (Exceeds AA for text)
-- **White text on Deep Blue:** 7.6:1 ✅ (Buttons, primary CTAs)
-- **Purple (#8B5CF6) on White:** 4.9:1 ✅ (AA compliant for text)
-- **Warm Coral (#FB923C) on White:** 3.2:1 ✅ (AA for large text/UI components)
+- **Rose (#F43F5E) on White:** 4.5:1 ✅ (AA compliant for text)
+- **White text on Rose:** 4.5:1 ✅ (Buttons, primary CTAs)
+- **White on neutral-900 (#171717):** 15.1:1 ✅ (Exceeds AAA)
+- **neutral-300 (#D4D4D4) on neutral-950:** 10.8:1 ✅ (Exceeds AAA)
+- **gray-900 (#171717) on white:** 21:1 ✅ (Exceeds AAA)
 
 **Semantic Color Contrasts:**
-- **Success Green (#10B981) on White:** 4.7:1 ✅
-- **Error Red (#EF4444) on White:** 4.9:1 ✅
-- **Warning Amber (#F59E0B) on White:** 2.3:1 ⚠️ (Use with dark text or as background only)
+- **Success emerald-500 (#10B981) on White:** 4.7:1 ✅
+- **Error rose-500 (#F43F5E) on White:** 4.5:1 ✅
+- **Warning amber-500 (#F59E0B) on White:** 2.3:1 ⚠️ (Use with dark text or as background only)
 
 **Event Category Colors:**
-- All event category colors (Work/Green, Holiday/Red, Friend/Purple, Other/Yellow) are supplemented with the event count badge and titles for colorblind accessibility
+- All event category colors (Work/Teal, Holiday/Orange, Friend/Violet, Other/Rose) are supplemented with the event count badge and titles for colorblind accessibility
 - Pattern redundancy: Heatmap uses both color AND visual segments (filled vs unfilled)
 
 ### Color Usage Guidelines
@@ -348,64 +357,68 @@ All spacing uses an 8pt grid for consistency and alignment.
 ### Buttons
 
 #### Primary Button
-- **Background:** Primary Blue (#007AFF)
+- **Background:** Primary gradient `from-rose-500 to-orange-500` or solid `rose-500` (#F43F5E)
 - **Text Color:** White
 - **Height:** 44pt minimum
 - **Width:** Full width (preferred) or 120pt+ minimum
-- **Corner Radius:** 8pt
+- **Corner Radius:** 8pt (or 12pt for rounded style)
 - **Font:** Headline semibold
 - **Padding:** 12pt vertical, 16pt horizontal
+- **Shadow:** `shadow-lg shadow-rose-500/20` (dark mode) or `shadow-rose-200` (light mode)
 
 **States:**
-- Default: Solid blue
-- Pressed: Slight scale down (95%) with haptic feedback
+- Default: Gradient or solid rose-500
+- Hover: `from-rose-400 to-orange-400`
+- Pressed: Slight scale down (98%) with haptic feedback
 - Disabled: 50% opacity
 - Loading: Spinner replaces text
 
 #### Secondary Button
-- **Background:** Transparent / Light gray border
-- **Border:** 1pt gray
-- **Text Color:** Primary Blue
+- **Background:** Transparent with border
+- **Border:** 1pt `neutral-800` (dark) or `gray-200` (light)
+- **Text Color:** White (dark) or `gray-900` (light)
 - **Height:** 44pt minimum
 - **Font:** Headline semibold
 
 **States:**
 - Default: Clear with border
-- Pressed: Light gray background
+- Hover: `neutral-800` bg (dark) or `gray-50` bg (light)
+- Pressed: Slight scale down
 - Disabled: 50% opacity
 
-#### Text Button
+#### Text Button (Ghost)
 - **Background:** Transparent
-- **Text Color:** Primary Blue
+- **Text Color:** `neutral-400` (dark) or `gray-600` (light)
 - **Height:** 44pt minimum
 - **Font:** Callout or footnote
 - **Padding:** 8pt
 
 **States:**
 - Default: Text only
-- Pressed: Text becomes darker
+- Hover: `neutral-800` bg (dark) or `gray-100` bg (light), text becomes white/gray-900
 - Disabled: 50% opacity
 
 #### Danger Button
-- **Background:** Error Red (#FF3B30)
+- **Background:** `rose-500` (#F43F5E)
 - **Text Color:** White
 - **Usage:** Delete, cancel, destructive actions
-- **Identical styling to Primary Button** but with red background
+- **Identical styling to Primary Button** (since primary is already rose)
 
 ### Input Fields
 
 #### Text Field
 - **Height:** 44pt minimum
-- **Border:** 1pt gray (#E5E5EA on light, #2C2C2E on dark)
-- **Corner Radius:** 8pt
+- **Border:** 1pt `gray-200` (light) or `neutral-800` (dark)
+- **Corner Radius:** 8pt (or 12pt for rounded style)
+- **Background:** `gray-100` (light) or `neutral-900` (dark)
 - **Padding:** 12pt horizontal, 10pt vertical
 - **Font:** Body regular
-- **Placeholder:** Text Secondary color
+- **Placeholder:** `gray-400` (light) or `neutral-600` (dark)
 
 **States:**
-- Default: Light gray border
-- Focused: Blue border (2pt), keyboard open
-- Error: Red border (#FF3B30)
+- Default: Standard border
+- Focused: `rose-500` border, `rose-500/20` ring (dark) or `rose-200` ring (light)
+- Error: `rose-500` border
 - Disabled: Grayed out (50% opacity)
 
 #### Text Input Rules
@@ -423,8 +436,8 @@ All spacing uses an 8pt grid for consistency and alignment.
 #### Toggle/Switch
 - **Size:** 51pt x 31pt (system standard)
 - **Thumb size:** 27pt x 27pt
-- **On Color:** Primary Blue
-- **Off Color:** Gray
+- **On Color:** `rose-500` (#F43F5E)
+- **Off Color:** `neutral-700` (dark) or `gray-300` (light)
 - **Animation:** Spring physics
 
 #### Date Picker
@@ -543,7 +556,7 @@ All spacing uses an 8pt grid for consistency and alignment.
 
 #### Spinner (Progress View)
 - **Size:** 40pt diameter
-- **Color:** Primary Blue
+- **Color:** `rose-500` (#F43F5E)
 - **Animation:** Continuous rotation
 - **Background:** Optional semi-transparent overlay
 - **Message:** "Loading..." or specific text below
@@ -556,8 +569,8 @@ All spacing uses an 8pt grid for consistency and alignment.
 
 #### Progress Bar
 - **Height:** 6pt
-- **Background:** Tertiary background color
-- **Progress:** Primary blue
+- **Background:** `neutral-800` (dark) or `gray-200` (light)
+- **Progress:** `rose-500` or gradient `from-rose-500 to-orange-500`
 - **Corner Radius:** 3pt
 - **Use Case:** Vote progress visualization, upload progress
 
@@ -646,7 +659,7 @@ The calendar uses **two distinct rendering modes** depending on context: Persona
    - **Size:** 22×22pt container
    - **Font:** 11.5pt, Regular (400) or Semibold (600) if today
    - **Color:** Primary text color, or white if today
-   - **Today Indicator:** Blue circle background (#007AFF)
+   - **Today Indicator:** Rose circle background (`rose-500` #F43F5E)
    - **Position:** Top-left corner with 4pt padding
 
 2. **Event Count Badge (Bottom-Right)**
@@ -762,7 +775,7 @@ The calendar uses **two distinct rendering modes** depending on context: Persona
 
 **Both Modes Share:**
 - **Default State:** Standard rendering as described above
-- **Today Highlight:** Blue circle behind date number
+- **Today Highlight:** Rose circle behind date number (`rose-500`)
 - **Selected State:** Border highlight when navigating with keyboard/D-pad
 - **Pressed State:** Slight scale down (98%) with haptic feedback
 - **Outside Month:** Hidden (shows empty cell with subtle border)
@@ -875,11 +888,22 @@ Using Apple's native SF Symbols for consistency on iOS:
 
 ### Icon Colors
 
-- **Active/Tappable:** Primary Blue
-- **Inactive/Disabled:** Gray (50% opacity)
-- **Destructive:** Error red
-- **Success:** Success green
-- **Neutral:** Text secondary color
+**Dark Mode:**
+- **Primary:** `white`
+- **Secondary:** `neutral-400`
+- **Muted:** `neutral-500`
+- **Accent:** `rose-400`
+
+**Light Mode:**
+- **Primary:** `gray-700`
+- **Secondary:** `gray-500`
+- **Muted:** `gray-400`
+- **Accent:** `rose-500`
+
+**Semantic:**
+- **Destructive:** `rose-500`
+- **Success:** `emerald-500`
+- **Inactive/Disabled:** 50% opacity
 
 ### Privacy Icon Set (Special)
 
@@ -966,7 +990,7 @@ Semantics(
 **Spinner:**
 - **Rotation:** Continuous 360° rotation
 - **Duration:** 1 second per rotation
-- **Color:** Primary Blue
+- **Color:** `rose-500`
 - **Size:** 40pt
 
 **Skeleton Screens:**
@@ -1294,8 +1318,8 @@ if (MediaQuery.of(context).disableAnimations) {
 
 ### Focus Indicators
 
-- **Visible focus ring:** 2pt blue border
-- **Color:** Primary Blue (#007AFF)
+- **Visible focus ring:** 2pt `rose-500` border with `rose-500/20` outer ring
+- **Color:** `rose-500` (#F43F5E)
 - **Contrast:** 3:1 minimum
 - **Shape:** Matches element (rounded for buttons, etc.)
 - **External padding:** 2-4pt outside element
@@ -1333,54 +1357,60 @@ if (MediaQuery.of(context).disableAnimations) {
 
 ## 10. Dark Mode
 
-### Color Palette (Dark Mode)
+> **Complete Specification:** See `LOCKIT_MINIMAL_THEME.md` for comprehensive dark mode styling.
+
+### Color Palette (Dark Mode - Minimal Theme)
 
 **Backgrounds:**
-- Background: #000000
-- Secondary: #1C1C1E
-- Tertiary: #2C2C2E
-- Opposite for light mode reference (provided above)
+- Background: `black` (#000000) - OLED-friendly
+- Surface: `neutral-950` (#0A0A0A)
+- Card: `neutral-900` (#171717)
+- Border: `neutral-800` (#262626)
 
 **Text:**
-- Primary: #FFFFFF
-- Secondary: #AEAEB2
+- Primary: `white` (#FFFFFF)
+- Secondary: `neutral-300` (#D4D4D4)
+- Tertiary: `neutral-400` (#A3A3A3)
+- Muted: `neutral-500` (#737373)
 
-**Colors (Unchanged):**
-- Primary Blue: #007AFF (system automatically inverts if needed)
-- Success Green: #34C759
-- Warning Yellow: #FFCC00
-- Error Red: #FF3B30
+**Accent Colors:**
+- Primary: `rose-500` (#F43F5E)
+- Secondary: `orange-500` (#F97316)
+- Gradient: `from-rose-500 to-orange-500`
+- Focus: `rose-500/50` border, `rose-500/20` ring
 
 ### Component Adjustments
 
 **Cards:**
-- Background: Secondary background (#1C1C1E)
-- Border: Subtle 1pt border if needed (optional)
-- Shadow: Darker, more pronounced for depth
+- Background: `neutral-900` (#171717)
+- Border: `neutral-800` (#262626)
+- No shadow by default (flat design for OLED)
 
 **Buttons:**
-- Primary: Same blue (#007AFF) works in both modes
-- Secondary: Gray border on dark mode
-- Text: White on dark backgrounds
+- Primary: Gradient `from-rose-500 to-orange-500` or solid `rose-500`
+- Secondary: `neutral-900` bg with `neutral-800` border
+- Ghost: Transparent with `neutral-400` text
+- Shadow: `shadow-lg shadow-rose-500/20`
 
 **Form Fields:**
-- Border: Light gray (#AEAEB2) on dark background
-- Background: Tertiary (#2C2C2E)
-- Text: White
+- Border: `neutral-800`
+- Background: `neutral-900`
+- Placeholder: `neutral-600`
+- Focus: `rose-500/50` border with `rose-500/20` ring
 
 **Images & Icons:**
-- Icon Color: Adjust for contrast (lighter on dark)
-- Profile Photos: No adjustment needed
-- Event Photos: No adjustment needed
+- Primary icons: `white`
+- Secondary icons: `neutral-400`
+- Accent icons: `rose-400`
 
 ### Image Adjustments (Dark Mode)
 
 **Calendar Backgrounds:**
-- Day view: #000000 instead of white
-- Grid lines: Lighter gray (#2C2C2E)
+- Day view: `black` (#000000)
+- Grid lines: `neutral-800` (#262626)
 
 **Placeholder Images:**
-- Invert bright colors
+- Use `neutral-800` backgrounds
 - Ensure readability on dark backgrounds
 
 **Profile Avatars:**
@@ -1389,44 +1419,38 @@ if (MediaQuery.of(context).disableAnimations) {
 
 ### Dark Mode Implementation
 
-**iOS (SwiftUI):**
-```swift
-@Environment(\.colorScheme) var colorScheme
-
-if colorScheme == .dark {
-    // Dark mode specific
-} else {
-    // Light mode specific
-}
-```
-
-**Android/Flutter (Material):**
+**Flutter:**
 ```dart
 Theme.of(context).brightness == Brightness.dark
 
-// Or use ThemeData with dark theme
+// Use ThemeData with dark theme
 MaterialApp(
-  theme: lightTheme,
-  darkTheme: darkTheme,
+  theme: AppTheme.lightTheme,
+  darkTheme: AppTheme.darkTheme,
   themeMode: ThemeMode.system, // Follows system setting
 )
+
+// Access colors via theme
+Theme.of(context).colorScheme.surface  // neutral-950
+Theme.of(context).colorScheme.primary  // rose-500
+context.appColors.cardBackground       // neutral-900
 ```
 
 **Auto-apply (Cross-Platform):**
-- **iOS**: Use semantic colors (`.background`, `.foreground`)
-- **Android**: Use `Theme.of(context).colorScheme.surface`, `.primary`, etc.
+- Use `Theme.of(context).colorScheme.*` for standard colors
+- Use `context.appColors.*` for custom app colors (via ThemeExtension)
 - System automatically handles mode switching
-- Avoid hardcoding colors on both platforms
+- Never hardcode color values
 
 ### Testing Dark Mode
 
-- [ ] All text readable
-- [ ] Sufficient contrast in both modes
+- [ ] All text readable on dark backgrounds
+- [ ] Sufficient contrast (WCAG AA minimum)
 - [ ] Images look good on dark background
 - [ ] No hardcoded colors that break
 - [ ] Empty states and placeholders work
 - [ ] Icons remain visible
-- [ ] Cards have proper elevation/separation
+- [ ] Cards have proper separation via borders
 
 ---
 
@@ -1437,7 +1461,7 @@ MaterialApp(
 **Primary Action (Create Event):**
 ```
 ┌────────────────────────┐
-│     Create Event       │  <- Primary Blue Button
+│     Create Event       │  <- Primary Rose Button (rose-500)
 └────────────────────────┘
 ```
 
@@ -1539,35 +1563,44 @@ MaterialApp(
 
 ## 12. Design Tokens
 
+> **Implementation Reference:** See `lib/core/theme/app_colors.dart` for Flutter implementation.
+
 ### Color Tokens
 
-```swift
-// Primary Colors
-let primaryBlue = Color(hex: "#007AFF")
-let successGreen = Color(hex: "#34C759")
-let warningYellow = Color(hex: "#FFCC00")
-let errorRed = Color(hex: "#FF3B30")
+```dart
+// Primary Accent Colors (Minimal Theme)
+static const Color rose500 = Color(0xFFF43F5E);     // Primary
+static const Color orange500 = Color(0xFFF97316);   // Secondary
+static const Color rose400 = Color(0xFFFB7185);     // Tertiary (dark mode)
 
-// Neutral Light Mode
-let backgroundLight = Color(hex: "#FFFFFF")
-let secondaryBackgroundLight = Color(hex: "#F2F2F7")
-let tertiaryBackgroundLight = Color(hex: "#E5E5EA")
-let textPrimaryLight = Color(hex: "#000000")
-let textSecondaryLight = Color(hex: "#3C3C43")
+// Semantic Colors
+static const Color success = Color(0xFF10B981);     // emerald-500
+static const Color warning = Color(0xFFF59E0B);     // amber-500
+static const Color error = Color(0xFFF43F5E);       // rose-500 (same as primary)
+static const Color info = Color(0xFF3B82F6);        // blue-500
 
-// Neutral Dark Mode
-let backgroundDark = Color(hex: "#000000")
-let secondaryBackgroundDark = Color(hex: "#1C1C1E")
-let tertiaryBackgroundDark = Color(hex: "#2C2C2E")
-let textPrimaryDark = Color(hex: "#FFFFFF")
-let textSecondaryDark = Color(hex: "#AEAEB2")
+// Light Mode Foundation (Gray)
+static const Color backgroundLight = Color(0xFFF5F5F5);   // gray-100
+static const Color surfaceLight = Color(0xFFFFFFFF);      // white
+static const Color borderLight = Color(0xFFE5E5E5);       // gray-200
+static const Color textPrimaryLight = Color(0xFF171717);  // gray-900
+static const Color textSecondaryLight = Color(0xFF404040);// gray-700
+static const Color textMutedLight = Color(0xFF737373);    // gray-500
 
-// Event Colors
-let eventPersonal = primaryBlue
-let eventGroup = successGreen
-let eventPending = Color(hex: "#8B5CF6")
-let eventBusyOnly = Color(hex: "#D1D5DB")
-let eventDeclined = errorRed
+// Dark Mode Foundation (Neutral)
+static const Color backgroundDark = Color(0xFF000000);    // black (OLED)
+static const Color surfaceDark = Color(0xFF0A0A0A);       // neutral-950
+static const Color cardDark = Color(0xFF171717);          // neutral-900
+static const Color borderDark = Color(0xFF262626);        // neutral-800
+static const Color textPrimaryDark = Color(0xFFFFFFFF);   // white
+static const Color textSecondaryDark = Color(0xFFD4D4D4); // neutral-300
+static const Color textMutedDark = Color(0xFF737373);     // neutral-500
+
+// Event Category Colors
+static const Color categoryWork = Color(0xFF14B8A6);      // teal-500
+static const Color categoryHoliday = Color(0xFFF97316);   // orange-500
+static const Color categoryFriend = Color(0xFF8B5CF6);    // violet-500
+static const Color categoryOther = Color(0xFFF43F5E);     // rose-500
 ```
 
 ### Spacing Tokens
@@ -1836,10 +1869,11 @@ Custom icons (if needed in future):
 
 ## Document Information
 
-**Version:** 2.0 (Cross-Platform Update)
-**Last Updated:** December 6, 2025
+**Version:** 2.1 (Minimal Theme Update)
+**Last Updated:** December 30, 2025
 **Status:** Complete - Ready for Flutter Implementation (iOS & Android)
 **Maintained By:** LockItIn Design Team
+**Theme:** Minimal (Rose/Orange accents with neutral foundation)
 
 **Platform Support:**
 - iOS 13+ (Cupertino widgets, SF Pro font, Apple HIG)

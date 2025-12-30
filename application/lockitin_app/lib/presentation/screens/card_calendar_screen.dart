@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../core/theme/app_colors.dart';
 import '../providers/calendar_provider.dart';
 import '../providers/friend_provider.dart';
 import '../widgets/mini_calendar_widget.dart';
@@ -17,6 +18,7 @@ import 'friends_screen.dart';
 
 /// Redesigned card-based calendar view with modern UI
 /// Features mini calendar, upcoming events, and expandable FAB navigation
+/// Uses theme-based colors from the Minimal theme design system
 class CardCalendarScreen extends StatefulWidget {
   const CardCalendarScreen({super.key});
 
@@ -112,17 +114,15 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
   }
 
   void _showNavigationMenu(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF4C0519), Color(0xFF020617)], // rose-950 to slate-950
-          ),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainer,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -133,7 +133,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
               width: 48,
               height: 6,
               decoration: BoxDecoration(
-                color: const Color(0xFFF43F5E).withValues(alpha: 0.4),
+                color: colorScheme.primary.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
@@ -143,17 +143,12 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
               child: Row(
                 children: [
-                  ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      colors: [Color(0xFFFECDD3), Color(0xFFFED7AA)],
-                    ).createShader(bounds),
-                    child: const Text(
-                      'Menu',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                  Text(
+                    'Menu',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
                     ),
                   ),
                 ],
@@ -162,6 +157,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
 
             // Menu items
             _buildMenuItem(
+              context: context,
               icon: Icons.home_rounded,
               label: 'Home',
               subtitle: 'Feature overview',
@@ -173,6 +169,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
               },
             ),
             _buildMenuItem(
+              context: context,
               icon: Icons.calendar_today_rounded,
               label: 'Calendar',
               subtitle: 'Current view',
@@ -180,6 +177,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
               onTap: () => Navigator.pop(context),
             ),
             _buildMenuItem(
+              context: context,
               icon: Icons.sync_rounded,
               label: 'Device Calendar',
               subtitle: 'Sync native events',
@@ -191,6 +189,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
               },
             ),
             _buildMenuItem(
+              context: context,
               icon: Icons.people_rounded,
               label: 'Friends',
               subtitle: 'Manage connections',
@@ -202,6 +201,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
               },
             ),
             _buildMenuItem(
+              context: context,
               icon: Icons.person_rounded,
               label: 'Profile',
               subtitle: 'Account settings',
@@ -221,12 +221,16 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
   }
 
   Widget _buildMenuItem({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required String subtitle,
     required VoidCallback onTap,
     bool isActive = false,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -234,10 +238,10 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
-            color: isActive ? const Color(0xFFF43F5E).withValues(alpha: 0.1) : null,
+            color: isActive ? colorScheme.primary.withValues(alpha: 0.1) : null,
             border: Border(
               left: BorderSide(
-                color: isActive ? const Color(0xFFF43F5E) : Colors.transparent,
+                color: isActive ? colorScheme.primary : Colors.transparent,
                 width: 3,
               ),
             ),
@@ -249,13 +253,13 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
                 height: 44,
                 decoration: BoxDecoration(
                   color: isActive
-                      ? const Color(0xFFF43F5E).withValues(alpha: 0.2)
-                      : const Color(0xFF881337).withValues(alpha: 0.5),
+                      ? colorScheme.primary.withValues(alpha: 0.2)
+                      : colorScheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   icon,
-                  color: isActive ? const Color(0xFFFB7185) : const Color(0xFFFDA4AF),
+                  color: isActive ? colorScheme.primary : appColors.textSecondary,
                   size: 22,
                 ),
               ),
@@ -270,15 +274,15 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                         color: isActive
-                            ? const Color(0xFFFFF1F2)
-                            : const Color(0xFFFECDD3),
+                            ? colorScheme.onSurface
+                            : appColors.textSecondary,
                       ),
                     ),
                     Text(
                       subtitle,
                       style: TextStyle(
                         fontSize: 13,
-                        color: const Color(0xFFFDA4AF).withValues(alpha: 0.6),
+                        color: appColors.textMuted,
                       ),
                     ),
                   ],
@@ -288,22 +292,22 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF43F5E).withValues(alpha: 0.2),
+                    color: colorScheme.primary.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Active',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFFFB7185),
+                      color: colorScheme.primary,
                     ),
                   ),
                 )
               else
                 Icon(
                   Icons.chevron_right,
-                  color: const Color(0xFFFDA4AF).withValues(alpha: 0.4),
+                  color: appColors.textMuted,
                 ),
             ],
           ),
@@ -312,36 +316,21 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
     );
   }
 
-  // Sunset Coral Dark Theme Colors
-  static const Color _rose950 = Color(0xFF4C0519);
-  static const Color _rose500 = Color(0xFFF43F5E);
-  static const Color _rose300 = Color(0xFFFDA4AF);
-  static const Color _rose200 = Color(0xFFFECDD3);
-  static const Color _orange500 = Color(0xFFF97316);
-  static const Color _rose900 = Color(0xFF881337);
-  static const Color _slate950 = Color(0xFF020617);
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
     final provider = context.watch<CalendarProvider>();
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [_rose950, _slate950],
-          ),
-        ),
-        child: Stack(
-          children: [
-            // Main content
-            Column(
+      backgroundColor: colorScheme.surface,
+      body: Stack(
+        children: [
+          // Main content
+          Column(
             children: [
               // Header
-              _buildHeader(context, colorScheme),
+              _buildHeader(context, colorScheme, appColors),
 
               // Scrollable content
               Expanded(
@@ -361,10 +350,10 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
                       ),
 
                       // Selected Day Events Section
-                      _buildSelectedDayEventsSection(context, provider),
+                      _buildSelectedDayEventsSection(context, provider, colorScheme, appColors),
 
                       // Upcoming Events Section
-                      _buildUpcomingEventsSection(context, provider),
+                      _buildUpcomingEventsSection(context, provider, colorScheme, appColors),
 
                       // Bottom padding for FAB
                       const SizedBox(height: 100),
@@ -406,18 +395,16 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
           ),
         ],
       ),
-      ),
     );
   }
 
-  Widget _buildHeader(BuildContext context, ColorScheme colorScheme) {
+  Widget _buildHeader(BuildContext context, ColorScheme colorScheme, AppColorsExtension appColors) {
     return Container(
       decoration: BoxDecoration(
-        // Transparent to blend with the gradient background
-        color: Colors.transparent,
+        color: colorScheme.surface,
         border: Border(
           bottom: BorderSide(
-            color: _rose500.withValues(alpha: 0.1),
+            color: colorScheme.outline.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -432,7 +419,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
               IconButton(
                 onPressed: () => _showNavigationMenu(context),
                 icon: const Icon(Icons.menu_rounded),
-                color: _rose200,
+                color: appColors.textSecondary,
               ),
 
               const Spacer(),
@@ -444,30 +431,25 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
                   IconButton(
                     onPressed: _previousMonth,
                     icon: const Icon(Icons.chevron_left_rounded),
-                    color: _rose200.withValues(alpha: 0.8),
+                    color: appColors.textTertiary,
                     iconSize: 28,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
                   const SizedBox(width: 4),
-                  ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      colors: [_rose200, Color(0xFFFED7AA)], // rose-200 to orange-200
-                    ).createShader(bounds),
-                    child: Text(
-                      DateFormat('MMMM yyyy').format(_focusedMonth),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+                  Text(
+                    DateFormat('MMMM yyyy').format(_focusedMonth),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(width: 4),
                   IconButton(
                     onPressed: _nextMonth,
                     icon: const Icon(Icons.chevron_right_rounded),
-                    color: _rose200.withValues(alpha: 0.8),
+                    color: appColors.textTertiary,
                     iconSize: 28,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -485,7 +467,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
                       // TODO: Navigate to notifications
                     },
                     icon: const Icon(Icons.notifications_outlined),
-                    color: _rose200,
+                    color: appColors.textSecondary,
                   ),
                   Positioned(
                     top: 8,
@@ -494,12 +476,12 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: _orange500,
+                        color: colorScheme.secondary,
                         shape: BoxShape.circle,
-                        border: Border.all(color: _rose950, width: 1),
+                        border: Border.all(color: colorScheme.surface, width: 1),
                         boxShadow: [
                           BoxShadow(
-                            color: _orange500.withValues(alpha: 0.5),
+                            color: colorScheme.secondary.withValues(alpha: 0.5),
                             blurRadius: 4,
                           ),
                         ],
@@ -515,7 +497,12 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
     );
   }
 
-  Widget _buildSelectedDayEventsSection(BuildContext context, CalendarProvider provider) {
+  Widget _buildSelectedDayEventsSection(
+    BuildContext context,
+    CalendarProvider provider,
+    ColorScheme colorScheme,
+    AppColorsExtension appColors,
+  ) {
     final selectedDayEvents = provider.getEventsForDay(_selectedDate);
     final dateFormat = DateFormat('EEEE, MMMM d');
 
@@ -530,7 +517,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
               fontSize: 12,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.8,
-              color: _rose300.withValues(alpha: 0.6),
+              color: appColors.textMuted,
             ),
           ),
           const SizedBox(height: 12),
@@ -539,10 +526,10 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: _rose900.withValues(alpha: 0.3),
+                color: appColors.cardBackground,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: _rose500.withValues(alpha: 0.2),
+                  color: appColors.cardBorder,
                   width: 1,
                 ),
               ),
@@ -552,14 +539,14 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
                     Icon(
                       Icons.event_busy_outlined,
                       size: 40,
-                      color: _rose300.withValues(alpha: 0.4),
+                      color: appColors.textDisabled,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'No events this day',
                       style: TextStyle(
                         fontSize: 15,
-                        color: _rose300.withValues(alpha: 0.5),
+                        color: appColors.textMuted,
                       ),
                     ),
                   ],
@@ -585,7 +572,12 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
     );
   }
 
-  Widget _buildUpcomingEventsSection(BuildContext context, CalendarProvider provider) {
+  Widget _buildUpcomingEventsSection(
+    BuildContext context,
+    CalendarProvider provider,
+    ColorScheme colorScheme,
+    AppColorsExtension appColors,
+  ) {
     final upcomingEvents = provider.getUpcomingEvents();
 
     return Padding(
@@ -599,7 +591,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
               fontSize: 12,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.8,
-              color: _rose300.withValues(alpha: 0.6),
+              color: appColors.textMuted,
             ),
           ),
           const SizedBox(height: 12),
@@ -608,10 +600,10 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
             Container(
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                color: _rose900.withValues(alpha: 0.3),
+                color: appColors.cardBackground,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: _rose500.withValues(alpha: 0.2),
+                  color: appColors.cardBorder,
                   width: 1,
                 ),
               ),
@@ -621,14 +613,14 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
                     Icon(
                       Icons.event_available_outlined,
                       size: 48,
-                      color: _rose300.withValues(alpha: 0.4),
+                      color: appColors.textDisabled,
                     ),
                     const SizedBox(height: 12),
                     Text(
                       'No upcoming events',
                       style: TextStyle(
                         fontSize: 16,
-                        color: _rose300.withValues(alpha: 0.5),
+                        color: appColors.textMuted,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -636,7 +628,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
                       'Tap + to create one',
                       style: TextStyle(
                         fontSize: 14,
-                        color: _rose300.withValues(alpha: 0.4),
+                        color: appColors.textDisabled,
                       ),
                     ),
                   ],
