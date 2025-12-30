@@ -57,14 +57,6 @@ This repository contains **planning documentation only** - no code yet. The actu
 - `lockitin-roadmap-development.md` - 6-month timeline with sprint breakdowns across all phases
 - `lockitin-beta-testing.md` - Testing phases, recruitment strategy, feedback collection, metrics, launch readiness
 
-### Reference Design Resources
-
-**Design-Specific Files (Retained in NotionMD):**
-- `NotionMD/Design System.md` - Component library specs, color hex codes, typography details, spacing system
-- `NotionMD/Detailed Layouts/` - 10 screen-by-screen detailed wireframes with annotations and state diagrams
-
-## Architecture Overview
-
 ### Technology Stack
 
 **Frontend (Cross-Platform Mobile):**
@@ -249,55 +241,142 @@ Users set visibility per event: Private / Shared-With-Name / Busy-Only. Privacy 
 
 ## App Theme System (Minimal Theme)
 
-The app uses a **centralized theme-based color system** based on the Minimal theme specification. See `LOCKIT_MINIMAL_THEME.md` for complete design specification.
+The app uses a **centralized theme-based color system** based on the Minimal theme specification (`LOCKIT_MINIMAL_THEME.md`). All colors are managed through Flutter's `ColorScheme` and custom `ThemeExtension`.
 
 ### Theme Files
-- `LOCKIT_MINIMAL_THEME.md` - Complete design specification (source of truth)
-- `lib/core/theme/app_colors.dart` - Flutter color definitions and ThemeExtension
+- `lib/core/theme/app_colors.dart` - Color definitions, ColorScheme, and ThemeExtension
 - `lib/core/theme/app_theme.dart` - ThemeData configuration for light/dark modes
 
-### Quick Reference
+### Color Palette
 
-**Primary Accent Gradient:** `from-rose-500 to-orange-500`
+**Primary Accent:** Rose (`#F43F5E`) to Orange (`#F97316`) gradient
+**Foundation:** Neutral grays (dark mode) / Gray scale (light mode)
 
-**Dark Mode:**
-```
-Background:     black, neutral-950
-Surface:        neutral-900
-Border:         neutral-800
-Text:           white, neutral-300, neutral-400, neutral-500
-Accent:         rose-500, orange-500
-```
+| Role | Dark Mode | Light Mode |
+|------|-----------|------------|
+| Background | Black / Neutral-950 | White / Gray-100 |
+| Surface | Neutral-900 | White |
+| Card | Neutral-900 | White |
+| Border | Neutral-800 | Gray-200 |
+| Primary Text | White | Gray-900 |
+| Secondary Text | Neutral-300 | Gray-700 |
+| Muted Text | Neutral-500 | Gray-500 |
 
-**Light Mode:**
-```
-Background:     gray-100, white
-Surface:        white, gray-50
-Border:         gray-200, gray-100
-Text:           gray-900, gray-700, gray-600, gray-500
-Accent:         rose-500, orange-500
-```
+### Using Theme Colors in Widgets
 
-### Using Theme Colors in Flutter
+**ALWAYS use theme-based colors. NEVER use hardcoded hex values.**
 
 ```dart
 @override
 Widget build(BuildContext context) {
+  // Standard ColorScheme colors
   final colorScheme = Theme.of(context).colorScheme;
+
+  // Custom app colors (text hierarchy, semantic colors, card styling)
   final appColors = context.appColors;
 
   return Container(
-    color: colorScheme.surface,
-    child: Text('Hello', style: TextStyle(color: colorScheme.onSurface)),
+    color: colorScheme.surface,           // Use for backgrounds
+    child: Text(
+      'Hello',
+      style: TextStyle(
+        color: colorScheme.onSurface,     // Primary text
+      ),
+    ),
   );
 }
 ```
 
+### ColorScheme Properties (Standard Material 3)
+
+| Property | Usage |
+|----------|-------|
+| `colorScheme.primary` | Primary accent (rose-500) |
+| `colorScheme.secondary` | Secondary accent (orange-500) |
+| `colorScheme.surface` | Page/card backgrounds |
+| `colorScheme.onSurface` | Primary text on surface |
+| `colorScheme.surfaceContainer` | Elevated surfaces |
+| `colorScheme.surfaceContainerHigh` | Higher elevation surfaces |
+| `colorScheme.outline` | Borders |
+| `colorScheme.error` | Error states |
+
+### AppColorsExtension Properties (Custom)
+
+Access via `context.appColors`:
+
+| Property | Usage |
+|----------|-------|
+| `appColors.textSecondary` | Secondary text (slightly muted) |
+| `appColors.textTertiary` | Tertiary text |
+| `appColors.textMuted` | Muted/placeholder text |
+| `appColors.textDisabled` | Disabled state text |
+| `appColors.success` | Success color (emerald) |
+| `appColors.successBackground` | Success background |
+| `appColors.warning` | Warning color (amber) |
+| `appColors.warningBackground` | Warning background |
+| `appColors.cardBackground` | Card backgrounds |
+| `appColors.cardBorder` | Card borders |
+| `appColors.divider` | Divider lines |
+
+### Category Colors
+
+For event categories and member colors, use `AppColors` static constants:
+
+```dart
+import '../../core/theme/app_colors.dart';
+
+// Event categories
+AppColors.categoryWork     // Teal
+AppColors.categoryHoliday  // Orange (secondary)
+AppColors.categoryFriend   // Violet
+AppColors.categoryOther    // Rose (primary)
+
+// Member colors (for avatars, group members)
+AppColors.memberPink
+AppColors.memberAmber
+AppColors.memberViolet
+AppColors.memberCyan
+AppColors.memberEmerald
+AppColors.memberTeal
+```
+
+### Common Patterns
+
+**Card with border:**
+```dart
+Container(
+  decoration: BoxDecoration(
+    color: appColors.cardBackground,
+    borderRadius: BorderRadius.circular(16),
+    border: Border.all(color: appColors.cardBorder),
+  ),
+)
+```
+
+**Primary button:**
+```dart
+Container(
+  decoration: BoxDecoration(
+    color: colorScheme.primary,
+    borderRadius: BorderRadius.circular(12),
+  ),
+  child: Text('Button', style: TextStyle(color: colorScheme.onPrimary)),
+)
+```
+
+**Empty state:**
+```dart
+Icon(Icons.event_busy, color: appColors.textDisabled)
+Text('No events', style: TextStyle(color: appColors.textMuted))
+```
+
 ### Pitfalls to Avoid
 
-- **Don't** use hardcoded hex colors - use `colorScheme.*` or `appColors.*`
-- **Don't** invent new colors - all colors must come from `LOCKIT_MINIMAL_THEME.md`
-- **Do** reference the theme file for exact Tailwind class names and hex values
+- **Don't** use hardcoded colors like `Color(0xFFF43F5E)` - use `colorScheme.primary`
+- **Don't** use gradients for backgrounds (Minimal theme uses solid colors)
+- **Don't** create new color constants in widgets - add them to `AppColors` or `AppColorsExtension`
+- **Do** use `colorScheme.onSurface` for text on `colorScheme.surface` backgrounds
+- **Do** use `withValues(alpha: 0.x)` instead of `withOpacity()` for color transparency
 
 ## Common Pitfalls to Avoid
 
