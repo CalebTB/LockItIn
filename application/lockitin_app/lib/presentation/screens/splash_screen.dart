@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'auth/login_screen.dart';
-import 'card_calendar_screen.dart';
+import 'main_screen.dart';
 
 /// Splash screen shown during app initialization
 class SplashScreen extends StatefulWidget {
@@ -36,7 +36,7 @@ class _SplashScreenState extends State<SplashScreen> {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => authProvider.isAuthenticated
-            ? const CardCalendarScreen()
+            ? const MainScreen()
             : const LoginScreen(),
       ),
     );
