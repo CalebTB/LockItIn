@@ -261,6 +261,16 @@ class CalendarProvider extends ChangeNotifier {
     return _eventsByDate[key] ?? [];
   }
 
+  /// Get all events from all days, sorted by start time
+  List<EventModel> getAllEvents() {
+    final allEvents = <EventModel>[];
+    for (final events in _eventsByDate.values) {
+      allEvents.addAll(events);
+    }
+    allEvents.sort((a, b) => a.startTime.compareTo(b.startTime));
+    return allEvents;
+  }
+
   /// Check if a date has events
   bool hasEvents(DateTime date) {
     final key = _dateKey(date);
