@@ -1,85 +1,119 @@
 import 'package:flutter/material.dart';
 
 /// Centralized color definitions for the LockItIn app
-/// All colors should be referenced from this file to maintain consistency
-/// and enable easy theme changes across the entire application.
+/// Based on the Minimal theme from LOCKIT_MINIMAL_THEME.md
+/// A clean, neutral theme with rose/orange accents
 class AppColors {
   // Private constructor to prevent instantiation
   AppColors._();
 
-  // ===== Primary Brand Colors =====
-  // Option 1: Trust & Privacy Color Scheme
-  // Deep Blue + Purple + Coral for trustworthy, friendly, sophisticated brand
+  // ===== Primary Brand Colors (Minimal Theme) =====
+  // Rose/Orange gradient accent with neutral foundation
 
-  /// Main brand color - used for primary actions, headers, and key UI elements
-  /// Deep Blue conveys trust, reliability, and privacy (perfect for Shadow Calendar)
-  static const Color primary = Color(0xFF2563EB); // Deep Blue
+  /// Primary accent - Rose 500
+  static const Color primary = Color(0xFFF43F5E);
 
-  /// Secondary brand color - used for accents and secondary actions
-  /// Purple adds social warmth and differentiates from corporate blues
-  static const Color secondary = Color(0xFF8B5CF6); // Purple
+  /// Secondary accent - Orange 500
+  static const Color secondary = Color(0xFFF97316);
 
-  /// Tertiary brand color - used for celebration, confirmations, and warm moments
-  /// Warm Coral for joy and celebration (event confirmations, success states)
-  static const Color tertiary = Color(0xFFFB923C); // Warm Coral
+  /// Tertiary - Rose 400 (lighter accent)
+  static const Color tertiary = Color(0xFFFB7185);
 
-  // ===== Avatar Colors =====
+  // ===== Rose Palette =====
+  static const Color rose50 = Color(0xFFFFF1F2);
+  static const Color rose100 = Color(0xFFFFE4E6);
+  static const Color rose200 = Color(0xFFFECDD3);
+  static const Color rose300 = Color(0xFFFDA4AF);
+  static const Color rose400 = Color(0xFFFB7185);
+  static const Color rose500 = Color(0xFFF43F5E);
+  static const Color rose600 = Color(0xFFE11D48);
+  static const Color rose700 = Color(0xFFBE123C);
+  static const Color rose800 = Color(0xFF9F1239);
+  static const Color rose900 = Color(0xFF881337);
+  static const Color rose950 = Color(0xFF4C0519);
 
-  /// Default avatar background color when no image is set
-  /// This is used for the "logged in as" section and profile avatars
-  static const Color avatarDefault = primary;
+  // ===== Orange Palette =====
+  static const Color orange50 = Color(0xFFFFF7ED);
+  static const Color orange100 = Color(0xFFFFEDD5);
+  static const Color orange200 = Color(0xFFFED7AA);
+  static const Color orange300 = Color(0xFFFDBA74);
+  static const Color orange400 = Color(0xFFFB923C);
+  static const Color orange500 = Color(0xFFF97316);
+  static const Color orange600 = Color(0xFFEA580C);
+
+  // ===== Neutral Palette (Dark Mode Foundation) =====
+  static const Color neutral50 = Color(0xFFFAFAFA);
+  static const Color neutral100 = Color(0xFFF5F5F5);
+  static const Color neutral200 = Color(0xFFE5E5E5);
+  static const Color neutral300 = Color(0xFFD4D4D4);
+  static const Color neutral400 = Color(0xFFA3A3A3);
+  static const Color neutral500 = Color(0xFF737373);
+  static const Color neutral600 = Color(0xFF525252);
+  static const Color neutral700 = Color(0xFF404040);
+  static const Color neutral800 = Color(0xFF262626);
+  static const Color neutral900 = Color(0xFF171717);
+  static const Color neutral950 = Color(0xFF0A0A0A);
+
+  // ===== Gray Palette (Light Mode Foundation) =====
+  static const Color gray50 = Color(0xFFFAFAFA);
+  static const Color gray100 = Color(0xFFF5F5F5);
+  static const Color gray200 = Color(0xFFE5E5E5);
+  static const Color gray300 = Color(0xFFD4D4D4);
+  static const Color gray400 = Color(0xFFA3A3A3);
+  static const Color gray500 = Color(0xFF737373);
+  static const Color gray600 = Color(0xFF525252);
+  static const Color gray700 = Color(0xFF404040);
+  static const Color gray800 = Color(0xFF1F2937);
+  static const Color gray900 = Color(0xFF171717);
 
   // ===== Semantic Colors =====
 
-  /// Success color - for positive feedback, confirmations
-  static const Color success = Color(0xFF10B981); // Green
+  /// Success color - Emerald
+  static const Color success = Color(0xFF10B981);
+  static const Color successLight = Color(0xFF34D399);
 
-  /// Error color - for errors, destructive actions, validation failures
-  static const Color error = Color(0xFFEF4444); // Red
+  /// Error color - Rose (matches primary)
+  static const Color error = Color(0xFFF43F5E);
 
-  /// Warning color - for warnings and caution states
-  static const Color warning = Color(0xFFF59E0B); // Amber
+  /// Warning color - Amber
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color warningLight = Color(0xFFFCD34D);
 
-  /// Info color - for informational messages
-  static const Color info = Color(0xFF2563EB); // Deep Blue (matches primary)
+  /// Info color - Blue
+  static const Color info = Color(0xFF3B82F6);
+
+  // ===== Member/Category Colors =====
+  // Distinct colors for group members and event categories
+
+  static const Color memberPink = Color(0xFFEC4899);
+  static const Color memberAmber = Color(0xFFFB923C);
+  static const Color memberViolet = Color(0xFF8B5CF6);
+  static const Color memberCyan = Color(0xFF06B6D4);
+  static const Color memberEmerald = Color(0xFF10B981);
+  static const Color memberPurple = Color(0xFFA855F7);
+  static const Color memberTeal = Color(0xFF14B8A6);
 
   // ===== Event Category Colors =====
+  // Used for calendar event indicators and category badges
 
-  /// Work events - Teal (professional, productive, bridges blue → green)
-  /// Derived from primary Deep Blue while maintaining "work" semantics
-  static const Color categoryWork = Color(0xFF14B8A6); // Teal-500
+  /// Work events - Teal
+  static const Color categoryWork = memberTeal;
 
-  /// Holiday events - Warm Coral (celebration, matches brand tertiary)
-  /// Uses brand tertiary color directly - perfect semantic fit
-  static const Color categoryHoliday = Color(0xFFFB923C); // Warm Coral (tertiary)
+  /// Holiday events - Orange (matches secondary)
+  static const Color categoryHoliday = secondary;
 
-  /// Friend events - Purple (social, matches brand secondary)
-  /// Uses brand secondary color directly - already perfect
-  static const Color categoryFriend = Color(0xFF8B5CF6); // Purple (secondary)
+  /// Friend events - Violet
+  static const Color categoryFriend = memberViolet;
 
-  /// Other events - Slate Blue (neutral, derived from primary)
-  /// Cooler, more premium than yellow - cohesive with Deep Blue brand
-  static const Color categoryOther = Color(0xFF64748B); // Slate-500
+  /// Other events - Primary rose
+  static const Color categoryOther = primary;
 
-  // ===== Neutral Colors =====
-
-  /// Grey shades for text, borders, and backgrounds
-  static const Color grey50 = Color(0xFFF9FAFB);
-  static const Color grey100 = Color(0xFFF3F4F6);
-  static const Color grey200 = Color(0xFFE5E7EB);
-  static const Color grey300 = Color(0xFFD1D5DB);
-  static const Color grey400 = Color(0xFF9CA3AF);
-  static const Color grey500 = Color(0xFF6B7280);
-  static const Color grey600 = Color(0xFF4B5563);
-  static const Color grey700 = Color(0xFF374151);
-  static const Color grey800 = Color(0xFF1F2937);
-  static const Color grey900 = Color(0xFF111827);
+  // ===== Avatar Colors =====
+  static const Color avatarDefault = primary;
 
   // ===== Helper Methods =====
 
   /// Generate a deterministic color from a string (e.g., email)
-  /// Used for user avatars when no image is set
-  /// Note: This is now centralized but can be overridden by using avatarDefault instead
   static Color generateAvatarColor(String text, {bool useDefault = false}) {
     if (useDefault) {
       return avatarDefault;
@@ -96,43 +130,243 @@ class AppColors {
     return HSLColor.fromAHSL(1.0, hue, 0.7, 0.6).toColor();
   }
 
-  /// Get color scheme for Material 3 theme
+  /// Get light color scheme for Material 3 theme (Minimal Light)
   static ColorScheme getLightColorScheme() {
-    return ColorScheme.fromSeed(
-      seedColor: primary,
+    return const ColorScheme(
       brightness: Brightness.light,
-      primary: primary,
-      secondary: secondary,
-      tertiary: tertiary,
-      error: error,
+      // Primary
+      primary: rose500,
+      onPrimary: Colors.white,
+      primaryContainer: rose100,
+      onPrimaryContainer: rose900,
+      // Secondary
+      secondary: orange500,
+      onSecondary: Colors.white,
+      secondaryContainer: orange100,
+      onSecondaryContainer: orange600,
+      // Tertiary
+      tertiary: rose400,
+      onTertiary: Colors.white,
+      tertiaryContainer: rose50,
+      onTertiaryContainer: rose800,
+      // Error
+      error: rose500,
+      onError: Colors.white,
+      errorContainer: rose50,
+      onErrorContainer: rose900,
+      // Surface - Light mode uses white/gray
+      surface: Colors.white,
+      onSurface: gray900,
+      surfaceContainerLowest: Colors.white,
+      surfaceContainerLow: gray50,
+      surfaceContainer: gray100,
+      surfaceContainerHigh: gray200,
+      surfaceContainerHighest: gray300,
+      onSurfaceVariant: gray600,
+      // Outline
+      outline: gray200,
+      outlineVariant: gray300,
+      // Other
+      shadow: Colors.black,
+      scrim: Colors.black,
+      inverseSurface: gray900,
+      onInverseSurface: gray50,
+      inversePrimary: rose300,
     );
   }
 
-  /// Get color scheme for Material 3 dark theme
+  /// Get dark color scheme for Material 3 theme (Minimal Dark)
   static ColorScheme getDarkColorScheme() {
-    return ColorScheme.fromSeed(
-      seedColor: primary,
+    return const ColorScheme(
       brightness: Brightness.dark,
-      primary: primary,
-      secondary: secondary,
-      tertiary: tertiary,
-      error: error,
+      // Primary
+      primary: rose500,
+      onPrimary: Colors.white,
+      primaryContainer: rose900,
+      onPrimaryContainer: rose100,
+      // Secondary
+      secondary: orange500,
+      onSecondary: Colors.white,
+      secondaryContainer: Color(0xFF7C2D12), // orange-900
+      onSecondaryContainer: orange100,
+      // Tertiary
+      tertiary: rose400,
+      onTertiary: Colors.white,
+      tertiaryContainer: rose950,
+      onTertiaryContainer: rose200,
+      // Error
+      error: rose400,
+      onError: Colors.white,
+      errorContainer: rose950,
+      onErrorContainer: rose200,
+      // Surface - Dark mode uses neutral blacks
+      surface: neutral950,
+      onSurface: Colors.white,
+      surfaceContainerLowest: Colors.black,
+      surfaceContainerLow: neutral950,
+      surfaceContainer: neutral900,
+      surfaceContainerHigh: neutral800,
+      surfaceContainerHighest: neutral700,
+      onSurfaceVariant: neutral400,
+      // Outline
+      outline: neutral800,
+      outlineVariant: neutral700,
+      // Other
+      shadow: Colors.black,
+      scrim: Colors.black,
+      inverseSurface: neutral100,
+      onInverseSurface: neutral900,
+      inversePrimary: rose600,
     );
   }
 }
 
-/// Extension on ColorScheme to add custom colors
-/// Access these via Theme.of(context).colorScheme.avatarDefault
+/// Theme extension for custom app colors not covered by ColorScheme
+@immutable
+class AppColorsExtension extends ThemeExtension<AppColorsExtension> {
+  const AppColorsExtension({
+    required this.textSecondary,
+    required this.textTertiary,
+    required this.textMuted,
+    required this.textDisabled,
+    required this.success,
+    required this.successBackground,
+    required this.warning,
+    required this.warningBackground,
+    required this.info,
+    required this.infoBackground,
+    required this.cardBackground,
+    required this.cardBorder,
+    required this.divider,
+  });
+
+  final Color textSecondary;
+  final Color textTertiary;
+  final Color textMuted;
+  final Color textDisabled;
+  final Color success;
+  final Color successBackground;
+  final Color warning;
+  final Color warningBackground;
+  final Color info;
+  final Color infoBackground;
+  final Color cardBackground;
+  final Color cardBorder;
+  final Color divider;
+
+  /// Light mode colors
+  static const light = AppColorsExtension(
+    textSecondary: AppColors.gray700,
+    textTertiary: AppColors.gray600,
+    textMuted: AppColors.gray500,
+    textDisabled: AppColors.gray400,
+    success: AppColors.success,
+    successBackground: Color(0xFFECFDF5), // emerald-50
+    warning: AppColors.warning,
+    warningBackground: Color(0xFFFFFBEB), // amber-50
+    info: AppColors.info,
+    infoBackground: Color(0xFFEFF6FF), // blue-50
+    cardBackground: Colors.white,
+    cardBorder: AppColors.gray200,
+    divider: AppColors.gray200,
+  );
+
+  /// Dark mode colors
+  static const dark = AppColorsExtension(
+    textSecondary: AppColors.neutral300,
+    textTertiary: AppColors.neutral400,
+    textMuted: AppColors.neutral500,
+    textDisabled: AppColors.neutral600,
+    success: AppColors.successLight,
+    successBackground: Color(0x26059669), // emerald-500/15
+    warning: AppColors.warningLight,
+    warningBackground: Color(0x26D97706), // amber-500/15
+    info: Color(0xFF60A5FA), // blue-400
+    infoBackground: Color(0x263B82F6), // blue-500/15
+    cardBackground: AppColors.neutral900,
+    cardBorder: AppColors.neutral800,
+    divider: AppColors.neutral800,
+  );
+
+  @override
+  AppColorsExtension copyWith({
+    Color? textSecondary,
+    Color? textTertiary,
+    Color? textMuted,
+    Color? textDisabled,
+    Color? success,
+    Color? successBackground,
+    Color? warning,
+    Color? warningBackground,
+    Color? info,
+    Color? infoBackground,
+    Color? cardBackground,
+    Color? cardBorder,
+    Color? divider,
+  }) {
+    return AppColorsExtension(
+      textSecondary: textSecondary ?? this.textSecondary,
+      textTertiary: textTertiary ?? this.textTertiary,
+      textMuted: textMuted ?? this.textMuted,
+      textDisabled: textDisabled ?? this.textDisabled,
+      success: success ?? this.success,
+      successBackground: successBackground ?? this.successBackground,
+      warning: warning ?? this.warning,
+      warningBackground: warningBackground ?? this.warningBackground,
+      info: info ?? this.info,
+      infoBackground: infoBackground ?? this.infoBackground,
+      cardBackground: cardBackground ?? this.cardBackground,
+      cardBorder: cardBorder ?? this.cardBorder,
+      divider: divider ?? this.divider,
+    );
+  }
+
+  @override
+  AppColorsExtension lerp(ThemeExtension<AppColorsExtension>? other, double t) {
+    if (other is! AppColorsExtension) {
+      return this;
+    }
+    return AppColorsExtension(
+      textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
+      textTertiary: Color.lerp(textTertiary, other.textTertiary, t)!,
+      textMuted: Color.lerp(textMuted, other.textMuted, t)!,
+      textDisabled: Color.lerp(textDisabled, other.textDisabled, t)!,
+      success: Color.lerp(success, other.success, t)!,
+      successBackground: Color.lerp(successBackground, other.successBackground, t)!,
+      warning: Color.lerp(warning, other.warning, t)!,
+      warningBackground: Color.lerp(warningBackground, other.warningBackground, t)!,
+      info: Color.lerp(info, other.info, t)!,
+      infoBackground: Color.lerp(infoBackground, other.infoBackground, t)!,
+      cardBackground: Color.lerp(cardBackground, other.cardBackground, t)!,
+      cardBorder: Color.lerp(cardBorder, other.cardBorder, t)!,
+      divider: Color.lerp(divider, other.divider, t)!,
+    );
+  }
+}
+
+/// Extension on BuildContext for easy access to custom colors
+extension AppColorsExtensionContext on BuildContext {
+  AppColorsExtension get appColors =>
+      Theme.of(this).extension<AppColorsExtension>() ?? AppColorsExtension.light;
+}
+
+/// Extension on ColorScheme to add common color accessors
 extension AppColorSchemeExtension on ColorScheme {
-  /// Default avatar color for when no image is set
+  /// Default avatar color
   Color get avatarDefault => AppColors.avatarDefault;
 
   /// Success color
-  Color get successColor => AppColors.success;
+  Color get successColor => brightness == Brightness.dark
+      ? AppColors.successLight
+      : AppColors.success;
 
   /// Warning color
-  Color get warningColor => AppColors.warning;
+  Color get warningColor => brightness == Brightness.dark
+      ? AppColors.warningLight
+      : AppColors.warning;
 
   /// Info color
-  Color get infoColor => AppColors.info;
+  Color get infoColor => brightness == Brightness.dark
+      ? const Color(0xFF60A5FA) // blue-400
+      : AppColors.info;
 }

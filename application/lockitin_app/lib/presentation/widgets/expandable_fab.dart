@@ -1,22 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../../core/theme/app_colors.dart';
 
 /// Expandable floating action button with animated menu options
 /// Opens to reveal Groups, Friends, and New Event actions
+/// Uses theme-based colors from the Minimal theme design system
 class ExpandableFab extends StatefulWidget {
-  // Sunset Coral Dark Theme Colors
-  static const Color _rose500 = Color(0xFFF43F5E);
-  static const Color _rose400 = Color(0xFFFB7185);
-  static const Color _rose800 = Color(0xFF9F1239);
-  static const Color _rose900 = Color(0xFF881337);
-  static const Color _rose950 = Color(0xFF4C0519);
-  static const Color _rose50 = Color(0xFFFFF1F2);
-  static const Color _orange500 = Color(0xFFF97316);
-  static const Color _orange600 = Color(0xFFEA580C);
-  static const Color _amber400 = Color(0xFFFBBF24);
-  static const Color _pink500 = Color(0xFFEC4899);
-  static const Color _violet400 = Color(0xFFA78BFA);
-  static const Color _purple500 = Color(0xFFA855F7);
   final bool isOpen;
   final VoidCallback onToggle;
   final VoidCallback onGroupsPressed;
@@ -75,6 +64,9 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
+
     return SizedBox(
       width: 200, // Wide enough for labels + buttons
       height: 220,
@@ -82,65 +74,55 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
         alignment: Alignment.bottomRight,
         clipBehavior: Clip.none,
         children: [
-          // New Event Button (top) - Amber to Orange
+          // New Event Button (top) - Secondary color (orange)
           _buildExpandingAction(
+            context: context,
             index: 2,
             icon: Icons.calendar_today_rounded,
             label: 'New Event',
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [ExpandableFab._amber400, ExpandableFab._orange600],
-            ),
-            shadowColor: ExpandableFab._orange500,
+            color: colorScheme.secondary,
             onTap: widget.onNewEventPressed,
           ),
 
-          // Friends Button (middle) - Rose to Pink
+          // Friends Button (middle) - Primary color (rose)
           _buildExpandingAction(
+            context: context,
             index: 1,
             icon: Icons.person_add_rounded,
             label: 'Friends',
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [ExpandableFab._rose400, ExpandableFab._pink500],
-            ),
-            shadowColor: ExpandableFab._pink500,
+            color: colorScheme.primary,
             onTap: widget.onFriendsPressed,
             badgeCount: widget.pendingFriendRequests,
           ),
 
-          // Groups Button (bottom of expanded menu) - Violet to Purple
+          // Groups Button (bottom of expanded menu) - Violet
           _buildExpandingAction(
+            context: context,
             index: 0,
             icon: Icons.group_rounded,
             label: 'Groups',
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [ExpandableFab._violet400, ExpandableFab._purple500],
-            ),
-            shadowColor: ExpandableFab._purple500,
+            color: AppColors.memberViolet,
             onTap: widget.onGroupsPressed,
           ),
 
           // Main FAB
-          _buildMainFab(),
+          _buildMainFab(context, colorScheme, appColors),
         ],
       ),
     );
   }
 
   Widget _buildExpandingAction({
+    required BuildContext context,
     required int index,
     required IconData icon,
     required String label,
-    required Gradient gradient,
-    required Color shadowColor,
+    required Color color,
     required VoidCallback onTap,
     int badgeCount = 0,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
     final double distance = 56.0 * (index + 1);
 
     return AnimatedBuilder(
@@ -165,19 +147,19 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
                         margin: const EdgeInsets.only(right: 12),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
-                          color: ExpandableFab._rose950.withValues(alpha: 0.9),
+                          color: appColors.cardBackground,
                           borderRadius: BorderRadius.circular(9999),
                           border: Border.all(
-                            color: ExpandableFab._rose500.withValues(alpha: 0.3),
+                            color: appColors.cardBorder,
                             width: 1,
                           ),
                         ),
                         child: Text(
                           label,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
-                            color: ExpandableFab._rose50,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -195,11 +177,11 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
                             width: 48,
                             height: 48,
                             decoration: BoxDecoration(
-                              gradient: gradient,
+                              color: color,
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: shadowColor.withValues(alpha: 0.4),
+                                  color: color.withValues(alpha: 0.4),
                                   blurRadius: 12,
                                   offset: const Offset(0, 4),
                                 ),
@@ -224,15 +206,15 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
                               minWidth: 20,
                               minHeight: 20,
                             ),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEF4444), // red-500
+                            decoration: BoxDecoration(
+                              color: colorScheme.error,
                               shape: BoxShape.circle,
                             ),
                             child: Center(
                               child: Text(
                                 badgeCount > 99 ? '99+' : badgeCount.toString(),
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: colorScheme.onError,
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -251,7 +233,7 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
     );
   }
 
-  Widget _buildMainFab() {
+  Widget _buildMainFab(BuildContext context, ColorScheme colorScheme, AppColorsExtension appColors) {
     return AnimatedBuilder(
       animation: _expandAnimation,
       builder: (context, child) {
@@ -272,18 +254,15 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: isOpen
-                            ? [ExpandableFab._rose800, ExpandableFab._rose900]
-                            : [ExpandableFab._rose500, ExpandableFab._orange500],
-                      ),
+                      color: isOpen
+                          ? colorScheme.surfaceContainerHigh
+                          : colorScheme.primary,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: (isOpen ? ExpandableFab._rose800 : ExpandableFab._rose500)
-                              .withValues(alpha: 0.5),
+                          color: (isOpen
+                              ? colorScheme.surfaceContainerHigh
+                              : colorScheme.primary).withValues(alpha: 0.4),
                           blurRadius: 15,
                           offset: const Offset(0, 4),
                         ),
@@ -291,9 +270,11 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
                     ),
                     child: Transform.rotate(
                       angle: _expandAnimation.value * math.pi / 4,
-                      child: const Icon(
+                      child: Icon(
                         Icons.add_rounded,
-                        color: Colors.white,
+                        color: isOpen
+                            ? colorScheme.onSurface
+                            : colorScheme.onPrimary,
                         size: 28,
                       ),
                     ),
@@ -311,8 +292,8 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
                       minWidth: 20,
                       minHeight: 20,
                     ),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFEF4444), // red-500
+                    decoration: BoxDecoration(
+                      color: colorScheme.error,
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -320,8 +301,8 @@ class _ExpandableFabState extends State<ExpandableFab> with SingleTickerProvider
                         widget.pendingFriendRequests > 99
                             ? '99+'
                             : widget.pendingFriendRequests.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: colorScheme.onError,
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),

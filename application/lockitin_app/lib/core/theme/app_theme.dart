@@ -3,11 +3,12 @@ import 'app_colors.dart';
 
 /// Centralized theme configuration for the LockItIn app
 /// Defines both light and dark themes with consistent styling
+/// Based on the Minimal theme from LOCKIT_MINIMAL_THEME.md
 class AppTheme {
   // Private constructor to prevent instantiation
   AppTheme._();
 
-  // ===== Light Theme =====
+  // ===== Light Theme (Minimal Light) =====
 
   static ThemeData get lightTheme {
     final colorScheme = AppColors.getLightColorScheme();
@@ -15,7 +16,12 @@ class AppTheme {
     return ThemeData(
       colorScheme: colorScheme,
       useMaterial3: true,
-      fontFamily: 'SF Pro', // Will use system font on iOS
+      fontFamily: null, // Use system default font
+
+      // Theme extensions for custom colors
+      extensions: const <ThemeExtension<dynamic>>[
+        AppColorsExtension.light,
+      ],
 
       // App Bar Theme
       appBarTheme: AppBarTheme(
@@ -130,7 +136,7 @@ class AppTheme {
     );
   }
 
-  // ===== Dark Theme =====
+  // ===== Dark Theme (Minimal Dark) =====
 
   static ThemeData get darkTheme {
     final colorScheme = AppColors.getDarkColorScheme();
@@ -138,7 +144,12 @@ class AppTheme {
     return ThemeData(
       colorScheme: colorScheme,
       useMaterial3: true,
-      fontFamily: 'SF Pro',
+      fontFamily: null, // Use system default font
+
+      // Theme extensions for custom colors
+      extensions: const <ThemeExtension<dynamic>>[
+        AppColorsExtension.dark,
+      ],
 
       // App Bar Theme
       appBarTheme: AppBarTheme(

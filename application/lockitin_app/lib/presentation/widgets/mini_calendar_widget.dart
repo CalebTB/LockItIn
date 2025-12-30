@@ -1,16 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 
 /// Compact mini calendar grid for the card calendar view
 /// Shows a 7-column grid with dates and event indicators
+/// Uses theme-based colors from the Minimal theme design system
 class MiniCalendarWidget extends StatelessWidget {
-  // Sunset Coral Dark Theme Colors
-  static const Color _rose500 = Color(0xFFF43F5E);
-  static const Color _rose300 = Color(0xFFFDA4AF);
-  static const Color _rose50 = Color(0xFFFFF1F2);
-  static const Color _orange500 = Color(0xFFF97316);
-  static const Color _amber500 = Color(0xFFF59E0B);
-  static const Color _amber300 = Color(0xFFFCD34D);
-
   final DateTime selectedDate;
   final DateTime focusedMonth;
   final Map<int, List<Color>> eventIndicators; // day -> list of event colors
@@ -28,6 +22,8 @@ class MiniCalendarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
     final today = DateTime.now();
     final daysInMonth = DateTime(focusedMonth.year, focusedMonth.month + 1, 0).day;
     final firstDayOfMonth = DateTime(focusedMonth.year, focusedMonth.month, 1);
@@ -53,7 +49,7 @@ class MiniCalendarWidget extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: _rose300.withValues(alpha: 0.6),
+                      color: appColors.textMuted,
                     ),
                   ),
                 );
@@ -90,23 +86,16 @@ class MiniCalendarWidget extends StatelessWidget {
                 onTap: () => onDateSelected(date),
                 child: Container(
                   decoration: BoxDecoration(
-                    gradient: isSelected || isToday
-                        ? const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [_rose500, _orange500],
-                          )
-                        : null,
                     color: isSelected || isToday
-                        ? null
+                        ? colorScheme.primary
                         : hasEvents
-                            ? _amber500.withValues(alpha: 0.2)
+                            ? colorScheme.secondary.withValues(alpha: 0.15)
                             : null,
                     shape: BoxShape.circle,
                     boxShadow: isSelected || isToday
                         ? [
                             BoxShadow(
-                              color: _rose500.withValues(alpha: 0.3),
+                              color: colorScheme.primary.withValues(alpha: 0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -122,10 +111,10 @@ class MiniCalendarWidget extends StatelessWidget {
                           fontSize: 14,
                           fontWeight: isSelected || isToday ? FontWeight.w600 : FontWeight.w500,
                           color: isSelected || isToday
-                              ? Colors.white
+                              ? colorScheme.onPrimary
                               : hasEvents
-                                  ? _amber300
-                                  : _rose50.withValues(alpha: 0.8),
+                                  ? colorScheme.secondary
+                                  : colorScheme.onSurface.withValues(alpha: 0.8),
                         ),
                       ),
                       if (hasEvents) ...[
@@ -138,11 +127,15 @@ class MiniCalendarWidget extends StatelessWidget {
                               height: 4,
                               margin: const EdgeInsets.symmetric(horizontal: 0.5),
                               decoration: BoxDecoration(
-                                color: isSelected || isToday ? Colors.white : color,
+                                color: isSelected || isToday
+                                    ? colorScheme.onPrimary
+                                    : color,
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: (isSelected || isToday ? Colors.white : color).withValues(alpha: 0.5),
+                                    color: (isSelected || isToday
+                                        ? colorScheme.onPrimary
+                                        : color).withValues(alpha: 0.5),
                                     blurRadius: 2,
                                   ),
                                 ],
