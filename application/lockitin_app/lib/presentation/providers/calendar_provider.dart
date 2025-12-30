@@ -151,7 +151,7 @@ class CalendarProvider extends ChangeNotifier {
   Future<void> _loadEvents() async {
     _isLoadingEvents = true;
     _eventLoadError = null;
-    notifyListeners();
+    // Don't notify here - reduces unnecessary rebuilds
 
     try {
       final List<EventModel> allEvents = [];

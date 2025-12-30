@@ -462,6 +462,9 @@ class GroupService {
   // ============================================================================
 
   /// Get all groups the current user is a member of
+  ///
+  /// Uses RPC function for single-query optimization (Issue #96)
+  /// Previously made 2 queries: one for groups, one for member counts
   Future<List<GroupModel>> getUserGroups() async {
     try {
       final currentUserId = SupabaseClientManager.currentUserId;
@@ -471,53 +474,23 @@ class GroupService {
 
       Logger.info('Fetching groups for user');
 
-      // Get groups with member count using a join and count aggregation
-      final response = await SupabaseClientManager.client
-          .from('group_members')
-          .select('''
-            group_id,
-            groups!inner (
-              id,
-              name,
-              emoji,
-              created_by,
-              created_at,
-              updated_at,
-              members_can_invite
-            )
-          ''')
-          .eq('user_id', currentUserId);
+      // Use RPC function for single-query optimization
+      final response = await SupabaseClientManager.client.rpc(
+        'get_user_groups_with_counts',
+        params: {'user_uuid': currentUserId},
+      );
 
-      // Collect all group IDs for batch member count query
-      final groupIds = <String>[];
-      final groupDataMap = <String, Map<String, dynamic>>{};
-
-      for (final row in response as List) {
-        final groupData = row['groups'] as Map<String, dynamic>;
-        final groupId = groupData['id'] as String;
-        groupIds.add(groupId);
-        groupDataMap[groupId] = groupData;
-      }
-
-      // Batch query for member counts - single query for all groups
-      final memberCounts = <String, int>{};
-      if (groupIds.isNotEmpty) {
-        final countResponse = await SupabaseClientManager.client
-            .from('group_members')
-            .select('group_id')
-            .inFilter('group_id', groupIds);
-
-        // Count members per group
-        for (final row in countResponse as List) {
-          final gid = row['group_id'] as String;
-          memberCounts[gid] = (memberCounts[gid] ?? 0) + 1;
-        }
-      }
-
-      // Build group models with counts
-      final groups = groupIds.map((groupId) {
-        return GroupModel.fromJson(groupDataMap[groupId]!).copyWith(
-          memberCount: memberCounts[groupId] ?? 0,
+      final groups = (response as List).map((row) {
+        return GroupModel.fromJson({
+          'id': row['id'],
+          'name': row['name'],
+          'emoji': row['emoji'],
+          'created_by': row['created_by'],
+          'created_at': row['created_at'],
+          'updated_at': row['updated_at'],
+          'members_can_invite': row['members_can_invite'],
+        }).copyWith(
+          memberCount: (row['member_count'] as int?) ?? 0,
         );
       }).toList();
 

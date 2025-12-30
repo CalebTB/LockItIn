@@ -58,6 +58,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   bool _isLoadingMemberEvents = false;
   String? _memberEventsError;
 
+  // Availability cache for performance (Issue #100)
+  // Key format: 'YYYY-MM-DD', Value: number of available members
+  final Map<String, int> _availabilityCache = {};
+
   @override
   void initState() {
     super.initState();
@@ -117,6 +121,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           _memberEvents = events;
           _isLoadingMemberEvents = false;
           _memberEventsError = null;
+          _clearAvailabilityCache(); // Clear cache when member events change
         });
       }
     } catch (e) {
@@ -142,14 +147,31 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   /// Calculate how many group members are available on a specific date
+  /// Uses memoization cache to avoid recalculating 42 times per build (Issue #100)
   int _getAvailabilityForDay(CalendarProvider calendarProvider, DateTime date) {
-    return _availabilityService.calculateGroupAvailability(
+    final key = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+    // Return cached value if available
+    if (_availabilityCache.containsKey(key)) {
+      return _availabilityCache[key]!;
+    }
+
+    // Calculate and cache the result
+    final result = _availabilityService.calculateGroupAvailability(
       memberEvents: _memberEvents,
       date: date,
       timeFilters: _selectedTimeFilters,
       customStartTime: _customStartTime,
       customEndTime: _customEndTime,
     );
+
+    _availabilityCache[key] = result;
+    return result;
+  }
+
+  /// Clear availability cache when filters or data change
+  void _clearAvailabilityCache() {
+    _availabilityCache.clear();
   }
 
   @override
@@ -449,13 +471,19 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       context: context,
       currentRange: _selectedDateRange,
       onRangeSelected: (range) {
-        setState(() => _selectedDateRange = range);
+        setState(() {
+          _selectedDateRange = range;
+          _clearAvailabilityCache(); // Clear cache when date range changes
+        });
       },
     );
   }
 
   void _clearDateRange() {
-    setState(() => _selectedDateRange = null);
+    setState(() {
+      _selectedDateRange = null;
+      _clearAvailabilityCache(); // Clear cache when date range changes
+    });
   }
 
   void _toggleTimeFilter(TimeFilter filter) {
@@ -474,6 +502,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           _selectedTimeFilters.add(filter);
         }
       }
+      _clearAvailabilityCache(); // Clear cache when time filters change
     });
   }
 
@@ -487,6 +516,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           _customStartTime = startTime;
           _customEndTime = endTime;
           _selectedTimeFilters = {TimeFilter.allDay};
+          _clearAvailabilityCache(); // Clear cache when custom time range changes
         });
       },
     );

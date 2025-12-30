@@ -138,7 +138,7 @@ class FriendProvider extends ChangeNotifier {
   Future<void> loadFriends() async {
     _isLoadingFriends = true;
     _friendsError = null;
-    notifyListeners();
+    // Don't notify here - reduces unnecessary rebuilds
 
     try {
       _friends = await _friendService.getFriends();
@@ -148,7 +148,7 @@ class FriendProvider extends ChangeNotifier {
       Logger.error('Failed to load friends: $e');
     } finally {
       _isLoadingFriends = false;
-      notifyListeners();
+      notifyListeners(); // Single rebuild with final state
     }
   }
 
@@ -156,7 +156,7 @@ class FriendProvider extends ChangeNotifier {
   Future<void> loadPendingRequests() async {
     _isLoadingRequests = true;
     _requestsError = null;
-    notifyListeners();
+    // Don't notify here - reduces unnecessary rebuilds
 
     try {
       final results = await Future.wait([
@@ -176,7 +176,7 @@ class FriendProvider extends ChangeNotifier {
       Logger.error('Failed to load pending requests: $e');
     } finally {
       _isLoadingRequests = false;
-      notifyListeners();
+      notifyListeners(); // Single rebuild with final state
     }
   }
 
@@ -202,7 +202,7 @@ class FriendProvider extends ChangeNotifier {
 
     _isSearching = true;
     _searchError = null;
-    notifyListeners();
+    // Don't notify here - reduces unnecessary rebuilds
 
     try {
       _searchResults = await _friendService.searchUsers(query);
@@ -213,7 +213,7 @@ class FriendProvider extends ChangeNotifier {
       Logger.error('Search failed: $e');
     } finally {
       _isSearching = false;
-      notifyListeners();
+      notifyListeners(); // Single rebuild with final state
     }
   }
 
@@ -233,23 +233,22 @@ class FriendProvider extends ChangeNotifier {
   Future<bool> sendFriendRequest(String friendId) async {
     _isSendingRequest = true;
     _actionError = null;
-    notifyListeners();
+    // Don't notify here - reduces unnecessary rebuilds
 
     try {
       await _friendService.sendFriendRequest(friendId);
       // Reload sent requests to get the complete data with recipient info
       _sentRequests = await _friendService.getSentRequests();
       Logger.info('Friend request sent to: $friendId');
-      notifyListeners();
+      _isSendingRequest = false;
+      notifyListeners(); // Single rebuild with final state
       return true;
     } catch (e) {
       _actionError = e.toString();
       Logger.error('Failed to send friend request: $e');
-      notifyListeners();
-      return false;
-    } finally {
       _isSendingRequest = false;
-      notifyListeners();
+      notifyListeners(); // Single rebuild with error state
+      return false;
     }
   }
 

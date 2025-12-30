@@ -162,7 +162,7 @@ class GroupProvider extends ChangeNotifier {
   Future<void> loadGroups() async {
     _isLoadingGroups = true;
     _groupsError = null;
-    notifyListeners();
+    // Don't notify here - reduces unnecessary rebuilds
 
     try {
       _groups = await _groupService.getUserGroups();
@@ -172,7 +172,7 @@ class GroupProvider extends ChangeNotifier {
       Logger.error('Failed to load groups: $e');
     } finally {
       _isLoadingGroups = false;
-      notifyListeners();
+      notifyListeners(); // Single rebuild with final state
     }
   }
 
@@ -185,7 +185,7 @@ class GroupProvider extends ChangeNotifier {
   Future<void> loadPendingInvites() async {
     _isLoadingInvites = true;
     _invitesError = null;
-    notifyListeners();
+    // Don't notify here - reduces unnecessary rebuilds
 
     try {
       _pendingInvites = await _groupService.getPendingInvites();
@@ -195,7 +195,7 @@ class GroupProvider extends ChangeNotifier {
       Logger.error('Failed to load pending invites: $e');
     } finally {
       _isLoadingInvites = false;
-      notifyListeners();
+      notifyListeners(); // Single rebuild with final state
     }
   }
 
@@ -244,7 +244,7 @@ class GroupProvider extends ChangeNotifier {
   Future<void> loadGroupMembers(String groupId) async {
     _isLoadingMembers = true;
     _membersError = null;
-    notifyListeners();
+    // Don't notify here - reduces unnecessary rebuilds
 
     try {
       _selectedGroupMembers = await _groupService.getGroupMembers(groupId);
@@ -254,7 +254,7 @@ class GroupProvider extends ChangeNotifier {
       Logger.error('Failed to load group members: $e');
     } finally {
       _isLoadingMembers = false;
-      notifyListeners();
+      notifyListeners(); // Single rebuild with final state
     }
   }
 
@@ -269,7 +269,7 @@ class GroupProvider extends ChangeNotifier {
   }) async {
     _isCreatingGroup = true;
     _actionError = null;
-    notifyListeners();
+    // Don't notify here - reduces unnecessary rebuilds
 
     try {
       final group = await _groupService.createGroup(name: name, emoji: emoji);
@@ -278,16 +278,15 @@ class GroupProvider extends ChangeNotifier {
       _groups.insert(0, group);
 
       Logger.info('Created group: ${group.id}');
-      notifyListeners();
+      _isCreatingGroup = false;
+      notifyListeners(); // Single rebuild with final state
       return group;
     } catch (e) {
       _actionError = e.toString();
       Logger.error('Failed to create group: $e');
-      notifyListeners();
-      return null;
-    } finally {
       _isCreatingGroup = false;
-      notifyListeners();
+      notifyListeners(); // Single rebuild with error state
+      return null;
     }
   }
 
@@ -299,7 +298,7 @@ class GroupProvider extends ChangeNotifier {
   }) async {
     _isUpdatingGroup = true;
     _actionError = null;
-    notifyListeners();
+    // Don't notify here - reduces unnecessary rebuilds
 
     try {
       final updatedGroup = await _groupService.updateGroup(
@@ -324,16 +323,15 @@ class GroupProvider extends ChangeNotifier {
       }
 
       Logger.info('Updated group: $groupId');
-      notifyListeners();
+      _isUpdatingGroup = false;
+      notifyListeners(); // Single rebuild with final state
       return true;
     } catch (e) {
       _actionError = e.toString();
       Logger.error('Failed to update group: $e');
-      notifyListeners();
-      return false;
-    } finally {
       _isUpdatingGroup = false;
-      notifyListeners();
+      notifyListeners(); // Single rebuild with error state
+      return false;
     }
   }
 
