@@ -2,7 +2,7 @@
 
 *Consolidated design philosophy, UX logic, feature flows, and design system reference*
 
-*Last Updated: December 1, 2025*
+*Last Updated: December 30, 2025 - Updated to Minimal theme color system*
 
 ---
 
@@ -147,11 +147,13 @@ When opening the app, users land on the **Personal Calendar** in Week View. This
 
 | Color | Event Type | Meaning |
 |-------|-----------|---------|
-| Blue | Personal events | Your private/personal calendar |
-| Green | Group events (confirmed) | Events you're attending with groups |
-| Purple | Pending proposals | Events awaiting your vote |
-| Gray | Busy-only events | Your busy blocks (no details shared) |
-| Red | Conflicts/Declined | Declined invites or scheduling conflicts |
+| Rose (Primary) | Personal events | Your private/personal calendar |
+| Orange (Secondary) | Group events (confirmed) | Events you're attending with groups |
+| Violet | Pending proposals | Events awaiting your vote |
+| Neutral Gray | Busy-only events | Your busy blocks (no details shared) |
+| Rose/Red | Conflicts/Declined | Declined invites or scheduling conflicts |
+
+> **Note:** Event category colors use `AppColors.category*` constants. See `lib/core/theme/app_colors.dart`.
 
 ### Event Icons & Badges
 
@@ -606,25 +608,38 @@ Celebratory, not guilt-inducing. "Look at all the memories you made!" not "Look 
 
 ## 10. Design System Reference
 
-### Colors
+### Colors (Minimal Theme)
 
-**Primary Colors**
-- Primary Blue: #007AFF (iOS default)
-- Success Green: #34C759
-- Warning Yellow: #FFCC00
-- Error Red: #FF3B30
+> **Note:** See `LOCKIT_MINIMAL_THEME.md` for complete color specifications and `lib/core/theme/app_colors.dart` for implementation.
 
-**Neutral Colors**
-- Background Light: #FFFFFF
-- Background Dark: #000000
-- Secondary Background Light: #F2F2F7
-- Secondary Background Dark: #1C1C1E
-- Tertiary Background Light: #E5E5EA
-- Tertiary Background Dark: #2C2C2E
-- Text Primary Light: #000000
-- Text Primary Dark: #FFFFFF
-- Text Secondary Light: #3C3C43
-- Text Secondary Dark: #AEAEB2
+**Primary Accent Colors**
+- Primary: Rose #F43F5E (rose-500)
+- Secondary: Orange #F97316 (orange-500)
+- Tertiary: Rose Light #FB7185 (rose-400)
+
+**Semantic Colors**
+- Success: Emerald #10B981
+- Warning: Amber #F59E0B
+- Error: Rose #F43F5E (same as primary)
+- Info: Blue #3B82F6
+
+**Dark Mode Foundation (Neutral)**
+- Background: Black #000000
+- Surface: Neutral-950 #0A0A0A
+- Card: Neutral-900 #171717
+- Border: Neutral-800 #262626
+- Text Primary: White #FFFFFF
+- Text Secondary: Neutral-300 #D4D4D4
+- Text Muted: Neutral-500 #737373
+
+**Light Mode Foundation (Gray)**
+- Background: Gray-100 #F5F5F5
+- Surface: White #FFFFFF
+- Card: White #FFFFFF
+- Border: Gray-200 #E5E5E5
+- Text Primary: Gray-900 #171717
+- Text Secondary: Gray-700 #404040
+- Text Muted: Gray-500 #737373
 
 ### Typography
 
