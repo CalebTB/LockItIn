@@ -332,6 +332,29 @@ USING (
 - Privacy settings enforcement
 - Both Material (Android) and Cupertino (iOS) widget variants
 
+## Pre-Launch Checklist
+
+Manual steps required before going live (not automated in migrations):
+
+### Supabase Dashboard Settings
+- [ ] **Enable Leaked Password Protection** - Auth → Settings → Password Security
+  - Checks passwords against HaveIBeenPwned.org database
+  - Prevents users from using compromised passwords
+  - Issue identified: December 30, 2025 via Database Advisor
+
+### Database Migrations Applied (Sprint 2)
+- [x] `008_fix_function_search_path.sql` - Security: Fixed 19 functions with `SET search_path = public`
+- [x] `009_optimize_rls_auth_uid.sql` - Performance: Optimized 24 RLS policies with `(select auth.uid())`
+- [x] `010_cleanup_duplicate_indexes.sql` - Performance: Removed duplicate indexes on events table
+- [x] `011_add_missing_fk_index.sql` - Performance: Added index for `group_invites.invited_by` FK
+
+### App Store / Play Store
+- [ ] Privacy Policy URL
+- [ ] Terms of Service URL
+- [ ] App Store screenshots (6.5" and 5.5" for iOS)
+- [ ] Play Store screenshots and feature graphic
+- [ ] Age rating questionnaire completed
+
 ## Future Context
 
 When the actual codebase is created (starting Dec 25, 2025):
@@ -365,6 +388,26 @@ lockitin_app/
 - Android Internal Testing: `flutter build appbundle` + Google Play Console
 
 ## Git Workflow & Version Control
+
+### ⚠️ CRITICAL: Branch-First Workflow
+
+**BEFORE making ANY code changes, ALWAYS create a branch first:**
+```bash
+git checkout -b [type]/[issue-number]-[short-description]
+```
+
+**Rules:**
+1. **NEVER commit directly to main** - Always work on a feature/fix/refactor branch
+2. **NEVER push to main** - All changes go through Pull Requests
+3. **Create branch BEFORE editing files** - Not after you've already made changes
+
+If you accidentally made changes on main:
+```bash
+# Stash changes, create branch, apply changes
+git stash
+git checkout -b fix/123-description
+git stash pop
+```
 
 **Reference:** See `lockitin_docs/versioning-and-issue-categories.md` for complete details.
 
@@ -458,4 +501,4 @@ gh pr create \
 
 ---
 
-*Last updated: December 27, 2025 - Added Git workflow and version control guidelines*
+*Last updated: December 30, 2025 - Added branch-first workflow, pre-launch checklist, Sprint 2 migrations*
