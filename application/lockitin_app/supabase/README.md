@@ -65,6 +65,15 @@ ls -la migrations/
 
 > **Warning:** Never run seed files on production!
 
+### Test Files (RLS Validation)
+
+| File | Purpose |
+|------|---------|
+| `tests/rls_test_suite.sql` | Comprehensive RLS policy validation (35+ tests) |
+| `tests/rls_quick_check.sql` | Fast validation for deployments (~5 seconds) |
+
+> Run `rls_quick_check.sql` before every deployment to verify RLS is properly configured.
+
 ---
 
 ## Migration Strategy
