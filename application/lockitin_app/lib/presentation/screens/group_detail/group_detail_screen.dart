@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../../core/network/supabase_client.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../data/models/group_model.dart';
 import '../../../data/models/event_model.dart';
 import '../../../core/services/event_service.dart';
@@ -8,16 +11,15 @@ import '../../../core/services/availability_calculator_service.dart';
 import '../../../core/utils/time_filter_utils.dart';
 import '../../providers/group_provider.dart';
 import '../../providers/calendar_provider.dart';
-import '../../theme/sunset_coral_theme.dart';
 import '../../widgets/group_calendar_legend.dart';
-import '../../widgets/group_members_section.dart';
-import '../../widgets/group_time_filter_chips.dart';
-import '../../widgets/group_date_range_filter.dart';
+import '../../widgets/group_members_sheet.dart';
+import '../../widgets/group_filters_sheet.dart';
 import '../../widgets/group_best_days_section.dart';
+import '../../widgets/group_settings_sheet.dart';
 import 'widgets/widgets.dart';
 
 /// Group detail screen showing group calendar with availability heatmap
-/// Adapted from CalendarScreen with Sunset Coral Dark theme
+/// Uses Minimal theme color system (grayscale + emerald for availability)
 class GroupDetailScreen extends StatefulWidget {
   final GroupModel group;
 
@@ -28,17 +30,8 @@ class GroupDetailScreen extends StatefulWidget {
 }
 
 class _GroupDetailScreenState extends State<GroupDetailScreen> {
-  // Use theme colors from SunsetCoralTheme
-  static const _rose950 = SunsetCoralTheme.rose950;
-  static const _rose900 = SunsetCoralTheme.rose900;
-  static const _rose800 = SunsetCoralTheme.rose800;
-  static const _rose500 = SunsetCoralTheme.rose500;
-  static const _rose400 = SunsetCoralTheme.rose400;
-  static const _rose200 = SunsetCoralTheme.rose200;
-  static const _orange400 = SunsetCoralTheme.orange400;
-  static const _orange600 = SunsetCoralTheme.orange600;
-  static const _amber500 = SunsetCoralTheme.amber500;
-  static const _slate950 = SunsetCoralTheme.slate950;
+  // Colors are now accessed via Theme.of(context).colorScheme and context.appColors
+  // No more hardcoded color constants
 
   // Availability calculation service
   final _availabilityService = AvailabilityCalculatorService();
@@ -134,7 +127,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Could not load group availability'),
-            backgroundColor: _rose500,
+            backgroundColor: Theme.of(context).colorScheme.error,
             action: SnackBarAction(
               label: 'Retry',
               textColor: Colors.white,
@@ -180,48 +173,38 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     super.dispose();
   }
 
-  // Additional rose colors for heatmap gradient
-  static const Color _rose600 = Color(0xFFE11D48);
-  static const Color _rose700 = Color(0xFFBE123C);
-
   /// Get background color for heatmap cell based on availability ratio
-  Color _getHeatmapBackgroundColor(int available, int total) {
-    if (total == 0) return _rose950;
+  /// Uses Minimal theme: emerald for available, grayscale for unavailable
+  Color _getHeatmapBackgroundColor(int available, int total, Brightness brightness) {
+    if (total == 0) {
+      return brightness == Brightness.dark
+          ? AppColors.neutral900
+          : AppColors.gray100;
+    }
 
     final ratio = available / total;
-
-    if (ratio >= 1.0) {
-      return _rose400;
-    } else if (ratio >= 0.875) {
-      return _rose400;
-    } else if (ratio >= 0.75) {
-      return _rose500;
-    } else if (ratio >= 0.625) {
-      return _rose600;
-    } else if (ratio >= 0.5) {
-      return _rose700;
-    } else if (ratio >= 0.375) {
-      return _rose800;
-    } else if (ratio >= 0.25) {
-      return _rose900;
-    } else {
-      return _rose950;
-    }
+    return AppColors.getAvailabilityColor(ratio, brightness);
   }
 
   /// Get text color for heatmap cell
-  Color _getHeatmapTextColor(int available, int total) {
-    if (total == 0) return _rose400;
+  Color _getHeatmapTextColor(int available, int total, Brightness brightness) {
+    if (total == 0) {
+      return brightness == Brightness.dark
+          ? AppColors.neutral500
+          : AppColors.gray500;
+    }
 
     final ratio = available / total;
+    return AppColors.getAvailabilityTextColor(ratio, brightness);
+  }
 
-    if (ratio >= 0.375) {
-      return Colors.white;
-    } else if (ratio >= 0.25) {
-      return SunsetCoralTheme.rose300;
-    } else {
-      return _rose400;
-    }
+  /// Get dot color for heatmap cell based on availability ratio
+  /// Uses 5-tier semantic colors: green → lime → yellow → orange → red
+  /// This enables progressive disclosure - dots at a glance, details on tap
+  Color _getHeatmapDotColor(int available, int total) {
+    if (total == 0) return AppColors.neutral400;
+    final ratio = available / total;
+    return AppColors.getAvailabilityDotColor(ratio);
   }
 
   void _previousMonth() {
@@ -240,106 +223,96 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [_rose950, _slate950],
-          ),
-        ),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  _buildHeader(context),
-                  if (_memberEventsError != null) _buildErrorBanner(),
-                  _buildMonthNavigation(),
-                  GroupDateRangeFilter(
-                    selectedDateRange: _selectedDateRange,
-                    onTap: _showDateRangePicker,
-                    onClear: _clearDateRange,
-                  ),
-                  GroupTimeFilterChips(
-                    selectedFilters: _selectedTimeFilters,
-                    onFilterTap: _toggleTimeFilter,
-                    onCustomTap: _showCustomTimeRangePicker,
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          const GroupCalendarLegend(),
-                          SizedBox(
-                            height: 360,
-                            child: _buildCalendarPageView(),
-                          ),
-                          GroupMembersSection(
-                            group: widget.group,
-                            onInvite: () => _showInviteFlow(context),
-                          ),
-                          GroupBestDaysSection(
-                            focusedMonth: _focusedMonth,
-                            selectedTimeFilters: _selectedTimeFilters,
-                            customStartTime: _customStartTime,
-                            customEndTime: _customEndTime,
-                            getBestDaysForFilters: (filters) =>
-                                _getBestDaysForFilters(
-                                  context.read<CalendarProvider>(),
-                                  filters,
-                                ),
-                            onDaySelected: (day) =>
-                                setState(() => _selectedDay = day),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                      ),
+      backgroundColor: colorScheme.surface,
+      floatingActionButton: _buildProposeFAB(colorScheme),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                _buildHeader(context, colorScheme),
+                if (_memberEventsError != null) _buildErrorBanner(colorScheme, context.appColors),
+                _buildMonthNavigation(colorScheme),
+                // Filters now in header button - shows sheet when tapped
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        // Best Days section at TOP - most actionable info (#174)
+                        // Now with rich cards showing availability counts and conflict details
+                        GroupBestDaysSection(
+                          focusedMonth: _focusedMonth,
+                          selectedTimeFilters: _selectedTimeFilters,
+                          customStartTime: _customStartTime,
+                          customEndTime: _customEndTime,
+                          getBestDaysForFilters: (filters) =>
+                              _getBestDaysForFilters(
+                                context.read<CalendarProvider>(),
+                                filters,
+                              ),
+                          onDaySelected: (day) =>
+                              setState(() => _selectedDay = day),
+                          getAvailabilityForDay: _getAvailabilityForDate,
+                          getTotalMembers: _getTotalMemberCount,
+                          getUnavailableMembersForDay: _getUnavailableMembersForDate,
+                        ),
+                        // Calendar legend and heatmap
+                        // Members section removed - access via header icon instead
+                        // This maximizes calendar visibility per UX best practices
+                        const GroupCalendarLegend(),
+                        SizedBox(
+                          height: 380, // Increased since members section removed
+                          child: _buildCalendarPageView(),
+                        ),
+                        const SizedBox(height: 80), // Space for FAB
+                      ],
                     ),
                   ),
-                ],
-              ),
-
-              // Day detail bottom sheet
-              if (_selectedDay != null) ...[
-                GestureDetector(
-                  onTap: () => setState(() => _selectedDay = null),
-                  child: Container(
-                    color: Colors.black.withValues(alpha: 0.6),
-                  ),
-                ),
-                DayDetailSheet(
-                  date: DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDay ?? 1),
-                  focusedMonth: _focusedMonth,
-                  selectedDay: _selectedDay,
-                  onClose: () => setState(() => _selectedDay = null),
-                  memberEvents: _memberEvents,
-                  selectedTimeFilters: _selectedTimeFilters,
-                  customStartTime: _customStartTime,
-                  customEndTime: _customEndTime,
-                  availabilityService: _availabilityService,
                 ),
               ],
+            ),
+
+            // Day detail bottom sheet
+            if (_selectedDay != null) ...[
+              GestureDetector(
+                onTap: () => setState(() => _selectedDay = null),
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.6),
+                ),
+              ),
+              DayDetailSheet(
+                date: DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDay ?? 1),
+                focusedMonth: _focusedMonth,
+                selectedDay: _selectedDay,
+                onClose: () => setState(() => _selectedDay = null),
+                memberEvents: _memberEvents,
+                selectedTimeFilters: _selectedTimeFilters,
+                customStartTime: _customStartTime,
+                customEndTime: _customEndTime,
+                availabilityService: _availabilityService,
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildErrorBanner() {
+  Widget _buildErrorBanner(ColorScheme colorScheme, AppColorsExtension appColors) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: _rose500.withValues(alpha: 0.2),
+      color: colorScheme.error.withValues(alpha: 0.15),
       child: Row(
         children: [
-          Icon(Icons.warning_amber_rounded, size: 18, color: _orange400),
+          Icon(Icons.warning_amber_rounded, size: 18, color: appColors.warning),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               _memberEventsError ?? 'Error loading availability',
-              style: TextStyle(fontSize: 13, color: _rose200),
+              style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
             ),
           ),
           TextButton(
@@ -354,7 +327,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: _orange400,
+                color: colorScheme.primary,
               ),
             ),
           ),
@@ -363,72 +336,329 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, ColorScheme colorScheme) {
+    final appColors = context.appColors;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: _rose500.withValues(alpha: 0.2)),
+          bottom: BorderSide(color: colorScheme.outline.withValues(alpha: 0.2)),
         ),
       ),
       child: Row(
         children: [
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.chevron_left, size: 24),
-            color: Colors.white,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+          // Back button
+          Semantics(
+            button: true,
+            label: 'Go back',
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                Navigator.of(context).pop();
+              },
+              child: Icon(
+                Icons.chevron_left,
+                size: 28,
+                color: colorScheme.onSurface,
+              ),
+            ),
           ),
           const SizedBox(width: 8),
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [_amber500, _orange600],
+          // Group emoji badge
+          ExcludeSemantics(
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(8),
               ),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(
-              child: Text(
-                widget.group.emoji,
-                style: const TextStyle(fontSize: 18),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [_rose200, Color(0xFFFED7AA)],
-              ).createShader(bounds),
-              child: Text(
-                widget.group.name,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+              child: Center(
+                child: Text(
+                  widget.group.emoji,
+                  style: const TextStyle(fontSize: 16),
                 ),
               ),
             ),
           ),
-          IconButton(
-            onPressed: () => _showMembersSheet(context),
-            icon: const Icon(Icons.people_rounded, size: 20),
-            color: Colors.white,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+          const SizedBox(width: 10),
+          // Group name and member count - single line with ellipsis
+          Expanded(
+            child: Semantics(
+              header: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.group.name,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '${widget.group.memberCount} members',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: appColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Filter button with badge
+          _buildFilterButton(colorScheme),
+          const SizedBox(width: 8),
+          // Members button
+          Semantics(
+            button: true,
+            label: 'View ${widget.group.memberCount} members',
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                _showMembersSheet(context);
+              },
+              child: Icon(
+                Icons.people_rounded,
+                size: 22,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
           const SizedBox(width: 8),
+          // Settings button (more menu icon)
+          Semantics(
+            button: true,
+            label: 'Open group settings',
+            child: GestureDetector(
+              onTap: () => _showSettingsSheet(context),
+              child: Icon(
+                Icons.more_vert_rounded,
+                size: 22,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildMonthNavigation() {
+  Widget _buildFilterButton(ColorScheme colorScheme) {
+    final activeCount = GroupFiltersSheet.getActiveFilterCount(
+      _selectedDateRange,
+      _selectedTimeFilters,
+    );
+
+    return Semantics(
+      button: true,
+      label: activeCount > 0
+          ? '$activeCount filters active, tap to change'
+          : 'Open filters',
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          IconButton(
+            onPressed: () {
+              HapticFeedback.selectionClick();
+              _showFiltersSheet(context);
+            },
+            icon: const Icon(Icons.tune_rounded, size: 20),
+            color: activeCount > 0
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: 'Filters',
+          ),
+          // Badge for active filter count
+          if (activeCount > 0)
+            Positioned(
+              top: -4,
+              right: -4,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '$activeCount',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onPrimary,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showFiltersSheet(BuildContext context) {
+    GroupFiltersSheet.show(
+      context: context,
+      dateRange: _selectedDateRange,
+      timeFilters: _selectedTimeFilters,
+      customStartTime: _customStartTime,
+      customEndTime: _customEndTime,
+      onDateRangeChanged: (range) {
+        setState(() {
+          _selectedDateRange = range;
+          _clearAvailabilityCache();
+        });
+      },
+      onTimeFiltersChanged: (filters) {
+        setState(() {
+          _selectedTimeFilters = filters;
+          _clearAvailabilityCache();
+        });
+      },
+      onCustomTimeChanged: (start, end) {
+        setState(() {
+          _customStartTime = start;
+          _customEndTime = end;
+          _clearAvailabilityCache();
+        });
+      },
+    );
+  }
+
+  /// Show the group settings sheet (replaces popup menu)
+  void _showSettingsSheet(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    GroupSettingsSheet.show(
+      context: context,
+      group: widget.group,
+      onRename: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Rename group coming soon!'),
+            backgroundColor: colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      },
+      onNotifications: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Notification settings coming soon!'),
+            backgroundColor: colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      },
+      onPrivacy: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Privacy settings coming soon!'),
+            backgroundColor: colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      },
+      onShare: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Share group coming soon!'),
+            backgroundColor: colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      },
+      onLeave: () => _showLeaveGroupConfirmation(context),
+    );
+  }
+
+  void _showLeaveGroupConfirmation(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Leave ${widget.group.name}?',
+          style: TextStyle(color: colorScheme.onSurface),
+        ),
+        content: Text(
+          'You will no longer be able to see group availability or receive event proposals.',
+          style: TextStyle(color: colorScheme.onSurfaceVariant),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: colorScheme.primary),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              HapticFeedback.mediumImpact();
+              Navigator.of(context).pop();
+              _leaveGroup(context);
+            },
+            child: Text(
+              'Leave',
+              style: TextStyle(color: colorScheme.error),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _leaveGroup(BuildContext context) async {
+    final colorScheme = Theme.of(context).colorScheme;
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final groupName = widget.group.name;
+    final groupId = widget.group.id;
+    final provider = context.read<GroupProvider>();
+
+    try {
+      await provider.leaveGroup(groupId);
+      if (mounted) {
+        navigator.pop(); // Go back to groups list
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Left $groupName'),
+            backgroundColor: colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text('Could not leave group'),
+            backgroundColor: colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildMonthNavigation(ColorScheme colorScheme) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -437,88 +667,27 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           IconButton(
             onPressed: _previousMonth,
             icon: const Icon(Icons.chevron_left, size: 24),
-            color: _rose400.withValues(alpha: 0.6),
+            color: colorScheme.onSurfaceVariant,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
-          ShaderMask(
-            shaderCallback: (bounds) => const LinearGradient(
-              colors: [_rose200, Color(0xFFFED7AA)],
-            ).createShader(bounds),
-            child: Text(
-              DateFormat('MMMM yyyy').format(_focusedMonth),
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
+          Text(
+            DateFormat('MMMM yyyy').format(_focusedMonth),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onSurface,
             ),
           ),
           IconButton(
             onPressed: _nextMonth,
             icon: const Icon(Icons.chevron_right, size: 24),
-            color: _rose400.withValues(alpha: 0.6),
+            color: colorScheme.onSurfaceVariant,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
         ],
       ),
-    );
-  }
-
-  void _showDateRangePicker() {
-    showDateRangePickerModal(
-      context: context,
-      currentRange: _selectedDateRange,
-      onRangeSelected: (range) {
-        setState(() {
-          _selectedDateRange = range;
-          _clearAvailabilityCache(); // Clear cache when date range changes
-        });
-      },
-    );
-  }
-
-  void _clearDateRange() {
-    setState(() {
-      _selectedDateRange = null;
-      _clearAvailabilityCache(); // Clear cache when date range changes
-    });
-  }
-
-  void _toggleTimeFilter(TimeFilter filter) {
-    setState(() {
-      if (filter == TimeFilter.allDay) {
-        _selectedTimeFilters = {TimeFilter.allDay};
-      } else {
-        _selectedTimeFilters.remove(TimeFilter.allDay);
-
-        if (_selectedTimeFilters.contains(filter)) {
-          _selectedTimeFilters.remove(filter);
-          if (_selectedTimeFilters.isEmpty) {
-            _selectedTimeFilters = {TimeFilter.allDay};
-          }
-        } else {
-          _selectedTimeFilters.add(filter);
-        }
-      }
-      _clearAvailabilityCache(); // Clear cache when time filters change
-    });
-  }
-
-  void _showCustomTimeRangePicker() {
-    showCustomTimePickerModal(
-      context: context,
-      currentStartTime: _customStartTime,
-      currentEndTime: _customEndTime,
-      onTimeSelected: (startTime, endTime) {
-        setState(() {
-          _customStartTime = startTime;
-          _customEndTime = endTime;
-          _selectedTimeFilters = {TimeFilter.allDay};
-          _clearAvailabilityCache(); // Clear cache when custom time range changes
-        });
-      },
     );
   }
 
@@ -554,32 +723,47 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final startWeekday = firstDayOfMonth.weekday % 7;
     final daysInMonth = lastDayOfMonth.day;
 
+    // Today reference for highlighting and past day detection
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
     return Consumer2<CalendarProvider, GroupProvider>(
       builder: (context, calendarProvider, groupProvider, _) {
+        final colorScheme = Theme.of(context).colorScheme;
+        final appColors = context.appColors;
+        final brightness = Theme.of(context).brightness;
         final totalMembers = groupProvider.selectedGroupMembers.isNotEmpty
             ? groupProvider.selectedGroupMembers.length
             : (groupProvider.selectedGroup?.memberCount ?? 1);
+
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Column(
             children: [
+              // Day headers with improved styling
               Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 4),
+                padding: const EdgeInsets.only(top: 8, bottom: 8),
                 child: Row(
-                  children: days
-                      .map((day) => Expanded(
-                            child: Center(
-                              child: Text(
-                                day,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ))
-                      .toList(),
+                  children: days.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final day = entry.value;
+                    // Highlight weekend headers slightly differently
+                    final isWeekend = index == 0 || index == 6;
+                    return Expanded(
+                      child: Center(
+                        child: Text(
+                          day,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isWeekend
+                                ? appColors.textMuted
+                                : colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
               Expanded(
@@ -588,8 +772,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 7,
                     childAspectRatio: 1.0,
-                    crossAxisSpacing: 3,
-                    mainAxisSpacing: 3,
+                    crossAxisSpacing: 4,
+                    mainAxisSpacing: 4,
                   ),
                   itemCount: 42,
                   itemBuilder: (context, index) {
@@ -600,6 +784,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     }
 
                     final date = DateTime(month.year, month.month, dayNumber);
+                    final isToday = date.isAtSameMomentAs(today);
+                    final isPast = date.isBefore(today);
                     final isSelected = _selectedDay == dayNumber &&
                         month.month == _focusedMonth.month;
 
@@ -607,81 +793,144 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         (!date.isBefore(_selectedDateRange!.start) &&
                          !date.isAfter(_selectedDateRange!.end));
 
-                    final available = isInRange
+                    // Don't calculate availability for past days
+                    final available = (isInRange && !isPast)
                         ? _getAvailabilityForDay(calendarProvider, date)
                         : 0;
-                    final textColor = isInRange
-                        ? _getHeatmapTextColor(available, totalMembers)
-                        : _rose500.withValues(alpha: 0.4);
 
-                    final isFullyAvailable = isInRange && available == totalMembers && totalMembers > 0;
+                    final isFullyAvailable = isInRange && !isPast &&
+                        available == totalMembers && totalMembers > 0;
 
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedDay = dayNumber;
-                          _focusedMonth = month;
-                        });
-                      },
-                      child: AnimatedContainer(
+                    // Determine colors based on state
+                    final CellColors cellColors = _getCellColors(
+                      isPast: isPast,
+                      isToday: isToday,
+                      isSelected: isSelected,
+                      isInRange: isInRange,
+                      isFullyAvailable: isFullyAvailable,
+                      available: available,
+                      totalMembers: totalMembers,
+                      brightness: brightness,
+                      colorScheme: colorScheme,
+                      appColors: appColors,
+                    );
+
+                    // Semantic label for accessibility (VoiceOver/TalkBack)
+                    final semanticLabel = _getSemanticLabelForCell(
+                      date: date,
+                      isToday: isToday,
+                      isSelected: isSelected,
+                      isPast: isPast,
+                      isInRange: isInRange,
+                      available: available,
+                      totalMembers: totalMembers,
+                    );
+
+                    return Semantics(
+                      button: !isPast,
+                      label: semanticLabel,
+                      selected: isSelected,
+                      child: GestureDetector(
+                        onTap: isPast
+                            ? null // Disable tap for past days
+                            : () {
+                                // Haptic feedback on selection
+                                HapticFeedback.selectionClick();
+                                setState(() {
+                                  _selectedDay = dayNumber;
+                                  _focusedMonth = month;
+                                });
+                              },
+                        child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
+                        curve: Curves.easeOut,
                         decoration: BoxDecoration(
-                          gradient: isFullyAvailable
-                              ? const LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [_rose400, _orange400],
-                                )
-                              : null,
-                          color: isFullyAvailable
-                              ? null
-                              : (isInRange
-                                  ? _getHeatmapBackgroundColor(available, totalMembers)
-                                  : _rose950.withValues(alpha: 0.3)),
-                          borderRadius: BorderRadius.circular(8),
-                          border: isSelected
-                              ? Border.all(color: _orange400, width: 2)
-                              : null,
+                          color: cellColors.background,
+                          borderRadius: BorderRadius.circular(10),
+                          border: _getCellBorder(
+                            isToday: isToday,
+                            isSelected: isSelected,
+                            colorScheme: colorScheme,
+                          ),
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
-                                    color: _orange400.withValues(alpha: 0.4),
+                                    color: colorScheme.primary.withValues(alpha: 0.25),
                                     blurRadius: 8,
-                                    spreadRadius: 1,
+                                    spreadRadius: 0,
                                   ),
                                 ]
                               : null,
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        child: Stack(
+                          alignment: Alignment.center,
                           children: [
-                            Text(
-                              '$dayNumber',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: textColor,
-                              ),
-                            ),
-                            if (isInRange)
-                              _isLoadingMemberEvents
-                                ? SizedBox(
-                                    width: 8,
-                                    height: 8,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 1,
-                                      color: textColor.withValues(alpha: 0.5),
-                                    ),
-                                  )
-                                : Text(
-                                '$available/$totalMembers',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w500,
-                                  color: textColor,
+                            // Today indicator dot (top-right)
+                            if (isToday && !isSelected)
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primary,
+                                    shape: BoxShape.circle,
+                                  ),
                                 ),
                               ),
+                            // Main content
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '$dayNumber',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: isToday || isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: cellColors.text,
+                                  ),
+                                ),
+                                // Progressive disclosure: colored dot shows availability at a glance
+                                // Tap cell for full details (X/Y count, member list, time slots)
+                                if (!isPast && isInRange)
+                                  _isLoadingMemberEvents
+                                      ? Padding(
+                                          padding: const EdgeInsets.only(top: 3),
+                                          child: SizedBox(
+                                            width: 8,
+                                            height: 8,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 1.5,
+                                              color: cellColors.text.withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                        )
+                                      : Padding(
+                                          padding: const EdgeInsets.only(top: 3),
+                                          child: Container(
+                                            width: 8,
+                                            height: 8,
+                                            decoration: BoxDecoration(
+                                              color: _getHeatmapDotColor(available, totalMembers),
+                                              shape: BoxShape.circle,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: _getHeatmapDotColor(available, totalMembers)
+                                                      .withValues(alpha: 0.4),
+                                                  blurRadius: 3,
+                                                  spreadRadius: 0,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                              ],
+                            ),
                           ],
+                        ),
                         ),
                       ),
                     );
@@ -692,6 +941,110 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           ),
         );
       },
+    );
+  }
+
+  /// Generate semantic label for a heatmap cell
+  /// This is read by VoiceOver/TalkBack for accessibility
+  String _getSemanticLabelForCell({
+    required DateTime date,
+    required bool isToday,
+    required bool isSelected,
+    required bool isPast,
+    required bool isInRange,
+    required int available,
+    required int totalMembers,
+  }) {
+    final dateFormat = DateFormat('EEEE, MMMM d');
+    final dateStr = dateFormat.format(date);
+
+    final parts = <String>[dateStr];
+
+    if (isToday) {
+      parts.add('today');
+    }
+
+    if (isPast) {
+      parts.add('past date');
+    } else if (isInRange) {
+      if (available == totalMembers && totalMembers > 0) {
+        parts.add('everyone available');
+      } else if (available > 0) {
+        parts.add('$available of $totalMembers members available');
+      } else {
+        parts.add('no members available');
+      }
+      parts.add('double tap to see details');
+    } else {
+      parts.add('outside selected date range');
+    }
+
+    return parts.join(', ');
+  }
+
+  /// Get cell border based on state
+  Border? _getCellBorder({
+    required bool isToday,
+    required bool isSelected,
+    required ColorScheme colorScheme,
+  }) {
+    if (isSelected) {
+      return Border.all(color: colorScheme.primary, width: 2.5);
+    }
+    if (isToday) {
+      return Border.all(color: colorScheme.primary.withValues(alpha: 0.5), width: 1.5);
+    }
+    return null;
+  }
+
+  /// Get colors for a calendar cell based on its state
+  CellColors _getCellColors({
+    required bool isPast,
+    required bool isToday,
+    required bool isSelected,
+    required bool isInRange,
+    required bool isFullyAvailable,
+    required int available,
+    required int totalMembers,
+    required Brightness brightness,
+    required ColorScheme colorScheme,
+    required AppColorsExtension appColors,
+  }) {
+    // Past days - dimmed
+    if (isPast) {
+      return CellColors(
+        background: colorScheme.surfaceContainerLow,
+        text: appColors.textDisabled,
+        subtext: appColors.textDisabled,
+      );
+    }
+
+    // Not in selected date range
+    if (!isInRange) {
+      return CellColors(
+        background: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        text: colorScheme.onSurface.withValues(alpha: 0.3),
+        subtext: colorScheme.onSurface.withValues(alpha: 0.2),
+      );
+    }
+
+    // Fully available - emerald highlight
+    if (isFullyAvailable) {
+      return CellColors(
+        background: AppColors.success,
+        text: Colors.white,
+        subtext: Colors.white.withValues(alpha: 0.9),
+      );
+    }
+
+    // Partial availability - use heatmap colors
+    final backgroundColor = _getHeatmapBackgroundColor(available, totalMembers, brightness);
+    final textColor = _getHeatmapTextColor(available, totalMembers, brightness);
+
+    return CellColors(
+      background: backgroundColor,
+      text: textColor,
+      subtext: textColor.withValues(alpha: 0.8),
     );
   }
 
@@ -718,21 +1071,112 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         .toList();
   }
 
-  void _showMembersSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => MembersBottomSheet(group: widget.group),
+  /// Get availability count for a specific date (for Best Days section)
+  int _getAvailabilityForDate(DateTime date) {
+    return _availabilityService.calculateGroupAvailability(
+      memberEvents: _memberEvents,
+      date: date,
+      timeFilters: _selectedTimeFilters,
+      customStartTime: _customStartTime,
+      customEndTime: _customEndTime,
     );
   }
 
-  void _showInviteFlow(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Invite flow coming soon!'),
-        backgroundColor: _rose500,
+  /// Get total number of members in the group
+  int _getTotalMemberCount() {
+    final groupProvider = context.read<GroupProvider>();
+    return groupProvider.selectedGroupMembers.isNotEmpty
+        ? groupProvider.selectedGroupMembers.length
+        : (groupProvider.selectedGroup?.memberCount ?? 1);
+  }
+
+  /// Get list of unavailable members for a specific date (for conflict details)
+  List<GroupMemberProfile> _getUnavailableMembersForDate(DateTime date) {
+    final groupProvider = context.read<GroupProvider>();
+    final members = groupProvider.selectedGroupMembers;
+    final unavailable = <GroupMemberProfile>[];
+
+    for (final member in members) {
+      final memberEventList = _memberEvents[member.userId] ?? [];
+      final isBusy = _availabilityService.isMemberBusyOnDate(
+        events: memberEventList,
+        date: date,
+        timeFilters: _selectedTimeFilters,
+        customStartTime: _customStartTime,
+        customEndTime: _customEndTime,
+      );
+      if (isBusy) {
+        unavailable.add(member);
+      }
+    }
+
+    return unavailable;
+  }
+
+  void _showMembersSheet(BuildContext context) {
+    final provider = context.read<GroupProvider>();
+    final members = provider.selectedGroupMembers;
+
+    GroupMembersSheet.show(
+      context: context,
+      group: widget.group,
+      members: members,
+      currentUserId: _getCurrentUserId(),
+    );
+  }
+
+  String? _getCurrentUserId() {
+    return SupabaseClientManager.currentUserId;
+  }
+
+  /// FAB for proposing a new event - primary action for this screen
+  Widget _buildProposeFAB(ColorScheme colorScheme) {
+    return Semantics(
+      button: true,
+      label: 'Propose a new event for ${widget.group.name}',
+      child: FloatingActionButton.extended(
+        onPressed: () {
+          HapticFeedback.mediumImpact();
+          _showProposeEventFlow(context);
+        },
+        tooltip: 'Propose a new event',
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
+        elevation: 4,
+        icon: const Icon(Icons.add_rounded, size: 22),
+        label: const Text(
+          'Propose',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
       ),
     );
   }
+
+  void _showProposeEventFlow(BuildContext context) {
+    // TODO: Navigate to propose event screen with pre-filled group
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Event proposal coming soon!'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+}
+
+/// Helper class to hold cell colors for the heatmap calendar
+class CellColors {
+  final Color background;
+  final Color text;
+  final Color subtext;
+
+  const CellColors({
+    required this.background,
+    required this.text,
+    required this.subtext,
+  });
 }

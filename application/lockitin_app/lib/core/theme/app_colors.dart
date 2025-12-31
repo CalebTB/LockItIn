@@ -108,6 +108,111 @@ class AppColors {
   /// Other events - Primary rose
   static const Color categoryOther = primary;
 
+  // ===== Availability Heatmap Colors (5-Tier Semantic Scale) =====
+  // Green → Lime → Yellow → Orange → Red
+  // Provides visual distinction between perfect and poor availability
+
+  // Emerald/Green - Perfect availability (>85%)
+  static const Color availabilityPerfectBgLight = Color(0xFFD1FAE5); // emerald-100
+  static const Color availabilityPerfectBgDark = Color(0xFF064E3B); // emerald-900
+
+  // Lime/Greenish-yellow - High availability (65-85%)
+  static const Color availabilityHighBgLight = Color(0xFFECFCCB); // lime-100
+  static const Color availabilityHighBgDark = Color(0xFF365314); // lime-900
+
+  // Amber/Yellow - Medium availability (50-65%)
+  static const Color availabilityMediumBgLight = Color(0xFFFEF3C7); // amber-100
+  static const Color availabilityMediumBgDark = Color(0xFF78350F); // amber-900
+
+  // Orange/Reddish-yellow - Low availability (25-50%)
+  static const Color availabilityLowBgLight = Color(0xFFFFEDD5); // orange-100
+  static const Color availabilityLowBgDark = Color(0xFF7C2D12); // orange-900
+
+  // Rose/Red - Poor availability (<25%)
+  static const Color availabilityPoorBgLight = Color(0xFFFFE4E6); // rose-100
+  static const Color availabilityPoorBgDark = Color(0xFF881337); // rose-900
+
+  // Gray - No data or no availability
+  static const Color availabilityNoneBgLight = gray100;
+  static const Color availabilityNoneBgDark = neutral900;
+
+  // Solid colors for dots/badges (5-tier)
+  static const Color availabilityPerfect = Color(0xFF10B981); // emerald-500
+  static const Color availabilityHigh = Color(0xFF84CC16); // lime-500
+  static const Color availabilityMedium = Color(0xFFF59E0B); // amber-500
+  static const Color availabilityLow = Color(0xFFF97316); // orange-500
+  static const Color availabilityPoor = Color(0xFFF43F5E); // rose-500
+
+  /// Get availability background color based on ratio and brightness
+  /// Uses 5-tier scale: green → lime → yellow → orange → red
+  static Color getAvailabilityColor(double ratio, Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+
+    if (ratio >= 0.85) {
+      // Perfect availability - emerald/green
+      return isDark ? availabilityPerfectBgDark : availabilityPerfectBgLight;
+    } else if (ratio >= 0.65) {
+      // High availability - lime/greenish-yellow
+      return isDark ? availabilityHighBgDark : availabilityHighBgLight;
+    } else if (ratio >= 0.50) {
+      // Medium availability - amber/yellow
+      return isDark ? availabilityMediumBgDark : availabilityMediumBgLight;
+    } else if (ratio >= 0.25) {
+      // Low availability - orange/reddish-yellow
+      return isDark ? availabilityLowBgDark : availabilityLowBgLight;
+    } else if (ratio > 0) {
+      // Poor availability - rose/red
+      return isDark ? availabilityPoorBgDark : availabilityPoorBgLight;
+    }
+    // No availability - gray
+    return isDark ? availabilityNoneBgDark : availabilityNoneBgLight;
+  }
+
+  /// Get text color for availability cell (ensures contrast)
+  static Color getAvailabilityTextColor(double ratio, Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+
+    if (ratio >= 0.85) {
+      // Emerald background - emerald text
+      return isDark ? const Color(0xFF6EE7B7) : const Color(0xFF047857); // emerald-300/700
+    } else if (ratio >= 0.65) {
+      // Lime background - lime text
+      return isDark ? const Color(0xFFBEF264) : const Color(0xFF4D7C0F); // lime-300/700
+    } else if (ratio >= 0.50) {
+      // Amber background - amber text
+      return isDark ? const Color(0xFFFCD34D) : const Color(0xFFB45309); // amber-300/700
+    } else if (ratio >= 0.25) {
+      // Orange background - orange text
+      return isDark ? const Color(0xFFFDBA74) : const Color(0xFFC2410C); // orange-300/700
+    } else if (ratio > 0) {
+      // Rose background - rose text
+      return isDark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C); // rose-300/700
+    }
+    // No availability - muted text
+    return isDark ? neutral400 : gray400;
+  }
+
+  /// Get solid availability color for dots/badges (5-tier)
+  static Color getAvailabilityDotColor(double ratio) {
+    if (ratio >= 0.85) return availabilityPerfect; // emerald
+    if (ratio >= 0.65) return availabilityHigh; // lime
+    if (ratio >= 0.50) return availabilityMedium; // amber
+    if (ratio >= 0.25) return availabilityLow; // orange
+    if (ratio > 0) return availabilityPoor; // rose
+    return neutral400; // gray
+  }
+
+  /// Get darker text color for availability (ensures contrast on light backgrounds)
+  /// Use this for text on tinted availability backgrounds
+  static Color getAvailabilityTextColorDark(double ratio) {
+    if (ratio >= 0.85) return const Color(0xFF047857); // emerald-700
+    if (ratio >= 0.65) return const Color(0xFF4D7C0F); // lime-700
+    if (ratio >= 0.50) return const Color(0xFFB45309); // amber-700
+    if (ratio >= 0.25) return const Color(0xFFC2410C); // orange-700
+    if (ratio > 0) return const Color(0xFFBE123C); // rose-700
+    return gray600; // gray
+  }
+
   // ===== Avatar Colors =====
   static const Color avatarDefault = primary;
 

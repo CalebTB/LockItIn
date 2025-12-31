@@ -1,20 +1,15 @@
 import 'package:flutter/material.dart';
-import '../../../theme/sunset_coral_theme.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// Shows a custom time range picker modal
+/// Uses Minimal theme color system
 void showCustomTimePickerModal({
   required BuildContext context,
   required TimeOfDay currentStartTime,
   required TimeOfDay currentEndTime,
   required void Function(TimeOfDay startTime, TimeOfDay endTime) onTimeSelected,
 }) {
-  const rose950 = SunsetCoralTheme.rose950;
-  const rose900 = SunsetCoralTheme.rose900;
-  const rose500 = SunsetCoralTheme.rose500;
-  const rose400 = SunsetCoralTheme.rose400;
-  const rose200 = SunsetCoralTheme.rose200;
-  const rose50 = SunsetCoralTheme.rose50;
-  const orange500 = SunsetCoralTheme.orange500;
+  final colorScheme = Theme.of(context).colorScheme;
 
   // Convert TimeOfDay to dropdown values
   int startHour = currentStartTime.hourOfPeriod == 0 ? 12 : currentStartTime.hourOfPeriod;
@@ -31,13 +26,16 @@ void showCustomTimePickerModal({
 
   showModalBottomSheet(
     context: context,
-    backgroundColor: rose950,
+    backgroundColor: colorScheme.surface,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
     builder: (context) => StatefulBuilder(
       builder: (context, setSheetState) {
+        final cs = Theme.of(context).colorScheme;
+        final ac = context.appColors;
+
         // Dropdown builder widget
         Widget buildDropdown({
           required String label,
@@ -52,30 +50,30 @@ void showCustomTimePickerModal({
                 label,
                 style: TextStyle(
                   fontSize: 10,
-                  color: rose400,
+                  color: ac.textMuted,
                   letterSpacing: 0.5,
                 ),
               ),
               const SizedBox(height: 4),
               Container(
                 decoration: BoxDecoration(
-                  color: rose900.withValues(alpha: 0.3),
+                  color: cs.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: rose500.withValues(alpha: 0.3)),
+                  border: Border.all(color: cs.outline.withValues(alpha: 0.3)),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<dynamic>(
                     value: value,
                     isExpanded: true,
-                    dropdownColor: rose900,
+                    dropdownColor: cs.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                     menuMaxHeight: 200,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    icon: Icon(Icons.keyboard_arrow_down, color: rose400, size: 20),
+                    icon: Icon(Icons.keyboard_arrow_down, color: cs.onSurfaceVariant, size: 20),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: rose50,
+                      color: cs.onSurface,
                     ),
                     items: options.map((option) {
                       final display = option is int
@@ -110,7 +108,7 @@ void showCustomTimePickerModal({
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: rose500.withValues(alpha: 0.4),
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -122,7 +120,7 @@ void showCustomTimePickerModal({
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: rose50,
+                    color: cs.onSurface,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -134,7 +132,7 @@ void showCustomTimePickerModal({
                       width: 10,
                       height: 10,
                       decoration: BoxDecoration(
-                        color: rose500,
+                        color: cs.primary,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -144,7 +142,7 @@ void showCustomTimePickerModal({
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: rose200,
+                        color: ac.textSecondary,
                       ),
                     ),
                   ],
@@ -188,15 +186,15 @@ void showCustomTimePickerModal({
                 // Divider with "to"
                 Row(
                   children: [
-                    Expanded(child: Divider(color: rose500.withValues(alpha: 0.3))),
+                    Expanded(child: Divider(color: cs.outline.withValues(alpha: 0.3))),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
                         'to',
-                        style: TextStyle(color: rose400, fontSize: 14),
+                        style: TextStyle(color: ac.textMuted, fontSize: 14),
                       ),
                     ),
-                    Expanded(child: Divider(color: rose500.withValues(alpha: 0.3))),
+                    Expanded(child: Divider(color: cs.outline.withValues(alpha: 0.3))),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -208,7 +206,7 @@ void showCustomTimePickerModal({
                       width: 10,
                       height: 10,
                       decoration: BoxDecoration(
-                        color: orange500,
+                        color: cs.secondary,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -218,7 +216,7 @@ void showCustomTimePickerModal({
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: rose200,
+                        color: ac.textSecondary,
                       ),
                     ),
                   ],
@@ -279,33 +277,18 @@ void showCustomTimePickerModal({
                       Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
+                      backgroundColor: cs.primary,
+                      foregroundColor: cs.onPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                    ).copyWith(
-                      backgroundColor: WidgetStateProperty.all(Colors.transparent),
                     ),
-                    child: Ink(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [rose500, orange500],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Container(
-                        alignment: Alignment.center,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        child: const Text(
-                          'Done',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),

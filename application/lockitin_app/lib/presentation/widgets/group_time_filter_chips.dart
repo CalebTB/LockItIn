@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/utils/time_filter_utils.dart';
-import '../theme/sunset_coral_theme.dart';
 
 /// Row of time filter chips for filtering group availability
+/// Uses Minimal theme color system
 ///
 /// Displays chips for: Custom, Morning, Afternoon, Evening, Night
 /// Supports multi-select (except Custom which is exclusive).
@@ -20,6 +21,9 @@ class GroupTimeFilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
@@ -45,24 +49,15 @@ class GroupTimeFilterChips extends StatelessWidget {
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                   decoration: BoxDecoration(
-                    gradient: isSelected
-                        ? const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              SunsetCoralTheme.rose500,
-                              SunsetCoralTheme.orange500,
-                            ],
-                          )
-                        : null,
+                    // Per Minimal theme: solid primary color when selected, no gradients
                     color: isSelected
-                        ? null
-                        : SunsetCoralTheme.rose900.withValues(alpha: 0.5),
+                        ? colorScheme.primary
+                        : colorScheme.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: isSelected
                           ? Colors.transparent
-                          : SunsetCoralTheme.rose500.withValues(alpha: 0.3),
+                          : colorScheme.outline.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Center(
@@ -72,8 +67,8 @@ class GroupTimeFilterChips extends StatelessWidget {
                         fontSize: 11,
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                         color: isSelected
-                            ? Colors.white
-                            : SunsetCoralTheme.rose300,
+                            ? colorScheme.onPrimary
+                            : appColors.textSecondary,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),

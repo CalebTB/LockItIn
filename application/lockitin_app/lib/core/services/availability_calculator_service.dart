@@ -34,11 +34,23 @@ class TimeSlotAvailability {
   /// Duration of this time slot
   Duration get duration => endTime.difference(startTime);
 
-  /// Formatted time range string (e.g., "2pm - 4pm")
+  /// Formatted time range string (e.g., "2-4pm" or "10am-12pm")
+  /// Uses compact format to prevent text wrapping in UI
   String get formattedTimeRange {
-    final startFormat = DateFormat('ha');
-    final endFormat = DateFormat('ha');
-    return '${startFormat.format(startTime).toLowerCase()} - ${endFormat.format(endTime).toLowerCase()}';
+    final startHour = startTime.hour;
+    final endHour = endTime.hour;
+    final startPeriod = startHour < 12 ? 'am' : 'pm';
+    final endPeriod = endHour < 12 || endHour == 24 ? 'am' : 'pm';
+
+    // Format hours (12-hour format)
+    final startDisplay = startHour == 0 ? 12 : (startHour > 12 ? startHour - 12 : startHour);
+    final endDisplay = endHour == 0 || endHour == 24 ? 12 : (endHour > 12 ? endHour - 12 : endHour);
+
+    // Compact format: omit start period if same as end period
+    if (startPeriod == endPeriod) {
+      return '$startDisplay-$endDisplay$endPeriod';
+    }
+    return '$startDisplay$startPeriod-$endDisplay$endPeriod';
   }
 
   /// Availability description (e.g., "7/8 available")
@@ -150,6 +162,26 @@ class AvailabilityCalculatorService {
     }
 
     return true; // Available - no events in any selected time filter
+  }
+
+  /// Check if a single member is busy on a date (convenience wrapper)
+  ///
+  /// Returns true if the member has ANY events overlapping with the selected
+  /// time filters. This is the inverse of isMemberAvailable.
+  bool isMemberBusyOnDate({
+    required List<EventModel> events,
+    required DateTime date,
+    required Set<TimeFilter> timeFilters,
+    TimeOfDay? customStartTime,
+    TimeOfDay? customEndTime,
+  }) {
+    return !isMemberAvailable(
+      events: events,
+      date: date,
+      timeFilters: timeFilters,
+      customStartTime: customStartTime,
+      customEndTime: customEndTime,
+    );
   }
 
   /// Check if any event overlaps with the given time range
@@ -491,6 +523,112 @@ class AvailabilityCalculatorService {
     return windows;
   }
 
+  /// Find consolidated time slots by merging adjacent hours with same availability
+  ///
+  /// Instead of showing individual hours (9am-10am, 10am-11am, 11am-12pm),
+  /// this consolidates them into blocks (9am-12pm) when they have the same
+  /// availability count and same members available.
+  ///
+  /// Returns a list of TimeSlotAvailability objects representing merged blocks,
+  /// sorted by availability (highest first), then by start time.
+  List<TimeSlotAvailability> findConsolidatedTimeSlots({
+    required Map<String, List<EventModel>> memberEvents,
+    required DateTime date,
+    int startHour = 8,
+    int endHour = 22,
+  }) {
+    if (memberEvents.isEmpty) {
+      return [];
+    }
+
+    final totalMembers = memberEvents.length;
+
+    // First, get hourly availability data
+    final hourlySlots = <_HourlySlot>[];
+
+    for (int hour = startHour; hour < endHour; hour++) {
+      final slotStart = DateTime(date.year, date.month, date.day, hour);
+      final slotEnd = DateTime(date.year, date.month, date.day, hour + 1);
+
+      final availableMembers = <String>[];
+      final busyMembers = <String>[];
+
+      for (final entry in memberEvents.entries) {
+        final userId = entry.key;
+        final events = entry.value;
+
+        if (!_hasEventInRange(events, slotStart, slotEnd)) {
+          availableMembers.add(userId);
+        } else {
+          busyMembers.add(userId);
+        }
+      }
+
+      hourlySlots.add(_HourlySlot(
+        hour: hour,
+        availableMembers: availableMembers,
+        busyMembers: busyMembers,
+      ));
+    }
+
+    // Now merge consecutive hours with same availability
+    final consolidatedSlots = <TimeSlotAvailability>[];
+    int i = 0;
+
+    while (i < hourlySlots.length) {
+      final startSlot = hourlySlots[i];
+      int endHourOfBlock = startSlot.hour + 1;
+
+      // Look ahead and merge consecutive hours with same available members
+      while (i + 1 < hourlySlots.length) {
+        final nextSlot = hourlySlots[i + 1];
+
+        // Check if next slot has same availability (same members available)
+        if (_haveSameAvailability(startSlot, nextSlot)) {
+          endHourOfBlock = nextSlot.hour + 1;
+          i++;
+        } else {
+          break;
+        }
+      }
+
+      // Create consolidated slot
+      final blockStart = DateTime(date.year, date.month, date.day, startSlot.hour);
+      final blockEnd = DateTime(date.year, date.month, date.day, endHourOfBlock);
+
+      consolidatedSlots.add(TimeSlotAvailability(
+        startTime: blockStart,
+        endTime: blockEnd,
+        availableCount: startSlot.availableMembers.length,
+        totalMembers: totalMembers,
+        availableMembers: startSlot.availableMembers,
+        busyMembers: startSlot.busyMembers,
+      ));
+
+      i++;
+    }
+
+    // Sort by availability (highest first), then by start time
+    consolidatedSlots.sort((a, b) {
+      final availCompare = b.availableCount.compareTo(a.availableCount);
+      if (availCompare != 0) return availCompare;
+      return a.startTime.compareTo(b.startTime);
+    });
+
+    return consolidatedSlots;
+  }
+
+  /// Check if two hourly slots have the same availability
+  bool _haveSameAvailability(_HourlySlot a, _HourlySlot b) {
+    if (a.availableMembers.length != b.availableMembers.length) {
+      return false;
+    }
+    // Check if same members are available (order doesn't matter)
+    final aSet = a.availableMembers.toSet();
+    final bSet = b.availableMembers.toSet();
+    return aSet.containsAll(bSet) && bSet.containsAll(aSet);
+  }
+
   /// Find the best days in a month based on group availability
   ///
   /// Returns a list of day numbers (1-31) sorted by availability count (highest first).
@@ -546,4 +684,17 @@ class AvailabilityCalculatorService {
 
     return sortedDays;
   }
+}
+
+/// Helper class for hourly slot data during consolidation
+class _HourlySlot {
+  final int hour;
+  final List<String> availableMembers;
+  final List<String> busyMembers;
+
+  const _HourlySlot({
+    required this.hour,
+    required this.availableMembers,
+    required this.busyMembers,
+  });
 }

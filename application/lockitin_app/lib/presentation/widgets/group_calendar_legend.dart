@@ -1,77 +1,63 @@
 import 'package:flutter/material.dart';
-import '../theme/sunset_coral_theme.dart';
+import '../../core/theme/app_colors.dart';
 
 /// Legend widget for the group calendar availability heatmap
+/// Uses 5-tier semantic colors: Green → Lime → Yellow → Orange → Red
 ///
-/// Shows the color scale from "Less" (busy) to "More" (available)
-/// with gradient indicator for 100% availability.
+/// Shows:
+/// - "Availability Calendar" header label
+/// - Five colored dots showing availability gradient
 class GroupCalendarLegend extends StatelessWidget {
   const GroupCalendarLegend({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final appColors = context.appColors;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: SunsetCoralTheme.rose500.withValues(alpha: 0.2),
-          ),
-        ),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Availability',
+          // "Availability Calendar" label
+          Text(
+            'AVAILABILITY CALENDAR',
             style: TextStyle(
-              fontSize: 12,
-              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+              color: appColors.textMuted,
             ),
           ),
+          // 5-tier color dots legend (green → lime → yellow → orange → red)
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Less',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 4),
-              // Solid color boxes (rose-950 to rose-500)
-              ...SunsetCoralTheme.heatmapScale.map(
-                (color) => Container(
-                  width: 16,
-                  height: 16,
-                  margin: const EdgeInsets.symmetric(horizontal: 1),
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-              ),
-              // Gradient box (rose-400 to orange-400) for 100% available
-              Container(
-                width: 16,
-                height: 16,
-                margin: const EdgeInsets.symmetric(horizontal: 1),
-                decoration: BoxDecoration(
-                  gradient: SunsetCoralTheme.availableGradient,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              const SizedBox(width: 4),
-              const Text(
-                'More',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white,
-                ),
-              ),
+              // Green dot - perfect availability (>85%)
+              _buildColorDot(AppColors.availabilityPerfect),
+              // Lime dot - high availability (65-85%)
+              _buildColorDot(AppColors.availabilityHigh),
+              // Amber dot - medium availability (50-65%)
+              _buildColorDot(AppColors.availabilityMedium),
+              // Orange dot - low availability (25-50%)
+              _buildColorDot(AppColors.availabilityLow),
+              // Red dot - poor availability (<25%)
+              _buildColorDot(AppColors.availabilityPoor),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildColorDot(Color color) {
+    return Container(
+      width: 10,
+      height: 10,
+      margin: const EdgeInsets.symmetric(horizontal: 1.5),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(2),
       ),
     );
   }
