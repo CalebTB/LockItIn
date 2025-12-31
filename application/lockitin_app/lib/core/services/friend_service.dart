@@ -515,6 +515,45 @@ class FriendService {
     }
   }
 
+  /// Get availability status for a list of friends
+  ///
+  /// Uses the get_friends_availability database function
+  /// Returns a map of friend_id -> FriendAvailability
+  Future<Map<String, FriendAvailability>> getFriendsAvailability(
+    List<String> friendIds,
+  ) async {
+    try {
+      if (friendIds.isEmpty) {
+        return {};
+      }
+
+      Logger.info('FriendService', 'Fetching availability for ${friendIds.length} friends');
+
+      final response = await SupabaseClientManager.client
+          .rpc('get_friends_availability', params: {'friend_ids': friendIds});
+
+      final availabilityList = (response as List)
+          .map((json) => FriendAvailability.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      // Convert to map for easy lookup
+      final availabilityMap = <String, FriendAvailability>{};
+      for (final availability in availabilityList) {
+        availabilityMap[availability.friendId] = availability;
+      }
+
+      Logger.info('FriendService', 'Fetched availability for ${availabilityMap.length} friends');
+      return availabilityMap;
+    } on PostgrestException catch (e) {
+      Logger.error('FriendService', 'Failed to fetch availability: ${e.message}');
+      // Return empty map on error - availability is non-critical
+      return {};
+    } catch (e) {
+      Logger.error('FriendService', 'Failed to fetch availability', e);
+      return {};
+    }
+  }
+
   /// Check if two users are friends
   ///
   /// Uses the are_friends database function

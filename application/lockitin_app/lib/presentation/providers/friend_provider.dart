@@ -39,6 +39,9 @@ class FriendProvider extends ChangeNotifier {
   /// Whether initial data has been loaded
   bool _isInitialized = false;
 
+  /// Friend availability status map (friend_id -> availability)
+  Map<String, FriendAvailability> _friendAvailability = {};
+
   /// Pagination state for search
   int _searchOffset = 0;
   bool _hasMoreSearchResults = true;
@@ -65,6 +68,9 @@ class FriendProvider extends ChangeNotifier {
 
   String get searchQuery => _searchQuery;
 
+  /// Get friend availability map
+  Map<String, FriendAvailability> get friendAvailability => _friendAvailability;
+
   /// Whether more search results are available (for pagination)
   bool get hasMoreSearchResults => _hasMoreSearchResults;
 
@@ -79,6 +85,12 @@ class FriendProvider extends ChangeNotifier {
 
   /// Check if there are pending requests
   bool get hasPendingRequests => _pendingRequests.isNotEmpty;
+
+  /// Get availability status for a specific friend
+  /// Returns 'unknown' if no availability data exists
+  AvailabilityStatus getAvailabilityStatus(String friendId) {
+    return _friendAvailability[friendId]?.status ?? AvailabilityStatus.unknown;
+  }
 
   // ============================================================================
   // Initialization
@@ -104,6 +116,8 @@ class FriendProvider extends ChangeNotifier {
       loadFriends(),
       loadPendingRequests(),
     ]);
+    // Load availability after friends are loaded
+    await loadFriendsAvailability();
   }
 
   /// Reset all state - call this on logout to prevent data leaking between accounts
@@ -119,6 +133,7 @@ class FriendProvider extends ChangeNotifier {
     _pendingRequests = [];
     _sentRequests = [];
     _searchResults = [];
+    _friendAvailability = {};
 
     // Reset loading states
     _isLoadingFriends = false;
@@ -194,6 +209,24 @@ class FriendProvider extends ChangeNotifier {
   /// Refresh all friend data (force reload)
   Future<void> refresh() async {
     await _loadData();
+  }
+
+  /// Load availability status for all friends
+  Future<void> loadFriendsAvailability() async {
+    if (_friends.isEmpty) {
+      _friendAvailability = {};
+      return;
+    }
+
+    try {
+      final friendIds = _friends.map((f) => f.id).toList();
+      _friendAvailability = await _friendService.getFriendsAvailability(friendIds);
+      Logger.info('FriendProvider', 'Loaded availability for ${_friendAvailability.length} friends');
+      notifyListeners();
+    } catch (e) {
+      Logger.error('FriendProvider', 'Failed to load availability: $e');
+      // Don't clear existing availability on error
+    }
   }
 
   // ============================================================================
