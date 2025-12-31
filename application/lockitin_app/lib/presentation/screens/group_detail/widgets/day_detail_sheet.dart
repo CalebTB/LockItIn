@@ -54,54 +54,6 @@ class DayDetailSheet extends StatelessWidget {
     );
   }
 
-  /// Check if a specific member is available on the date
-  bool _isMemberAvailableOnDate(String memberId) {
-    final memberEventsList = memberEvents[memberId] ?? [];
-    final dayStart = DateTime(date.year, date.month, date.day, 0, 0);
-    final dayEnd = DateTime(date.year, date.month, date.day, 23, 59, 59);
-
-    final eventsOnDate = memberEventsList
-        .where((e) {
-          final localStart = e.startTime.toLocal();
-          final localEnd = e.endTime.toLocal();
-          return localStart.isBefore(dayEnd) && localEnd.isAfter(dayStart);
-        })
-        .where((e) => e.category != EventCategory.holiday)
-        .toList();
-
-    return availabilityService.isMemberAvailable(
-      events: eventsOnDate,
-      date: date,
-      timeFilters: selectedTimeFilters,
-      customStartTime: customStartTime,
-      customEndTime: customEndTime,
-    );
-  }
-
-  /// Get a human-readable description of availability for a specific member
-  String _getMemberAvailabilityDescription(String memberId, TimeFilter filter) {
-    final memberEventsList = memberEvents[memberId] ?? [];
-    final dayStart = DateTime(date.year, date.month, date.day, 0, 0);
-    final dayEnd = DateTime(date.year, date.month, date.day, 23, 59, 59);
-
-    final eventsOnDate = memberEventsList
-        .where((e) {
-          final localStart = e.startTime.toLocal();
-          final localEnd = e.endTime.toLocal();
-          return localStart.isBefore(dayEnd) && localEnd.isAfter(dayStart);
-        })
-        .where((e) => e.category != EventCategory.holiday)
-        .toList();
-
-    return availabilityService.getAvailabilityDescription(
-      events: eventsOnDate,
-      date: date,
-      filter: filter,
-      customStartTime: customStartTime,
-      customEndTime: customEndTime,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -166,9 +118,15 @@ class DayDetailSheet extends StatelessWidget {
 
                       const SizedBox(height: 20),
 
-                      // Member availability list
-                      _buildSectionHeader('Team Availability', colorScheme, appColors),
-                      _buildMemberAvailabilityList(context, colorScheme, appColors),
+                      // Collapsible member availability section
+                      _CollapsibleMemberSection(
+                        memberEvents: memberEvents,
+                        date: date,
+                        selectedTimeFilters: selectedTimeFilters,
+                        customStartTime: customStartTime,
+                        customEndTime: customEndTime,
+                        availabilityService: availabilityService,
+                      ),
 
                       // Propose event button
                       _buildProposeButton(context, colorScheme, available, totalMembers),
@@ -461,41 +419,274 @@ class DayDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildMemberAvailabilityList(
+  Widget _buildProposeButton(
     BuildContext context,
     ColorScheme colorScheme,
-    AppColorsExtension appColors,
+    int available,
+    int totalMembers,
   ) {
+    final shouldShowButton = available >= (totalMembers * 0.5).ceil() && totalMembers > 0;
+
+    if (!shouldShowButton) {
+      return const SizedBox(height: 12);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () {
+            HapticFeedback.mediumImpact();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Event proposals coming in Sprint 3!'),
+                backgroundColor: colorScheme.primary,
+              ),
+            );
+          },
+          icon: const Icon(Icons.add_circle_outline, size: 20),
+          label: Text(
+            'Propose Event for ${DateFormat('MMM d').format(date)}',
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: colorScheme.primary,
+            foregroundColor: colorScheme.onPrimary,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            elevation: 0,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Collapsible section showing member availability
+/// Starts expanded by default, can be collapsed to save space
+class _CollapsibleMemberSection extends StatefulWidget {
+  final Map<String, List<EventModel>> memberEvents;
+  final DateTime date;
+  final Set<TimeFilter> selectedTimeFilters;
+  final TimeOfDay customStartTime;
+  final TimeOfDay customEndTime;
+  final AvailabilityCalculatorService availabilityService;
+
+  const _CollapsibleMemberSection({
+    required this.memberEvents,
+    required this.date,
+    required this.selectedTimeFilters,
+    required this.customStartTime,
+    required this.customEndTime,
+    required this.availabilityService,
+  });
+
+  @override
+  State<_CollapsibleMemberSection> createState() => _CollapsibleMemberSectionState();
+}
+
+class _CollapsibleMemberSectionState extends State<_CollapsibleMemberSection> {
+  bool _isExpanded = true;
+
+  /// Check if a specific member is available on the date
+  bool _isMemberAvailableOnDate(String memberId) {
+    final memberEventsList = widget.memberEvents[memberId] ?? [];
+    final dayStart = DateTime(widget.date.year, widget.date.month, widget.date.day, 0, 0);
+    final dayEnd = DateTime(widget.date.year, widget.date.month, widget.date.day, 23, 59, 59);
+
+    final eventsOnDate = memberEventsList
+        .where((e) {
+          final localStart = e.startTime.toLocal();
+          final localEnd = e.endTime.toLocal();
+          return localStart.isBefore(dayEnd) && localEnd.isAfter(dayStart);
+        })
+        .where((e) => e.category != EventCategory.holiday)
+        .toList();
+
+    return widget.availabilityService.isMemberAvailable(
+      events: eventsOnDate,
+      date: widget.date,
+      timeFilters: widget.selectedTimeFilters,
+      customStartTime: widget.customStartTime,
+      customEndTime: widget.customEndTime,
+    );
+  }
+
+  /// Get a human-readable description of availability for a specific member
+  String _getMemberAvailabilityDescription(String memberId, TimeFilter filter) {
+    final memberEventsList = widget.memberEvents[memberId] ?? [];
+    final dayStart = DateTime(widget.date.year, widget.date.month, widget.date.day, 0, 0);
+    final dayEnd = DateTime(widget.date.year, widget.date.month, widget.date.day, 23, 59, 59);
+
+    final eventsOnDate = memberEventsList
+        .where((e) {
+          final localStart = e.startTime.toLocal();
+          final localEnd = e.endTime.toLocal();
+          return localStart.isBefore(dayEnd) && localEnd.isAfter(dayStart);
+        })
+        .where((e) => e.category != EventCategory.holiday)
+        .toList();
+
+    return widget.availabilityService.getAvailabilityDescription(
+      events: eventsOnDate,
+      date: widget.date,
+      filter: filter,
+      customStartTime: widget.customStartTime,
+      customEndTime: widget.customEndTime,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
+
     return Consumer<GroupProvider>(
       builder: (context, provider, _) {
         final members = provider.selectedGroupMembers;
 
-        // Sort members: available first, then busy
-        final sortedMembers = List<GroupMemberProfile>.from(members);
-        sortedMembers.sort((a, b) {
-          final aAvailable = _isMemberAvailableOnDate(a.userId);
-          final bAvailable = _isMemberAvailableOnDate(b.userId);
-          if (aAvailable && !bAvailable) return -1;
-          if (!aAvailable && bAvailable) return 1;
-          return 0;
-        });
+        // Count available and busy members for header
+        int availableCount = 0;
+        int busyCount = 0;
+        for (final member in members) {
+          if (_isMemberAvailableOnDate(member.userId)) {
+            availableCount++;
+          } else {
+            busyCount++;
+          }
+        }
 
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: sortedMembers.length,
-          itemBuilder: (context, index) {
-            final member = sortedMembers[index];
-            final isAvailable = _isMemberAvailableOnDate(member.userId);
+        return Column(
+          children: [
+            // Collapsible header
+            Semantics(
+              button: true,
+              label: _isExpanded
+                  ? 'Collapse team availability section'
+                  : 'Expand team availability section',
+              child: InkWell(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() {
+                    _isExpanded = !_isExpanded;
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 16, 8),
+                  child: Row(
+                    children: [
+                      // Section title
+                      Text(
+                        'TEAM AVAILABILITY',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.8,
+                          color: appColors.textMuted,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Summary badges
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$availableCount free',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.success,
+                          ),
+                        ),
+                      ),
+                      if (busyCount > 0) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: colorScheme.error.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '$busyCount busy',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.error,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
+                      // Expand/collapse icon
+                      AnimatedRotation(
+                        turns: _isExpanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 20,
+                          color: appColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
-            return _buildMemberTile(
-              member: member,
-              isAvailable: isAvailable,
-              colorScheme: colorScheme,
-              appColors: appColors,
-            );
-          },
+            // Collapsible content
+            AnimatedCrossFade(
+              firstChild: _buildMemberList(members, colorScheme, appColors),
+              secondChild: const SizedBox.shrink(),
+              crossFadeState: _isExpanded
+                  ? CrossFadeState.showFirst
+                  : CrossFadeState.showSecond,
+              duration: const Duration(milliseconds: 200),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildMemberList(
+    List<GroupMemberProfile> members,
+    ColorScheme colorScheme,
+    AppColorsExtension appColors,
+  ) {
+    // Sort members: available first, then busy
+    final sortedMembers = List<GroupMemberProfile>.from(members);
+    sortedMembers.sort((a, b) {
+      final aAvailable = _isMemberAvailableOnDate(a.userId);
+      final bAvailable = _isMemberAvailableOnDate(b.userId);
+      if (aAvailable && !bAvailable) return -1;
+      if (!aAvailable && bAvailable) return 1;
+      return 0;
+    });
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: sortedMembers.length,
+      itemBuilder: (context, index) {
+        final member = sortedMembers[index];
+        final isAvailable = _isMemberAvailableOnDate(member.userId);
+
+        return _buildMemberTile(
+          member: member,
+          isAvailable: isAvailable,
+          colorScheme: colorScheme,
+          appColors: appColors,
         );
       },
     );
@@ -619,13 +810,13 @@ class DayDetailSheet extends StatelessWidget {
   ) {
     final descriptions = <String>[];
 
-    if (selectedTimeFilters.contains(TimeFilter.allDay)) {
+    if (widget.selectedTimeFilters.contains(TimeFilter.allDay)) {
       final desc = _getMemberAvailabilityDescription(memberId, TimeFilter.allDay);
       descriptions.add(desc);
     } else {
-      for (final filter in selectedTimeFilters) {
+      for (final filter in widget.selectedTimeFilters) {
         final desc = _getMemberAvailabilityDescription(memberId, filter);
-        if (selectedTimeFilters.length > 1) {
+        if (widget.selectedTimeFilters.length > 1) {
           descriptions.add('${filter.label}: $desc');
         } else {
           descriptions.add(desc);
@@ -660,54 +851,6 @@ class DayDetailSheet extends StatelessWidget {
       ),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-    );
-  }
-
-  Widget _buildProposeButton(
-    BuildContext context,
-    ColorScheme colorScheme,
-    int available,
-    int totalMembers,
-  ) {
-    final shouldShowButton = available >= (totalMembers * 0.5).ceil() && totalMembers > 0;
-
-    if (!shouldShowButton) {
-      return const SizedBox(height: 12);
-    }
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      child: SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          onPressed: () {
-            HapticFeedback.mediumImpact();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Event proposals coming in Sprint 3!'),
-                backgroundColor: colorScheme.primary,
-              ),
-            );
-          },
-          icon: const Icon(Icons.add_circle_outline, size: 20),
-          label: Text(
-            'Propose Event for ${DateFormat('MMM d').format(date)}',
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: colorScheme.primary,
-            foregroundColor: colorScheme.onPrimary,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            elevation: 0,
-          ),
-        ),
-      ),
     );
   }
 }

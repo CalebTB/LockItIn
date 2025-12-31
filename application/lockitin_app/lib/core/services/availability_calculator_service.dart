@@ -152,6 +152,26 @@ class AvailabilityCalculatorService {
     return true; // Available - no events in any selected time filter
   }
 
+  /// Check if a single member is busy on a date (convenience wrapper)
+  ///
+  /// Returns true if the member has ANY events overlapping with the selected
+  /// time filters. This is the inverse of isMemberAvailable.
+  bool isMemberBusyOnDate({
+    required List<EventModel> events,
+    required DateTime date,
+    required Set<TimeFilter> timeFilters,
+    TimeOfDay? customStartTime,
+    TimeOfDay? customEndTime,
+  }) {
+    return !isMemberAvailable(
+      events: events,
+      date: date,
+      timeFilters: timeFilters,
+      customStartTime: customStartTime,
+      customEndTime: customEndTime,
+    );
+  }
+
   /// Check if any event overlaps with the given time range
   bool _hasEventInRange(List<EventModel> events, DateTime rangeStart, DateTime rangeEnd) {
     for (final event in events) {
