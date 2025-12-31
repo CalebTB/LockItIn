@@ -28,7 +28,7 @@ class DeviceCalendarProvider extends ChangeNotifier {
   Future<void> checkPermission() async {
     try {
       _permissionStatus = await _calendarManager.checkPermission();
-      Logger.info('Calendar permission status: $_permissionStatus');
+      Logger.info('DeviceCalendarProvider', 'Calendar permission status: $_permissionStatus');
 
       // If platform channel isn't implemented, show a helpful message
       if (_permissionStatus == CalendarPermissionStatus.notDetermined) {
@@ -37,7 +37,7 @@ class DeviceCalendarProvider extends ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      Logger.error('Failed to check calendar permission: $e');
+      Logger.error('DeviceCalendarProvider', 'Failed to check calendar permission', e);
       _errorMessage = 'Failed to check calendar permission';
       notifyListeners();
     }
@@ -47,17 +47,17 @@ class DeviceCalendarProvider extends ChangeNotifier {
   /// Returns true if permission granted
   Future<bool> requestPermission() async {
     try {
-      Logger.info('Requesting calendar permission');
+      Logger.info('DeviceCalendarProvider', 'Requesting calendar permission');
       _errorMessage = null;
       notifyListeners();
 
       _permissionStatus = await _calendarManager.requestPermission();
-      Logger.info('Permission result: $_permissionStatus');
+      Logger.info('DeviceCalendarProvider', 'Permission result: $_permissionStatus');
 
       notifyListeners();
       return hasPermission;
     } catch (e) {
-      Logger.error('Failed to request calendar permission: $e');
+      Logger.error('DeviceCalendarProvider', 'Failed to request calendar permission', e);
       _errorMessage = 'Failed to request calendar permission: $e';
       notifyListeners();
       return false;
@@ -78,7 +78,7 @@ class DeviceCalendarProvider extends ChangeNotifier {
     if (_isLoading && !forceRefresh) return;
 
     if (!hasPermission) {
-      Logger.warning('Cannot fetch events - permission not granted');
+      Logger.warning('DeviceCalendarProvider', 'Cannot fetch events - permission not granted');
       _errorMessage = 'Calendar permission not granted';
       notifyListeners();
       return;
@@ -89,9 +89,8 @@ class DeviceCalendarProvider extends ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
-      Logger.info(
-        'Fetching events from ${startDate.toIso8601String()} to ${endDate.toIso8601String()}',
-      );
+      Logger.info('DeviceCalendarProvider',
+        'Fetching events from ${startDate.toIso8601String()} to ${endDate.toIso8601String()}');
 
       final allEvents = <EventModel>[];
 
@@ -101,7 +100,7 @@ class DeviceCalendarProvider extends ChangeNotifier {
         endDate: endDate,
       );
       allEvents.addAll(supabaseEvents);
-      Logger.info('Fetched ${supabaseEvents.length} events from Supabase');
+      Logger.info('DeviceCalendarProvider', 'Fetched ${supabaseEvents.length} events from Supabase');
 
       // Track native calendar IDs to avoid duplicates
       final nativeCalendarIds = supabaseEvents
@@ -123,12 +122,12 @@ class DeviceCalendarProvider extends ChangeNotifier {
 
       allEvents.addAll(newNativeEvents);
 
-      Logger.info('Fetched ${nativeEvents.length} events from native calendar');
-      Logger.info('Total events after deduplication: ${allEvents.length}');
+      Logger.info('DeviceCalendarProvider', 'Fetched ${nativeEvents.length} events from native calendar');
+      Logger.info('DeviceCalendarProvider', 'Total events after deduplication: ${allEvents.length}');
 
       _events = allEvents;
     } catch (e) {
-      Logger.error('Failed to fetch events: $e');
+      Logger.error('DeviceCalendarProvider', 'Failed to fetch events', e);
 
       if (e is CalendarAccessException) {
         _errorMessage = e.message;
@@ -151,23 +150,23 @@ class DeviceCalendarProvider extends ChangeNotifier {
   /// Returns native calendar event ID for bidirectional sync
   Future<String?> createEvent(EventModel event) async {
     if (!hasPermission) {
-      Logger.warning('Cannot create event - permission not granted');
+      Logger.warning('DeviceCalendarProvider', 'Cannot create event - permission not granted');
       _errorMessage = 'Calendar permission not granted';
       notifyListeners();
       return null;
     }
 
     try {
-      Logger.info('Creating event in device calendar: ${event.title}');
+      Logger.info('DeviceCalendarProvider', 'Creating event in device calendar: ${event.title}');
       final nativeEventId = await _calendarManager.createEvent(event);
-      Logger.info('Created event with native ID: $nativeEventId');
+      Logger.info('DeviceCalendarProvider', 'Created event with native ID: $nativeEventId');
 
       // Optionally refresh events list
       // await fetchEvents(startDate: ..., endDate: ...);
 
       return nativeEventId;
     } catch (e) {
-      Logger.error('Failed to create event: $e');
+      Logger.error('DeviceCalendarProvider', 'Failed to create event', e);
       _errorMessage = 'Failed to create event: $e';
       notifyListeners();
       return null;
@@ -177,23 +176,23 @@ class DeviceCalendarProvider extends ChangeNotifier {
   /// Update an existing event in device calendar
   Future<bool> updateEvent(EventModel event) async {
     if (!hasPermission) {
-      Logger.warning('Cannot update event - permission not granted');
+      Logger.warning('DeviceCalendarProvider', 'Cannot update event - permission not granted');
       _errorMessage = 'Calendar permission not granted';
       notifyListeners();
       return false;
     }
 
     if (event.nativeCalendarId == null) {
-      Logger.warning('Cannot update event - missing nativeCalendarId');
+      Logger.warning('DeviceCalendarProvider', 'Cannot update event - missing nativeCalendarId');
       _errorMessage = 'Event not linked to device calendar';
       notifyListeners();
       return false;
     }
 
     try {
-      Logger.info('Updating event in device calendar: ${event.nativeCalendarId}');
+      Logger.info('DeviceCalendarProvider', 'Updating event in device calendar: ${event.nativeCalendarId}');
       await _calendarManager.updateEvent(event);
-      Logger.info('Updated event successfully');
+      Logger.info('DeviceCalendarProvider', 'Updated event successfully');
 
       // Update local event list
       final index = _events.indexWhere((e) => e.id == event.id);
@@ -204,7 +203,7 @@ class DeviceCalendarProvider extends ChangeNotifier {
 
       return true;
     } catch (e) {
-      Logger.error('Failed to update event: $e');
+      Logger.error('DeviceCalendarProvider', 'Failed to update event', e);
       _errorMessage = 'Failed to update event: $e';
       notifyListeners();
       return false;
@@ -214,23 +213,23 @@ class DeviceCalendarProvider extends ChangeNotifier {
   /// Delete an event from device calendar
   Future<bool> deleteEvent(EventModel event) async {
     if (!hasPermission) {
-      Logger.warning('Cannot delete event - permission not granted');
+      Logger.warning('DeviceCalendarProvider', 'Cannot delete event - permission not granted');
       _errorMessage = 'Calendar permission not granted';
       notifyListeners();
       return false;
     }
 
     if (event.nativeCalendarId == null) {
-      Logger.warning('Cannot delete event - missing nativeCalendarId');
+      Logger.warning('DeviceCalendarProvider', 'Cannot delete event - missing nativeCalendarId');
       _errorMessage = 'Event not linked to device calendar';
       notifyListeners();
       return false;
     }
 
     try {
-      Logger.info('Deleting event from device calendar: ${event.nativeCalendarId}');
+      Logger.info('DeviceCalendarProvider', 'Deleting event from device calendar: ${event.nativeCalendarId}');
       await _calendarManager.deleteEvent(event.nativeCalendarId!);
-      Logger.info('Deleted event successfully');
+      Logger.info('DeviceCalendarProvider', 'Deleted event successfully');
 
       // Remove from local event list
       _events.removeWhere((e) => e.id == event.id);
@@ -238,7 +237,7 @@ class DeviceCalendarProvider extends ChangeNotifier {
 
       return true;
     } catch (e) {
-      Logger.error('Failed to delete event: $e');
+      Logger.error('DeviceCalendarProvider', 'Failed to delete event', e);
       _errorMessage = 'Failed to delete event: $e';
       notifyListeners();
       return false;
