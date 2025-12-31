@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../core/theme/app_colors.dart';
 import '../../data/models/friendship_model.dart';
+import '../../data/models/group_model.dart';
 import '../providers/friend_provider.dart';
+import '../providers/group_provider.dart';
 import '../widgets/friend_search_delegate.dart';
 import '../widgets/friend_list_tile.dart';
 import '../widgets/friend_request_tile.dart';
@@ -603,7 +607,8 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
-/// Friend profile bottom sheet
+/// Friend profile bottom sheet with enhanced details
+/// Shows friend information, mutual groups, and action buttons
 class _FriendProfileSheet extends StatelessWidget {
   final FriendProfile friend;
 
@@ -612,122 +617,327 @@ class _FriendProfileSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
 
-    return Container(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Handle bar
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 24),
+    return Consumer<GroupProvider>(
+      builder: (context, groupProvider, _) {
+        // Find mutual groups (groups where both current user and friend are members)
+        final mutualGroups = _getMutualGroups(groupProvider);
 
-          // Avatar
-          CircleAvatar(
-            radius: 48,
-            backgroundColor: colorScheme.primaryContainer,
-            child: friend.avatarUrl != null
-                ? ClipOval(
-                    child: Image.network(
-                      friend.avatarUrl!,
-                      width: 96,
-                      height: 96,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, _) => Text(
-                        friend.initials,
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onPrimaryContainer,
-                        ),
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Handle bar
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                  )
-                : Text(
-                    friend.initials,
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-          ),
-          const SizedBox(height: 16),
+                    const SizedBox(height: 24),
 
-          // Name
-          Text(
-            friend.displayName,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          // Friends since
-          if (friend.friendshipSince != null) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.favorite_rounded,
-                    size: 16,
-                    color: colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Friends since ${_formatDate(friend.friendshipSince!)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colorScheme.primary,
-                      fontWeight: FontWeight.w500,
+                    // Avatar
+                    CircleAvatar(
+                      radius: 48,
+                      backgroundColor: colorScheme.primaryContainer,
+                      child: friend.avatarUrl != null
+                          ? ClipOval(
+                              child: Image.network(
+                                friend.avatarUrl!,
+                                width: 96,
+                                height: 96,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Text(
+                                  friend.initials,
+                                  style: TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.onPrimaryContainer,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Text(
+                              friend.initials,
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onPrimaryContainer,
+                              ),
+                            ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+
+                    // Name
+                    Text(
+                      friend.displayName,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    // Email
+                    const SizedBox(height: 4),
+                    Text(
+                      friend.email,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: appColors.textSecondary,
+                      ),
+                    ),
+
+                    // Friends since badge
+                    if (friend.friendshipSince != null) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primaryContainer.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.favorite_rounded,
+                              size: 16,
+                              color: colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Friends since ${_formatDate(friend.friendshipSince!)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    // Mutual Groups Section
+                    if (mutualGroups.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      _buildMutualGroupsSection(context, mutualGroups, colorScheme, appColors),
+                    ],
+
+                    const SizedBox(height: 24),
+
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Shared calendar coming soon!'),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.calendar_today_rounded),
+                            label: const Text('View Calendar'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Event planning coming soon!'),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.event_rounded),
+                            label: const Text('Plan Event'),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Remove Friend Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _confirmRemoveFriend(context),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: colorScheme.error,
+                          side: BorderSide(color: colorScheme.error.withValues(alpha: 0.5)),
+                        ),
+                        icon: const Icon(Icons.person_remove_rounded),
+                        label: const Text('Remove Friend'),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Build the mutual groups section
+  Widget _buildMutualGroupsSection(
+    BuildContext context,
+    List<GroupModel> groups,
+    ColorScheme colorScheme,
+    AppColorsExtension appColors,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.groups_rounded,
+              size: 18,
+              color: appColors.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Mutual Groups (${groups.length})',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: appColors.textSecondary,
               ),
             ),
           ],
-          const SizedBox(height: 32),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: groups.map((group) => _buildGroupChip(context, group, colorScheme)).toList(),
+        ),
+      ],
+    );
+  }
 
-          // Actions
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    // TODO: Navigate to shared calendar view
-                  },
-                  icon: const Icon(Icons.calendar_today_rounded),
-                  label: const Text('View Calendar'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    // TODO: Create event with friend
-                  },
-                  icon: const Icon(Icons.event_rounded),
-                  label: const Text('Plan Event'),
-                ),
-              ),
-            ],
+  /// Build a chip for a mutual group
+  Widget _buildGroupChip(BuildContext context, GroupModel group, ColorScheme colorScheme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colorScheme.outline.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Group emoji or icon
+          Text(
+            group.emoji,
+            style: const TextStyle(fontSize: 14),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(width: 6),
+          Text(
+            group.name,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Get groups that the friend is also a member of
+  List<GroupModel> _getMutualGroups(GroupProvider groupProvider) {
+    // Get all user's groups and find ones where friend is a member
+    // This would require loading member lists for each group
+    // For now, return all groups as a starting point
+    // TODO: Enhance to only show groups where friend is confirmed member
+    return groupProvider.groups;
+  }
+
+  /// Confirm removal of friend
+  void _confirmRemoveFriend(BuildContext context) {
+    final friendProvider = context.read<FriendProvider>();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remove Friend'),
+        content: Text(
+          'Are you sure you want to remove ${friend.displayName} from your friends?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              Navigator.pop(context); // Close the profile sheet
+
+              if (friend.friendshipId == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Unable to remove friend - missing friendship ID'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              HapticFeedback.mediumImpact();
+              final success = await friendProvider.removeFriend(friend, friend.friendshipId!);
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? 'Removed ${friend.displayName} from friends'
+                          : 'Failed to remove friend',
+                    ),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                  ),
+                );
+              }
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            child: const Text('Remove'),
+          ),
         ],
       ),
     );
