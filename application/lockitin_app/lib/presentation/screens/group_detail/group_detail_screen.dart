@@ -458,8 +458,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         );
         return GroupCalendarGrid(
           month: month,
-          focusedMonth: _focusedMonth,
-          selectedDay: _selectedDay,
+          selectedDate: _selectedDate,
           selectedDateRange: _selectedDateRange,
           dayViewStyle: _dayViewStyle,
           isLoadingMemberEvents: _isLoadingMemberEvents,
@@ -467,6 +466,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           onDayTapped: _switchToDayView,
           onDaySelected: (day) => setState(() {
             _selectedDay = day;
+            _selectedDate = DateTime(month.year, month.month, day);
             _focusedMonth = month;
           }),
         );

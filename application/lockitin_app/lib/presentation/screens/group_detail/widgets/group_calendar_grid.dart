@@ -23,8 +23,7 @@ class CellColors {
 /// Availability heatmap calendar grid for GroupDetailScreen
 class GroupCalendarGrid extends StatelessWidget {
   final DateTime month;
-  final DateTime focusedMonth;
-  final int? selectedDay;
+  final DateTime? selectedDate;
   final DateTimeRange? selectedDateRange;
   final DayViewStyle dayViewStyle;
   final bool isLoadingMemberEvents;
@@ -35,8 +34,7 @@ class GroupCalendarGrid extends StatelessWidget {
   const GroupCalendarGrid({
     super.key,
     required this.month,
-    required this.focusedMonth,
-    required this.selectedDay,
+    required this.selectedDate,
     required this.selectedDateRange,
     required this.dayViewStyle,
     required this.isLoadingMemberEvents,
@@ -115,8 +113,11 @@ class GroupCalendarGrid extends StatelessWidget {
                     final date = DateTime(month.year, month.month, dayNumber);
                     final isToday = date.isAtSameMomentAs(today);
                     final isPast = date.isBefore(today);
-                    final isSelected = selectedDay == dayNumber &&
-                        month.month == focusedMonth.month;
+                    // Only show selection if this exact date matches selectedDate
+                    final isSelected = selectedDate != null &&
+                        selectedDate!.day == dayNumber &&
+                        selectedDate!.month == month.month &&
+                        selectedDate!.year == month.year;
 
                     final isInRange = selectedDateRange == null ||
                         (!date.isBefore(selectedDateRange!.start) &&
