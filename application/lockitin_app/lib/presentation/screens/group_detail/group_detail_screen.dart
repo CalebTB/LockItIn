@@ -224,7 +224,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           ? DayViewStyle.classic
           : DayViewStyle.timeline;
       _viewMode = GroupCalendarViewMode.month;
-      _selectedDay = null;
+      // Preserve date context when switching styles
+      // Use selectedDate if set, otherwise use first of focused month
+      _selectedDate ??= DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     });
     _showSnackBar(
       _dayViewStyle == DayViewStyle.timeline
@@ -327,7 +329,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     setState(() {
                       _dayViewStyle = DayViewStyle.timeline;
                       _viewMode = GroupCalendarViewMode.month;
-                      _selectedDay = null;
+                      // Preserve date context - use selected day or first of month
+                      if (_selectedDay != null) {
+                        _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDay!);
+                      } else {
+                        _selectedDate ??= DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+                      }
                     });
                     _showSnackBar('Switched to Timeline day view');
                   },
