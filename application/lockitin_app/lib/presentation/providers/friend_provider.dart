@@ -39,6 +39,11 @@ class FriendProvider extends ChangeNotifier {
   /// Whether initial data has been loaded
   bool _isInitialized = false;
 
+  /// Pagination state for search
+  int _searchOffset = 0;
+  bool _hasMoreSearchResults = true;
+  bool _isLoadingMoreSearch = false;
+
   // ============================================================================
   // Getters
   // ============================================================================
@@ -59,6 +64,12 @@ class FriendProvider extends ChangeNotifier {
   String? get actionError => _actionError;
 
   String get searchQuery => _searchQuery;
+
+  /// Whether more search results are available (for pagination)
+  bool get hasMoreSearchResults => _hasMoreSearchResults;
+
+  /// Whether more search results are being loaded
+  bool get isLoadingMoreSearch => _isLoadingMoreSearch;
 
   /// Total count of pending requests (for badge display)
   int get pendingRequestCount => _pendingRequests.length;
@@ -142,10 +153,10 @@ class FriendProvider extends ChangeNotifier {
 
     try {
       _friends = await _friendService.getFriends();
-      Logger.info('Loaded ${_friends.length} friends');
+      Logger.info('FriendProvider', 'Loaded ${_friends.length} friends');
     } catch (e) {
       _friendsError = e.toString();
-      Logger.error('Failed to load friends: $e');
+      Logger.error('FriendProvider', 'Failed to load friends: $e');
     } finally {
       _isLoadingFriends = false;
       notifyListeners(); // Single rebuild with final state
@@ -167,13 +178,13 @@ class FriendProvider extends ChangeNotifier {
       _pendingRequests = results[0] as List<FriendRequest>;
       _sentRequests = results[1] as List<SentRequest>;
 
-      Logger.info(
+      Logger.info('FriendProvider',
         'Loaded ${_pendingRequests.length} pending requests, '
         '${_sentRequests.length} sent requests',
       );
     } catch (e) {
       _requestsError = e.toString();
-      Logger.error('Failed to load pending requests: $e');
+      Logger.error('FriendProvider', 'Failed to load pending requests: $e');
     } finally {
       _isLoadingRequests = false;
       notifyListeners(); // Single rebuild with final state
@@ -189,9 +200,11 @@ class FriendProvider extends ChangeNotifier {
   // Search Operations
   // ============================================================================
 
-  /// Search for users by email or name
+  /// Search for users by email or name (resets pagination)
   Future<void> searchUsers(String query) async {
     _searchQuery = query;
+    _searchOffset = 0;
+    _hasMoreSearchResults = true;
 
     if (query.length < 2) {
       _searchResults = [];
@@ -206,14 +219,45 @@ class FriendProvider extends ChangeNotifier {
 
     try {
       _searchResults = await _friendService.searchUsers(query);
-      Logger.info('Search found ${_searchResults.length} users');
+      _hasMoreSearchResults = _searchResults.length >= FriendService.defaultSearchLimit;
+      _searchOffset = _searchResults.length;
+      Logger.info('FriendProvider', 'Search found ${_searchResults.length} users');
     } catch (e) {
       _searchError = e.toString();
       _searchResults = [];
-      Logger.error('Search failed: $e');
+      _hasMoreSearchResults = false;
+      Logger.error('FriendProvider', 'Search failed: $e');
     } finally {
       _isSearching = false;
       notifyListeners(); // Single rebuild with final state
+    }
+  }
+
+  /// Load more search results (pagination)
+  Future<void> loadMoreSearchResults() async {
+    if (_isLoadingMoreSearch || !_hasMoreSearchResults || _searchQuery.length < 2) {
+      return;
+    }
+
+    _isLoadingMoreSearch = true;
+    notifyListeners();
+
+    try {
+      final moreResults = await _friendService.searchUsers(
+        _searchQuery,
+        offset: _searchOffset,
+      );
+
+      _searchResults = [..._searchResults, ...moreResults];
+      _hasMoreSearchResults = moreResults.length >= FriendService.defaultSearchLimit;
+      _searchOffset += moreResults.length;
+      Logger.info('FriendProvider', 'Loaded ${moreResults.length} more results (total: ${_searchResults.length})');
+    } catch (e) {
+      Logger.error('FriendProvider', 'Failed to load more results: $e');
+      // Don't set error - keep existing results
+    } finally {
+      _isLoadingMoreSearch = false;
+      notifyListeners();
     }
   }
 
@@ -221,6 +265,8 @@ class FriendProvider extends ChangeNotifier {
   void clearSearch() {
     _searchQuery = '';
     _searchResults = [];
+    _searchOffset = 0;
+    _hasMoreSearchResults = true;
     _searchError = null;
     notifyListeners();
   }
@@ -239,13 +285,13 @@ class FriendProvider extends ChangeNotifier {
       await _friendService.sendFriendRequest(friendId);
       // Reload sent requests to get the complete data with recipient info
       _sentRequests = await _friendService.getSentRequests();
-      Logger.info('Friend request sent to: $friendId');
+      Logger.info('FriendProvider', 'Friend request sent to: $friendId');
       _isSendingRequest = false;
       notifyListeners(); // Single rebuild with final state
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to send friend request: $e');
+      Logger.error('FriendProvider', 'Failed to send friend request: $e');
       _isSendingRequest = false;
       notifyListeners(); // Single rebuild with error state
       return false;
@@ -272,12 +318,12 @@ class FriendProvider extends ChangeNotifier {
         friendshipSince: friendship.acceptedAt,
       ));
 
-      Logger.info('Accepted friend request from: ${request.requesterId}');
+      Logger.info('FriendProvider', 'Accepted friend request from: ${request.requesterId}');
       notifyListeners();
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to accept friend request: $e');
+      Logger.error('FriendProvider', 'Failed to accept friend request: $e');
       notifyListeners();
       return false;
     }
@@ -293,12 +339,12 @@ class FriendProvider extends ChangeNotifier {
       // Remove from pending requests
       _pendingRequests.removeWhere((r) => r.requestId == request.requestId);
 
-      Logger.info('Declined friend request from: ${request.requesterId}');
+      Logger.info('FriendProvider', 'Declined friend request from: ${request.requesterId}');
       notifyListeners();
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to decline friend request: $e');
+      Logger.error('FriendProvider', 'Failed to decline friend request: $e');
       notifyListeners();
       return false;
     }
@@ -314,12 +360,12 @@ class FriendProvider extends ChangeNotifier {
       // Remove from sent requests
       _sentRequests.removeWhere((r) => r.requestId == request.requestId);
 
-      Logger.info('Canceled friend request: ${request.requestId}');
+      Logger.info('FriendProvider', 'Canceled friend request: ${request.requestId}');
       notifyListeners();
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to cancel friend request: $e');
+      Logger.error('FriendProvider', 'Failed to cancel friend request: $e');
       notifyListeners();
       return false;
     }
@@ -335,12 +381,12 @@ class FriendProvider extends ChangeNotifier {
       // Remove from friends list
       _friends.removeWhere((f) => f.id == friend.id);
 
-      Logger.info('Removed friend: ${friend.id}');
+      Logger.info('FriendProvider', 'Removed friend: ${friend.id}');
       notifyListeners();
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to remove friend: $e');
+      Logger.error('FriendProvider', 'Failed to remove friend: $e');
       notifyListeners();
       return false;
     }
@@ -363,12 +409,12 @@ class FriendProvider extends ChangeNotifier {
       // Remove any pending requests from this user
       _pendingRequests.removeWhere((r) => r.requesterId == userId);
 
-      Logger.info('Blocked user: $userId');
+      Logger.info('FriendProvider', 'Blocked user: $userId');
       notifyListeners();
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to block user: $e');
+      Logger.error('FriendProvider', 'Failed to block user: $e');
       notifyListeners();
       return false;
     }

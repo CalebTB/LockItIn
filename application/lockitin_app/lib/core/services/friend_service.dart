@@ -464,10 +464,21 @@ class FriendService {
     }
   }
 
-  /// Search for users by email or name
+  /// Default page size for user search
+  static const int defaultSearchLimit = 20;
+
+  /// Search for users by email or name with pagination support
+  ///
+  /// [query] - Search query (must be at least 2 characters)
+  /// [limit] - Maximum number of results per page (default: 20)
+  /// [offset] - Number of results to skip for pagination (default: 0)
   ///
   /// Returns list of user profiles matching the query
-  Future<List<FriendProfile>> searchUsers(String query) async {
+  Future<List<FriendProfile>> searchUsers(
+    String query, {
+    int limit = defaultSearchLimit,
+    int offset = 0,
+  }) async {
     try {
       final currentUserId = SupabaseClientManager.currentUserId;
       if (currentUserId == null) {
@@ -478,15 +489,16 @@ class FriendService {
         return [];
       }
 
-      Logger.info('FriendService', 'Searching users: $query');
+      Logger.info('FriendService', 'Searching users: "$query" (limit: $limit, offset: $offset)');
 
-      // Search by email or name (case-insensitive)
+      // Search by email or name (case-insensitive) with pagination
       final response = await SupabaseClientManager.client
           .from('users')
           .select('id, email, full_name, avatar_url')
           .or('email.ilike.%$query%,full_name.ilike.%$query%')
           .neq('id', currentUserId) // Exclude self
-          .limit(20);
+          .order('full_name', ascending: true) // Consistent ordering for pagination
+          .range(offset, offset + limit - 1);
 
       final users = (response as List)
           .map((json) => FriendProfile.fromUserJson(json as Map<String, dynamic>))
