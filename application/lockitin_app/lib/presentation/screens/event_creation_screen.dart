@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/event_model.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/adaptive_date_time_picker.dart';
 import 'group_proposal_wizard.dart';
 
 /// Event creation mode enum for dual-context support
@@ -339,36 +340,43 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
   Widget _buildTemplateChip(String emoji, String label, EventTemplate template, ColorScheme colorScheme) {
     final isSelected = _selectedTemplate == template;
 
-    return GestureDetector(
-      onTap: () => _applyTemplate(template),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? colorScheme.primary.withValues(alpha: 0.15)
-              : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
+    return Semantics(
+      label: '$label template',
+      hint: isSelected ? 'Currently selected' : 'Double tap to pre-fill event with $label defaults',
+      button: true,
+      selected: isSelected,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: () => _applyTemplate(template),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
             color: isSelected
-                ? colorScheme.primary
-                : colorScheme.outline.withValues(alpha: 0.2),
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 16)),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? colorScheme.primary : colorScheme.onSurface,
-              ),
+                ? colorScheme.primary.withValues(alpha: 0.15)
+                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected
+                  ? colorScheme.primary
+                  : colorScheme.outline.withValues(alpha: 0.2),
+              width: isSelected ? 2 : 1,
             ),
-          ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(emoji, style: const TextStyle(fontSize: 16)),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -516,10 +524,18 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     bool isRecommended = false,
   }) {
     final isSelected = _visibility == value;
+    final recommendedHint = isRecommended ? ' Recommended.' : '';
+    final selectedHint = isSelected ? 'Currently selected.' : 'Double tap to select.';
 
-    return GestureDetector(
-      onTap: () => setState(() => _visibility = value),
-      child: Container(
+    return Semantics(
+      label: '$title: $description.$recommendedHint',
+      hint: selectedHint,
+      button: true,
+      selected: isSelected,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: () => setState(() => _visibility = value),
+        child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: isSelected
@@ -635,6 +651,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -673,50 +690,62 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Date display
-              GestureDetector(
-                onTap: () => _selectStartDate(context),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        DateFormat('EEEE, MMMM d, yyyy').format(_startDate),
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: colorScheme.onSurface,
+              Semantics(
+                label: 'Date: ${DateFormat('EEEE, MMMM d, yyyy').format(_startDate)}',
+                hint: 'Double tap to change date',
+                button: true,
+                excludeSemantics: true,
+                child: GestureDetector(
+                  onTap: () => _selectStartDate(context),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          DateFormat('EEEE, MMMM d, yyyy').format(_startDate),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: colorScheme.onSurface,
+                          ),
                         ),
                       ),
-                    ),
-                    Icon(
-                      Icons.edit,
-                      size: 18,
-                      color: colorScheme.primary,
-                    ),
-                  ],
+                      Icon(
+                        Icons.edit,
+                        size: 18,
+                        color: colorScheme.primary,
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
 
               // Time display (if not all day)
               if (!_isAllDay) ...[
-                GestureDetector(
-                  onTap: () => _showTimePickerSheet(context),
-                  child: Row(
-                    children: [
-                      Text(
-                        '${_startTime.format(context)} - ${_endTime.format(context)}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: appColors.textSecondary,
+                Semantics(
+                  label: 'Time: ${_startTime.format(context)} to ${_endTime.format(context)}',
+                  hint: 'Double tap to change time',
+                  button: true,
+                  excludeSemantics: true,
+                  child: GestureDetector(
+                    onTap: () => _showTimePickerSheet(context),
+                    child: Row(
+                      children: [
+                        Text(
+                          '${_startTime.format(context)} - ${_endTime.format(context)}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: appColors.textSecondary,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.access_time,
-                        size: 16,
-                        color: colorScheme.primary,
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.access_time,
+                          size: 16,
+                          color: colorScheme.primary,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ] else ...[
@@ -914,19 +943,26 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
         Row(
           children: EventCategory.values.map((category) {
             final isSelected = _category == category;
+            final categoryLabel = _getCategoryLabel(category);
             return Expanded(
               child: Padding(
                 padding: EdgeInsets.only(
                   right: category != EventCategory.other ? 8 : 0,
                 ),
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _category = category;
-                      _emoji = _getDefaultEmoji(category);
-                    });
-                  },
-                  child: Container(
+                child: Semantics(
+                  label: 'Category: $categoryLabel',
+                  hint: isSelected ? 'Currently selected' : 'Double tap to select $categoryLabel category',
+                  button: true,
+                  selected: isSelected,
+                  excludeSemantics: true,
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _category = category;
+                        _emoji = _getDefaultEmoji(category);
+                      });
+                    },
+                    child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
                       color: isSelected
@@ -959,6 +995,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
                         ),
                       ],
                     ),
+                  ),
                   ),
                 ),
               ),
@@ -1067,22 +1104,22 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     );
   }
 
-  /// Show time picker bottom sheet
-  void _showTimePickerSheet(BuildContext context) async {
-    final startTime = await showTimePicker(
-      context: context,
+  /// Show time picker bottom sheet (platform-adaptive)
+  void _showTimePickerSheet(BuildContext ctx) async {
+    final startTime = await showAdaptiveTimePicker(
+      context: ctx,
       initialTime: _startTime,
       helpText: 'Start Time',
     );
 
-    if (startTime != null && context.mounted) {
-      final endTime = await showTimePicker(
+    if (startTime != null && mounted) {
+      final endTime = await showAdaptiveTimePicker(
         context: context,
         initialTime: _endTime,
         helpText: 'End Time',
       );
 
-      if (endTime != null) {
+      if (endTime != null && mounted) {
         setState(() {
           _startTime = startTime;
           _endTime = endTime;
@@ -1091,42 +1128,42 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     }
   }
 
-  /// Show full date/time picker bottom sheet
-  void _showDateTimePickerSheet(BuildContext context) async {
+  /// Show full date/time picker bottom sheet (platform-adaptive)
+  void _showDateTimePickerSheet(BuildContext ctx) async {
     // First pick start date
-    final startDate = await showDatePicker(
-      context: context,
+    final startDate = await showAdaptiveDatePicker(
+      context: ctx,
       initialDate: _startDate,
       firstDate: DateTime.now(),
       lastDate: DateTime(2030),
       helpText: 'Select Date',
     );
 
-    if (startDate != null && context.mounted) {
+    if (startDate != null && mounted) {
       setState(() {
         _startDate = startDate;
         _endDate = startDate; // Same day by default
       });
 
-      if (!_isAllDay && context.mounted) {
+      if (!_isAllDay && mounted) {
         _showTimePickerSheet(context);
       }
     }
   }
 
-  /// Select start date
+  /// Select start date (platform-adaptive)
   Future<void> _selectStartDate(BuildContext context) async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    final picked = await showDatePicker(
+    final picked = await showAdaptiveDatePicker(
       context: context,
       initialDate: _startDate.isBefore(today) ? today : _startDate,
       firstDate: today,
       lastDate: DateTime(2030),
     );
 
-    if (picked != null && picked != _startDate) {
+    if (picked != null && picked != _startDate && mounted) {
       setState(() {
         _startDate = picked;
         if (_endDate.isBefore(_startDate)) {
