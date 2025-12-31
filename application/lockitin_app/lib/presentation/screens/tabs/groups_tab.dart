@@ -148,18 +148,21 @@ class _GroupsTabState extends State<GroupsTab> {
           ],
         ),
       ),
-      floatingActionButton: Semantics(
-        button: true,
-        label: 'Create new group',
-        child: FloatingActionButton(
-          heroTag: 'groups_fab',
-          onPressed: _showCreateGroupDialog,
-          backgroundColor: colorScheme.primary,
-          foregroundColor: colorScheme.onPrimary,
-          tooltip: 'Create new group',
-          child: const Icon(Icons.add_rounded),
-        ),
-      ),
+      // Only show FAB when groups exist (empty state has its own create button)
+      floatingActionButton: provider.groups.isNotEmpty
+          ? Semantics(
+              button: true,
+              label: 'Create new group',
+              child: FloatingActionButton(
+                heroTag: 'groups_fab',
+                onPressed: _showCreateGroupDialog,
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+                tooltip: 'Create new group',
+                child: const Icon(Icons.add_rounded),
+              ),
+            )
+          : null,
     );
   }
 
