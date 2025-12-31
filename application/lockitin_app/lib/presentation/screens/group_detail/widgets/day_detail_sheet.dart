@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/services/availability_calculator_service.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/time_filter_utils.dart';
 import '../../../../data/models/event_model.dart';
+import '../../../../data/models/group_model.dart';
 import '../../../providers/group_provider.dart';
-import '../../../theme/sunset_coral_theme.dart';
 import '../../../widgets/suggested_time_slots_card.dart';
 
 /// Bottom sheet showing detailed availability for a selected day
+/// Uses Minimal theme color system (grayscale + emerald for availability)
+///
+/// Features:
+/// - Visual date header with day of week
+/// - Availability progress indicator
+/// - Suggested time slots
+/// - Member list grouped by availability
+/// - Propose event action
 class DayDetailSheet extends StatelessWidget {
   final DateTime date;
   final DateTime focusedMonth;
@@ -32,17 +42,6 @@ class DayDetailSheet extends StatelessWidget {
     required this.customEndTime,
     required this.availabilityService,
   });
-
-  static const Color _rose950 = SunsetCoralTheme.rose950;
-  static const Color _rose900 = SunsetCoralTheme.rose900;
-  static const Color _rose500 = SunsetCoralTheme.rose500;
-  static const Color _rose400 = SunsetCoralTheme.rose400;
-  static const Color _rose300 = SunsetCoralTheme.rose300;
-  static const Color _rose200 = SunsetCoralTheme.rose200;
-  static const Color _rose50 = SunsetCoralTheme.rose50;
-  static const Color _orange400 = SunsetCoralTheme.orange400;
-  static const Color _slate950 = SunsetCoralTheme.slate950;
-  static const Color _emerald500 = SunsetCoralTheme.emerald500;
 
   /// Calculate how many group members are available on this date
   int _getAvailabilityForDay() {
@@ -105,172 +104,315 @@ class DayDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final monthName = DateFormat('MMMM').format(focusedMonth);
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
     final groupProvider = context.read<GroupProvider>();
     final totalMembers = groupProvider.selectedGroupMembers.isNotEmpty
         ? groupProvider.selectedGroupMembers.length
         : memberEvents.length;
     final available = _getAvailabilityForDay();
+    final availabilityRatio = totalMembers > 0 ? available / totalMembers : 0.0;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Positioned(
       left: 0,
       right: 0,
       bottom: 0,
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.75,
-        ),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [_rose950, _slate950],
+      child: GestureDetector(
+        onVerticalDragEnd: (details) {
+          // Swipe down to dismiss
+          if (details.primaryVelocity != null && details.primaryVelocity! > 300) {
+            HapticFeedback.lightImpact();
+            onClose();
+          }
+        },
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
           ),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border(
-            top: BorderSide(color: _rose500.withValues(alpha: 0.2)),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 20,
+                offset: const Offset(0, -4),
+              ),
+            ],
           ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle bar - tap to close (FIXED at top)
-            GestureDetector(
-              onTap: onClose,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                color: Colors.transparent,
-                child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar - tap to close
+              _buildHandle(colorScheme, appColors),
+
+              // Scrollable content
+              Flexible(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 48,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: _rose500.withValues(alpha: 0.4),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Tap to close',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: _rose400.withValues(alpha: 0.5),
-                        ),
-                      ),
+                      // Header with date and availability
+                      _buildHeader(context, colorScheme, appColors, available, totalMembers, availabilityRatio),
+
+                      const SizedBox(height: 20),
+
+                      // Suggested time slots section
+                      _buildSectionHeader('Suggested Times', colorScheme, appColors),
+                      _buildSuggestedTimeSlots(context, colorScheme),
+
+                      const SizedBox(height: 20),
+
+                      // Member availability list
+                      _buildSectionHeader('Team Availability', colorScheme, appColors),
+                      _buildMemberAvailabilityList(context, colorScheme, appColors),
+
+                      // Propose event button
+                      _buildProposeButton(context, colorScheme, available, totalMembers),
+
+                      // Safe area padding
+                      SizedBox(height: bottomPadding + 8),
                     ],
                   ),
                 ),
               ),
-            ),
-
-            // Scrollable content
-            Flexible(
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Header
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ShaderMask(
-                                shaderCallback: (bounds) => const LinearGradient(
-                                  colors: [_rose200, Color(0xFFFED7AA)],
-                                ).createShader(bounds),
-                                child: Text(
-                                  '$monthName $selectedDay',
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                '$available/$totalMembers members available',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                          IconButton(
-                            onPressed: onClose,
-                            icon: const Icon(Icons.close, size: 22),
-                            color: _rose300,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Suggested time slots section
-                    _buildSuggestedTimeSlots(context),
-
-                    const SizedBox(height: 8),
-
-                    // Member availability list
-                    _buildMemberAvailabilityList(context),
-
-                    // Propose event button
-                    if (available >= (totalMembers * 0.5).ceil())
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Event proposals coming in Sprint 3!',
-                                  ),
-                                  backgroundColor: _rose500,
-                                ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _rose500,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              elevation: 4,
-                            ),
-                            child: Text(
-                              'Propose Event for ${DateFormat('MMM').format(focusedMonth)} $selectedDay',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                    else
-                      const SizedBox(height: 20),
-                  ],
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildSuggestedTimeSlots(BuildContext context) {
+  Widget _buildHandle(ColorScheme colorScheme, AppColorsExtension appColors) {
+    final formattedDate = DateFormat('EEEE, MMMM d').format(date);
+
+    return Semantics(
+      button: true,
+      label: 'Close day details for $formattedDate',
+      child: GestureDetector(
+        onTap: onClose,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          color: Colors.transparent,
+          child: Center(
+            child: Column(
+              children: [
+                Container(
+                  width: 40,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(2.5),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Swipe down or tap to close',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: appColors.textDisabled,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(
+    BuildContext context,
+    ColorScheme colorScheme,
+    AppColorsExtension appColors,
+    int available,
+    int totalMembers,
+    double availabilityRatio,
+  ) {
+    final dayOfWeek = DateFormat('EEEE').format(date);
+    final monthDay = DateFormat('MMMM d').format(date);
+    final isFullyAvailable = available == totalMembers && totalMembers > 0;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Date badge
+          Container(
+            width: 64,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: isFullyAvailable
+                  ? AppColors.success
+                  : colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isFullyAvailable
+                    ? AppColors.success
+                    : colorScheme.outline.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  DateFormat('MMM').format(date).toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                    color: isFullyAvailable
+                        ? Colors.white.withValues(alpha: 0.9)
+                        : appColors.textMuted,
+                  ),
+                ),
+                Text(
+                  '${date.day}',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    height: 1.1,
+                    color: isFullyAvailable
+                        ? Colors.white
+                        : colorScheme.onSurface,
+                  ),
+                ),
+                Text(
+                  dayOfWeek.substring(0, 3),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: isFullyAvailable
+                        ? Colors.white.withValues(alpha: 0.9)
+                        : appColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+
+          // Info and progress
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  monthDay,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  dayOfWeek,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: appColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Availability progress bar
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                isFullyAvailable
+                                    ? Icons.celebration_rounded
+                                    : Icons.people_rounded,
+                                size: 14,
+                                color: isFullyAvailable
+                                    ? AppColors.success
+                                    : appColors.textMuted,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '$available of $totalMembers available',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: isFullyAvailable
+                                      ? AppColors.success
+                                      : colorScheme.onSurface,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: availabilityRatio,
+                              minHeight: 6,
+                              backgroundColor: colorScheme.surfaceContainerHighest,
+                              valueColor: AlwaysStoppedAnimation(
+                                availabilityRatio >= 0.75
+                                    ? AppColors.success
+                                    : availabilityRatio >= 0.5
+                                        ? AppColors.warning
+                                        : colorScheme.error,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Close button
+          IconButton(
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              onClose();
+            },
+            icon: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHigh,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.close, size: 18, color: colorScheme.onSurfaceVariant),
+            ),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, ColorScheme colorScheme, AppColorsExtension appColors) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Text(
+        title.toUpperCase(),
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.8,
+          color: appColors.textMuted,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuggestedTimeSlots(BuildContext context, ColorScheme colorScheme) {
     final groupProvider = context.read<GroupProvider>();
     final members = groupProvider.selectedGroupMembers;
 
@@ -306,122 +448,52 @@ class DayDetailSheet extends StatelessWidget {
       timeSlots: timeSlots,
       members: members,
       onSlotSelected: (slot) {
+        HapticFeedback.selectionClick();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               'Selected ${slot.formattedTimeRange} - Event proposals coming in Sprint 3!',
             ),
-            backgroundColor: _rose500,
+            backgroundColor: colorScheme.primary,
           ),
         );
       },
     );
   }
 
-  Widget _buildMemberAvailabilityList(BuildContext context) {
+  Widget _buildMemberAvailabilityList(
+    BuildContext context,
+    ColorScheme colorScheme,
+    AppColorsExtension appColors,
+  ) {
     return Consumer<GroupProvider>(
       builder: (context, provider, _) {
         final members = provider.selectedGroupMembers;
 
+        // Sort members: available first, then busy
+        final sortedMembers = List<GroupMemberProfile>.from(members);
+        sortedMembers.sort((a, b) {
+          final aAvailable = _isMemberAvailableOnDate(a.userId);
+          final bAvailable = _isMemberAvailableOnDate(b.userId);
+          if (aAvailable && !bAvailable) return -1;
+          if (!aAvailable && bAvailable) return 1;
+          return 0;
+        });
+
         return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          itemCount: members.length,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: sortedMembers.length,
           itemBuilder: (context, index) {
-            final member = members[index];
+            final member = sortedMembers[index];
             final isAvailable = _isMemberAvailableOnDate(member.userId);
 
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isAvailable
-                      ? [
-                          _rose900.withValues(alpha: 0.5),
-                          _rose900.withValues(alpha: 0.3),
-                        ]
-                      : [
-                          _rose950.withValues(alpha: 0.5),
-                          _rose950.withValues(alpha: 0.3),
-                        ],
-                ),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: isAvailable
-                      ? _rose500.withValues(alpha: 0.2)
-                      : _rose500.withValues(alpha: 0.1),
-                ),
-              ),
-              child: Row(
-                children: [
-                  // Avatar
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: index == 0 ? null : _rose900.withValues(alpha: 0.8),
-                      gradient: index == 0
-                          ? const LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [_rose400, _orange400],
-                            )
-                          : null,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        member.initials,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: index == 0 ? Colors.white : _rose200,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Name and availability time
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          member.displayName,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: isAvailable
-                                ? _rose50
-                                : _rose400.withValues(alpha: 0.6),
-                          ),
-                        ),
-                        _buildAvailabilityDescription(member.userId),
-                      ],
-                    ),
-                  ),
-
-                  // Status icon
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: isAvailable
-                          ? _emerald500.withValues(alpha: 0.2)
-                          : _rose500.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isAvailable ? Icons.check : Icons.close,
-                      size: 16,
-                      color: isAvailable ? _emerald500 : _rose400,
-                    ),
-                  ),
-                ],
-              ),
+            return _buildMemberTile(
+              member: member,
+              isAvailable: isAvailable,
+              colorScheme: colorScheme,
+              appColors: appColors,
             );
           },
         );
@@ -429,7 +501,122 @@ class DayDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildAvailabilityDescription(String memberId) {
+  Widget _buildMemberTile({
+    required GroupMemberProfile member,
+    required bool isAvailable,
+    required ColorScheme colorScheme,
+    required AppColorsExtension appColors,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isAvailable
+            ? AppColors.success.withValues(alpha: 0.08)
+            : colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isAvailable
+              ? AppColors.success.withValues(alpha: 0.25)
+              : colorScheme.outline.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Avatar with availability ring
+          Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isAvailable ? AppColors.success : colorScheme.outline.withValues(alpha: 0.3),
+                width: 2,
+              ),
+            ),
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isAvailable
+                    ? AppColors.success.withValues(alpha: 0.15)
+                    : colorScheme.surfaceContainerHighest,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  member.initials,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: isAvailable
+                        ? AppColors.success
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Name and availability description
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  member.displayName,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                _buildAvailabilityDescription(member.userId, isAvailable, appColors, colorScheme),
+              ],
+            ),
+          ),
+
+          // Status badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: isAvailable
+                  ? AppColors.success.withValues(alpha: 0.15)
+                  : colorScheme.error.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isAvailable ? Icons.check_circle : Icons.cancel,
+                  size: 14,
+                  color: isAvailable ? AppColors.success : colorScheme.error,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  isAvailable ? 'Free' : 'Busy',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isAvailable ? AppColors.success : colorScheme.error,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvailabilityDescription(
+    String memberId,
+    bool isAvailable,
+    AppColorsExtension appColors,
+    ColorScheme colorScheme,
+  ) {
     final descriptions = <String>[];
 
     if (selectedTimeFilters.contains(TimeFilter.allDay)) {
@@ -446,62 +633,81 @@ class DayDetailSheet extends StatelessWidget {
       }
     }
 
-    if (descriptions.length == 1) {
-      final desc = descriptions.first;
-      final isFree = desc == 'Free';
+    if (descriptions.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-      return Row(
-        children: [
-          Icon(
-            isFree ? Icons.check_circle_outline : Icons.event_busy_rounded,
-            size: 12,
-            color: isFree ? _emerald500 : _orange400,
-          ),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              desc,
-              style: TextStyle(
-                fontSize: 12,
-                color: isFree ? _emerald500 : _orange400,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+    final displayText = descriptions.length == 1
+        ? descriptions.first
+        : descriptions.join(' | ');
+
+    // Don't show "Free" redundantly - the badge already shows it
+    if (displayText == 'Free') {
+      return Text(
+        'Available all day',
+        style: TextStyle(
+          fontSize: 12,
+          color: appColors.textMuted,
+        ),
       );
     }
 
-    // Multiple filters - show each on its own line
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: descriptions.map((desc) {
-        final isFree = desc == 'Free' || desc.endsWith('Free');
+    return Text(
+      displayText,
+      style: TextStyle(
+        fontSize: 12,
+        color: appColors.textMuted,
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
 
-        return Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Row(
-            children: [
-              Icon(
-                isFree ? Icons.check_circle_outline : Icons.event_busy_rounded,
-                size: 11,
-                color: isFree ? _emerald500 : _orange400,
+  Widget _buildProposeButton(
+    BuildContext context,
+    ColorScheme colorScheme,
+    int available,
+    int totalMembers,
+  ) {
+    final shouldShowButton = available >= (totalMembers * 0.5).ceil() && totalMembers > 0;
+
+    if (!shouldShowButton) {
+      return const SizedBox(height: 12);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () {
+            HapticFeedback.mediumImpact();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Event proposals coming in Sprint 3!'),
+                backgroundColor: colorScheme.primary,
               ),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  desc,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isFree ? _emerald500 : _orange400,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+            );
+          },
+          icon: const Icon(Icons.add_circle_outline, size: 20),
+          label: Text(
+            'Propose Event for ${DateFormat('MMM d').format(date)}',
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        );
-      }).toList(),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: colorScheme.primary,
+            foregroundColor: colorScheme.onPrimary,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            elevation: 0,
+          ),
+        ),
+      ),
     );
   }
 }

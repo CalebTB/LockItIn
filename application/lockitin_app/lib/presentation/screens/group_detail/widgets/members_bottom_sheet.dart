@@ -1,40 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../data/models/group_model.dart';
 import '../../../providers/group_provider.dart';
-import '../../../theme/sunset_coral_theme.dart';
 import 'member_options_sheet.dart';
 
 /// Full members list bottom sheet with role-based management
+/// Uses Minimal theme color system
 class MembersBottomSheet extends StatelessWidget {
   final GroupModel group;
 
   const MembersBottomSheet({super.key, required this.group});
 
-  static const Color _rose950 = SunsetCoralTheme.rose950;
-  static const Color _rose900 = SunsetCoralTheme.rose900;
-  static const Color _rose500 = SunsetCoralTheme.rose500;
-  static const Color _rose400 = SunsetCoralTheme.rose400;
-  static const Color _rose300 = SunsetCoralTheme.rose300;
-  static const Color _rose200 = SunsetCoralTheme.rose200;
-  static const Color _rose50 = SunsetCoralTheme.rose50;
-  static const Color _orange400 = SunsetCoralTheme.orange400;
-  static const Color _slate950 = SunsetCoralTheme.slate950;
-  static const Color _red500 = Color(0xFFEF4444);
-
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
+
     return Container(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.7,
       ),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [_rose950, _slate950],
-        ),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Consumer<GroupProvider>(
         builder: (context, provider, _) {
@@ -49,7 +38,7 @@ class MembersBottomSheet extends StatelessWidget {
                 width: 48,
                 height: 6,
                 decoration: BoxDecoration(
-                  color: _rose500.withValues(alpha: 0.4),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -63,17 +52,12 @@ class MembersBottomSheet extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ShaderMask(
-                          shaderCallback: (bounds) => const LinearGradient(
-                            colors: [_rose200, Color(0xFFFED7AA)],
-                          ).createShader(bounds),
-                          child: Text(
-                            'Members (${group.memberCount})',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
+                        Text(
+                          'Members (${group.memberCount})',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                         if (canManage)
@@ -81,7 +65,7 @@ class MembersBottomSheet extends StatelessWidget {
                             'Tap member to manage',
                             style: TextStyle(
                               fontSize: 12,
-                              color: _rose300.withValues(alpha: 0.6),
+                              color: appColors.textMuted,
                             ),
                           ),
                       ],
@@ -89,7 +73,7 @@ class MembersBottomSheet extends StatelessWidget {
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.close),
-                      color: _rose300,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ],
                 ),
@@ -101,7 +85,7 @@ class MembersBottomSheet extends StatelessWidget {
                   builder: (context) {
                     if (provider.isLoadingMembers) {
                       return Center(
-                        child: CircularProgressIndicator(color: _rose400),
+                        child: CircularProgressIndicator(color: colorScheme.primary),
                       );
                     }
 
@@ -121,10 +105,10 @@ class MembersBottomSheet extends StatelessWidget {
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: _rose900.withValues(alpha: 0.4),
+                              color: colorScheme.surfaceContainerHigh,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: _rose500.withValues(alpha: 0.2),
+                                color: colorScheme.outline.withValues(alpha: 0.2),
                               ),
                             ),
                             child: Row(
@@ -134,14 +118,9 @@ class MembersBottomSheet extends StatelessWidget {
                                   width: 44,
                                   height: 44,
                                   decoration: BoxDecoration(
-                                    gradient: member.role == GroupMemberRole.owner
-                                        ? const LinearGradient(
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                            colors: [_rose400, _orange400],
-                                          )
-                                        : null,
-                                    color: member.role == GroupMemberRole.owner ? null : _rose900,
+                                    color: member.role == GroupMemberRole.owner
+                                        ? colorScheme.primary
+                                        : colorScheme.surfaceContainerHighest,
                                     shape: BoxShape.circle,
                                   ),
                                   child: Center(
@@ -151,8 +130,8 @@ class MembersBottomSheet extends StatelessWidget {
                                         fontSize: 15,
                                         fontWeight: FontWeight.w600,
                                         color: member.role == GroupMemberRole.owner
-                                            ? Colors.white
-                                            : _rose200,
+                                            ? colorScheme.onPrimary
+                                            : colorScheme.onSurfaceVariant,
                                       ),
                                     ),
                                   ),
@@ -166,10 +145,10 @@ class MembersBottomSheet extends StatelessWidget {
                                     children: [
                                       Text(
                                         member.displayName,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w500,
-                                          color: _rose50,
+                                          color: colorScheme.onSurface,
                                         ),
                                       ),
                                       Text(
@@ -177,8 +156,8 @@ class MembersBottomSheet extends StatelessWidget {
                                         style: TextStyle(
                                           fontSize: 13,
                                           color: member.role == GroupMemberRole.owner
-                                              ? _orange400
-                                              : _rose300.withValues(alpha: 0.6),
+                                              ? colorScheme.primary
+                                              : appColors.textMuted,
                                         ),
                                       ),
                                     ],
@@ -194,17 +173,15 @@ class MembersBottomSheet extends StatelessWidget {
                                       vertical: 4,
                                     ),
                                     decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [_rose500, _orange400],
-                                      ),
+                                      color: colorScheme.primary,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: const Text(
+                                    child: Text(
                                       'Owner',
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.white,
+                                        color: colorScheme.onPrimary,
                                       ),
                                     ),
                                   )
@@ -216,7 +193,7 @@ class MembersBottomSheet extends StatelessWidget {
                                       vertical: 4,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: _rose500.withValues(alpha: 0.3),
+                                      color: colorScheme.secondary.withValues(alpha: 0.2),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
@@ -224,7 +201,7 @@ class MembersBottomSheet extends StatelessWidget {
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
-                                        color: _rose300,
+                                        color: colorScheme.secondary,
                                       ),
                                     ),
                                   ),
@@ -236,7 +213,7 @@ class MembersBottomSheet extends StatelessWidget {
                                     child: Icon(
                                       Icons.chevron_right,
                                       size: 20,
-                                      color: _rose400.withValues(alpha: 0.5),
+                                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                                     ),
                                   ),
                               ],
@@ -260,8 +237,8 @@ class MembersBottomSheet extends StatelessWidget {
                       icon: const Icon(Icons.exit_to_app, size: 18),
                       label: const Text('Leave Group'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: _red500,
-                        side: BorderSide(color: _red500.withValues(alpha: 0.5)),
+                        foregroundColor: colorScheme.error,
+                        side: BorderSide(color: colorScheme.error.withValues(alpha: 0.5)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -282,12 +259,14 @@ class MembersBottomSheet extends StatelessWidget {
     GroupMemberProfile member,
     GroupProvider provider,
   ) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     // Only owners and co-owners can manage members
     if (!provider.canManageMembers) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Only owners and co-owners can manage members'),
-          backgroundColor: _rose500,
+          backgroundColor: colorScheme.primary,
         ),
       );
       return;
@@ -295,7 +274,7 @@ class MembersBottomSheet extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: _rose950,
+      backgroundColor: colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -309,23 +288,25 @@ class MembersBottomSheet extends StatelessWidget {
   }
 
   void _confirmLeaveGroup(BuildContext context, GroupProvider provider) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: _rose950,
+        backgroundColor: colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Leave Group?',
-          style: TextStyle(color: _rose50),
+          style: TextStyle(color: colorScheme.onSurface),
         ),
         content: Text(
           'Are you sure you want to leave "${group.name}"? You will need to be invited again to rejoin.',
-          style: TextStyle(color: _rose200),
+          style: TextStyle(color: colorScheme.onSurfaceVariant),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: _rose300)),
+            child: Text('Cancel', style: TextStyle(color: colorScheme.onSurfaceVariant)),
           ),
           TextButton(
             onPressed: () async {
@@ -340,20 +321,20 @@ class MembersBottomSheet extends StatelessWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Left ${group.name}'),
-                      backgroundColor: _rose500,
+                      backgroundColor: colorScheme.primary,
                     ),
                   );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(provider.actionError ?? 'Failed to leave group'),
-                      backgroundColor: _red500,
+                      backgroundColor: colorScheme.error,
                     ),
                   );
                 }
               }
             },
-            child: Text('Leave', style: TextStyle(color: _red500)),
+            child: Text('Leave', style: TextStyle(color: colorScheme.error)),
           ),
         ],
       ),

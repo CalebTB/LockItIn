@@ -108,6 +108,69 @@ class AppColors {
   /// Other events - Primary rose
   static const Color categoryOther = primary;
 
+  // ===== Availability Heatmap Colors (Minimal Theme) =====
+  // Per LOCKIT_MINIMAL_THEME.md: Emerald for available, grayscale for busy
+  // Only functional color is emerald - everything else is grayscale
+
+  /// All members available (100%) - Emerald (dark mode)
+  static const Color availabilityFullDark = Color(0xFF34D399); // emerald-400
+
+  /// All members available (100%) - Emerald (light mode)
+  static const Color availabilityFullLight = Color(0xFF10B981); // emerald-500
+
+  /// Most members available (75-99%) - Light emerald tint
+  static const Color availabilityHighDark = Color(0xFF34D399); // emerald-400
+  static const Color availabilityHighLight = Color(0xFF10B981); // emerald-500
+
+  /// Some members available (50-74%) - Neutral gray
+  static const Color availabilityMediumDark = neutral600;
+  static const Color availabilityMediumLight = gray400;
+
+  /// Few members available (25-49%) - Darker gray
+  static const Color availabilityLowDark = neutral700;
+  static const Color availabilityLowLight = gray300;
+
+  /// Very few available (1-24%) - Dark gray
+  static const Color availabilityVeryLowDark = neutral800;
+  static const Color availabilityVeryLowLight = gray200;
+
+  /// No members available (0%) - Darkest/lightest
+  static const Color availabilityNoneDark = neutral900;
+  static const Color availabilityNoneLight = gray100;
+
+  /// Get availability color based on ratio and brightness
+  static Color getAvailabilityColor(double ratio, Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+
+    if (ratio >= 0.75) {
+      // High availability - emerald (the only accent color)
+      return isDark ? availabilityHighDark : availabilityHighLight;
+    } else if (ratio >= 0.50) {
+      return isDark ? availabilityMediumDark : availabilityMediumLight;
+    } else if (ratio >= 0.25) {
+      return isDark ? availabilityLowDark : availabilityLowLight;
+    } else if (ratio > 0) {
+      return isDark ? availabilityVeryLowDark : availabilityVeryLowLight;
+    }
+    return isDark ? availabilityNoneDark : availabilityNoneLight;
+  }
+
+  /// Get text color for availability cell (ensures contrast)
+  static Color getAvailabilityTextColor(double ratio, Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+
+    if (ratio >= 0.75) {
+      // Emerald background - dark text for contrast
+      return isDark ? neutral900 : gray900;
+    } else if (ratio >= 0.50) {
+      // Medium gray - white/dark text
+      return isDark ? Colors.white : gray900;
+    } else {
+      // Low availability grays - appropriate contrast
+      return isDark ? neutral300 : gray700;
+    }
+  }
+
   // ===== Avatar Colors =====
   static const Color avatarDefault = primary;
 

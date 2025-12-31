@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../data/models/group_model.dart';
 import '../../../providers/group_provider.dart';
-import '../../../theme/sunset_coral_theme.dart';
 
 /// Member options bottom sheet for managing individual group members
+/// Uses Minimal theme color system
 class MemberOptionsSheet extends StatelessWidget {
   final GroupMemberProfile member;
   final String groupId;
@@ -22,19 +23,17 @@ class MemberOptionsSheet extends StatelessWidget {
   /// Whether current user can manage (is owner or co-owner)
   bool get canManage => isOwner || isCoOwner;
 
-  static const Color _rose950 = SunsetCoralTheme.rose950;
-  static const Color _rose500 = SunsetCoralTheme.rose500;
-  static const Color _rose400 = SunsetCoralTheme.rose400;
-  static const Color _rose300 = SunsetCoralTheme.rose300;
-  static const Color _rose200 = SunsetCoralTheme.rose200;
-  static const Color _rose50 = SunsetCoralTheme.rose50;
-  static const Color _orange400 = SunsetCoralTheme.orange400;
-  static const Color _red500 = Color(0xFFEF4444);
-
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
+
     return Container(
       padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -43,7 +42,7 @@ class MemberOptionsSheet extends StatelessWidget {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: _rose500.withValues(alpha: 0.4),
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -56,7 +55,7 @@ class MemberOptionsSheet extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: _rose500.withValues(alpha: 0.2),
+                  color: colorScheme.primaryContainer,
                   shape: BoxShape.circle,
                 ),
                 child: Center(
@@ -65,7 +64,7 @@ class MemberOptionsSheet extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: _rose200,
+                      color: colorScheme.onPrimaryContainer,
                     ),
                   ),
                 ),
@@ -80,14 +79,14 @@ class MemberOptionsSheet extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: _rose50,
+                        color: colorScheme.onSurface,
                       ),
                     ),
                     Text(
                       member.roleDisplayName,
                       style: TextStyle(
                         fontSize: 14,
-                        color: _rose300,
+                        color: appColors.textSecondary,
                       ),
                     ),
                   ],
@@ -107,7 +106,7 @@ class MemberOptionsSheet extends StatelessWidget {
                   context,
                   icon: Icons.person_outline,
                   label: 'Remove Co-Owner',
-                  color: _orange400,
+                  color: colorScheme.secondary,
                   onTap: () => _demoteFromCoOwner(context),
                 )
               else
@@ -115,7 +114,7 @@ class MemberOptionsSheet extends StatelessWidget {
                   context,
                   icon: Icons.stars,
                   label: 'Make Co-Owner',
-                  color: _orange400,
+                  color: colorScheme.secondary,
                   onTap: () => _promoteToCoOwner(context),
                 ),
               const SizedBox(height: 8),
@@ -126,7 +125,7 @@ class MemberOptionsSheet extends StatelessWidget {
                   context,
                   icon: Icons.swap_horiz,
                   label: 'Transfer Ownership',
-                  color: _rose400,
+                  color: colorScheme.primary,
                   onTap: () => _confirmTransferOwnership(context),
                 ),
                 const SizedBox(height: 8),
@@ -139,7 +138,7 @@ class MemberOptionsSheet extends StatelessWidget {
                   context,
                   icon: Icons.person_remove,
                   label: 'Remove from Group',
-                  color: _red500,
+                  color: colorScheme.error,
                   onTap: () => _confirmRemoveMember(context),
                 ),
             ],
@@ -187,6 +186,7 @@ class MemberOptionsSheet extends StatelessWidget {
 
   void _promoteToCoOwner(BuildContext context) async {
     final provider = context.read<GroupProvider>();
+    final colorScheme = Theme.of(context).colorScheme;
 
     Navigator.pop(context); // Close options sheet
 
@@ -203,7 +203,7 @@ class MemberOptionsSheet extends StatelessWidget {
                 ? '${member.displayName} is now a co-owner'
                 : provider.actionError ?? 'Failed to promote member',
           ),
-          backgroundColor: success ? _rose500 : _red500,
+          backgroundColor: success ? colorScheme.primary : colorScheme.error,
         ),
       );
     }
@@ -211,6 +211,7 @@ class MemberOptionsSheet extends StatelessWidget {
 
   void _demoteFromCoOwner(BuildContext context) async {
     final provider = context.read<GroupProvider>();
+    final colorScheme = Theme.of(context).colorScheme;
 
     Navigator.pop(context); // Close options sheet
 
@@ -227,30 +228,32 @@ class MemberOptionsSheet extends StatelessWidget {
                 ? '${member.displayName} is now a member'
                 : provider.actionError ?? 'Failed to demote co-owner',
           ),
-          backgroundColor: success ? _rose500 : _red500,
+          backgroundColor: success ? colorScheme.primary : colorScheme.error,
         ),
       );
     }
   }
 
   void _confirmTransferOwnership(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: _rose950,
+        backgroundColor: colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Transfer Ownership?',
-          style: TextStyle(color: _rose50),
+          style: TextStyle(color: colorScheme.onSurface),
         ),
         content: Text(
           'Are you sure you want to make ${member.displayName} the owner? You will become a member.',
-          style: TextStyle(color: _rose200),
+          style: TextStyle(color: colorScheme.onSurfaceVariant),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: Text('Cancel', style: TextStyle(color: _rose300)),
+            child: Text('Cancel', style: TextStyle(color: colorScheme.onSurfaceVariant)),
           ),
           TextButton(
             onPressed: () async {
@@ -271,12 +274,12 @@ class MemberOptionsSheet extends StatelessWidget {
                           ? '${member.displayName} is now the owner'
                           : provider.actionError ?? 'Failed to transfer ownership',
                     ),
-                    backgroundColor: success ? _rose500 : _red500,
+                    backgroundColor: success ? colorScheme.primary : colorScheme.error,
                   ),
                 );
               }
             },
-            child: Text('Transfer', style: TextStyle(color: _orange400)),
+            child: Text('Transfer', style: TextStyle(color: colorScheme.secondary)),
           ),
         ],
       ),
@@ -284,23 +287,25 @@ class MemberOptionsSheet extends StatelessWidget {
   }
 
   void _confirmRemoveMember(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: _rose950,
+        backgroundColor: colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Remove Member?',
-          style: TextStyle(color: _rose50),
+          style: TextStyle(color: colorScheme.onSurface),
         ),
         content: Text(
           'Are you sure you want to remove ${member.displayName} from the group?',
-          style: TextStyle(color: _rose200),
+          style: TextStyle(color: colorScheme.onSurfaceVariant),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: Text('Cancel', style: TextStyle(color: _rose300)),
+            child: Text('Cancel', style: TextStyle(color: colorScheme.onSurfaceVariant)),
           ),
           TextButton(
             onPressed: () async {
@@ -321,12 +326,12 @@ class MemberOptionsSheet extends StatelessWidget {
                           ? '${member.displayName} has been removed'
                           : provider.actionError ?? 'Failed to remove member',
                     ),
-                    backgroundColor: success ? _rose500 : _red500,
+                    backgroundColor: success ? colorScheme.primary : colorScheme.error,
                   ),
                 );
               }
             },
-            child: Text('Remove', style: TextStyle(color: _red500)),
+            child: Text('Remove', style: TextStyle(color: colorScheme.error)),
           ),
         ],
       ),

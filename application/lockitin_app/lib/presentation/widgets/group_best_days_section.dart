@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/utils/time_filter_utils.dart';
-import '../theme/sunset_coral_theme.dart';
 
 /// Section showing the best days for scheduling in the current month
+/// Uses Minimal theme color system - emerald for best days (availability)
 ///
 /// Displays:
 /// - "Best Days This Month" header with time range badge
@@ -39,6 +40,8 @@ class GroupBestDaysSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
     final hasSpecificFilters = !selectedTimeFilters.contains(TimeFilter.allDay);
     final customTimeLabel = '${_formatTimeOfDay(customStartTime)} - ${_formatTimeOfDay(customEndTime)}';
 
@@ -79,8 +82,8 @@ class GroupBestDaysSection extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(
-            color: SunsetCoralTheme.rose500.withValues(alpha: 0.2),
+          bottom: BorderSide(
+            color: colorScheme.outline.withValues(alpha: 0.2),
           ),
         ),
       ),
@@ -89,50 +92,51 @@ class GroupBestDaysSection extends StatelessWidget {
         children: [
           // Show custom time range when Custom filter is selected
           if (!hasSpecificFilters) ...[
-            _buildHeader(customTimeLabel),
+            _buildHeader(context, customTimeLabel, colorScheme, appColors),
             const SizedBox(height: 12),
             if (customBestDays.isNotEmpty)
-              _buildBestDayChips(customBestDays)
+              _buildBestDayChips(context, customBestDays, colorScheme)
             else
-              _buildNoDatesMessage(),
+              _buildNoDatesMessage(context, colorScheme, appColors),
           ],
 
           // Show filtered best days when specific filters are selected
           if (hasSpecificFilters) ...[
-            _buildHeader(filterLabel),
+            _buildHeader(context, filterLabel, colorScheme, appColors),
             const SizedBox(height: 12),
             if (filteredBestDays.isNotEmpty)
-              _buildBestDayChips(filteredBestDays)
+              _buildBestDayChips(context, filteredBestDays, colorScheme)
             else
-              _buildNoDatesMessage(),
+              _buildNoDatesMessage(context, colorScheme, appColors),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildHeader(String timeLabel) {
+  Widget _buildHeader(
+    BuildContext context,
+    String timeLabel,
+    ColorScheme colorScheme,
+    AppColorsExtension appColors,
+  ) {
     return Row(
       children: [
-        const Text(
+        Text(
           'BEST DAYS THIS MONTH',
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
-            color: Colors.white,
+            color: appColors.textSecondary,
           ),
         ),
         const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                SunsetCoralTheme.rose500,
-                SunsetCoralTheme.orange500,
-              ],
-            ),
+            // Per Minimal theme: solid color, no gradients
+            color: appColors.success,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
@@ -148,8 +152,15 @@ class GroupBestDaysSection extends StatelessWidget {
     );
   }
 
-  Widget _buildBestDayChips(List<int> days) {
+  Widget _buildBestDayChips(
+    BuildContext context,
+    List<int> days,
+    ColorScheme colorScheme,
+  ) {
     final monthName = DateFormat('MMM').format(focusedMonth);
+    // Per Minimal theme: emerald for availability/best days
+    final successColor = AppColors.success;
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -164,16 +175,12 @@ class GroupBestDaysSection extends StatelessWidget {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      SunsetCoralTheme.rose500,
-                      SunsetCoralTheme.orange500,
-                    ],
-                  ),
+                  // Solid emerald color (no gradients per Minimal theme)
+                  color: successColor,
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: [
                     BoxShadow(
-                      color: SunsetCoralTheme.rose500.withValues(alpha: 0.3),
+                      color: successColor.withValues(alpha: 0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -195,16 +202,20 @@ class GroupBestDaysSection extends StatelessWidget {
     );
   }
 
-  Widget _buildNoDatesMessage() {
+  Widget _buildNoDatesMessage(
+    BuildContext context,
+    ColorScheme colorScheme,
+    AppColorsExtension appColors,
+  ) {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: SunsetCoralTheme.rose900.withValues(alpha: 0.3),
+          color: colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: SunsetCoralTheme.rose500.withValues(alpha: 0.2),
+            color: colorScheme.outline.withValues(alpha: 0.2),
           ),
         ),
         child: Row(
@@ -213,14 +224,14 @@ class GroupBestDaysSection extends StatelessWidget {
             Icon(
               Icons.event_busy_rounded,
               size: 16,
-              color: SunsetCoralTheme.rose400.withValues(alpha: 0.6),
+              color: appColors.textMuted,
             ),
             const SizedBox(width: 8),
             Text(
               'No dates to propose this month',
               style: TextStyle(
                 fontSize: 13,
-                color: SunsetCoralTheme.rose300.withValues(alpha: 0.6),
+                color: appColors.textMuted,
               ),
             ),
           ],

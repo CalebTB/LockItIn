@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../core/services/availability_calculator_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../data/models/group_model.dart';
-import '../theme/sunset_coral_theme.dart';
 
 /// Card showing suggested time slots for a selected day
+/// Uses Minimal theme color system
 ///
 /// Displays:
 /// - Best time slots sorted by availability
@@ -35,8 +36,11 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
+
     if (widget.timeSlots.isEmpty) {
-      return _buildEmptyState();
+      return _buildEmptyState(colorScheme, appColors);
     }
 
     // Filter to slots with at least some availability and take top N
@@ -46,30 +50,30 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
         .toList();
 
     if (slotsToShow.isEmpty) {
-      return _buildNoAvailabilityState();
+      return _buildNoAvailabilityState(colorScheme, appColors);
     }
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: SunsetCoralTheme.rose950.withValues(alpha: 0.6),
+        color: colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: SunsetCoralTheme.rose500.withValues(alpha: 0.2),
+          color: colorScheme.outline.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(),
-          ...slotsToShow.map((slot) => _buildTimeSlotRow(slot)),
+          _buildHeader(colorScheme, appColors),
+          ...slotsToShow.map((slot) => _buildTimeSlotRow(slot, colorScheme, appColors)),
           const SizedBox(height: 8),
         ],
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(ColorScheme colorScheme, AppColorsExtension appColors) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Row(
@@ -77,22 +81,18 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  SunsetCoralTheme.rose500,
-                  SunsetCoralTheme.orange500,
-                ],
-              ),
+              // Per Minimal theme: solid color, no gradients
+              color: colorScheme.primary,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.lightbulb_outline_rounded,
-              color: Colors.white,
+              color: colorScheme.onPrimary,
               size: 18,
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -102,15 +102,15 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.5,
-                    color: Colors.white,
+                    color: colorScheme.onSurface,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   'Best times when most people are free',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white60,
+                    color: appColors.textMuted,
                   ),
                 ),
               ],
@@ -121,7 +121,7 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
     );
   }
 
-  Widget _buildTimeSlotRow(TimeSlotAvailability slot) {
+  Widget _buildTimeSlotRow(TimeSlotAvailability slot, ColorScheme colorScheme, AppColorsExtension appColors) {
     final slotId = '${slot.startTime.hour}-${slot.endTime.hour}';
     final isExpanded = _expandedSlotId == slotId;
 
@@ -170,10 +170,10 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
                           Flexible(
                             child: Text(
                               slot.availabilityDescription,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.white,
+                                color: colorScheme.onSurface,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -183,15 +183,15 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.green.withValues(alpha: 0.2),
+                                color: AppColors.success.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'PERFECT',
                                 style: TextStyle(
                                   fontSize: 9,
                                   fontWeight: FontWeight.w700,
-                                  color: Colors.greenAccent,
+                                  color: AppColors.success,
                                   letterSpacing: 0.5,
                                 ),
                               ),
@@ -205,7 +205,7 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
                         borderRadius: BorderRadius.circular(2),
                         child: LinearProgressIndicator(
                           value: slot.availabilityRatio,
-                          backgroundColor: Colors.white.withValues(alpha: 0.1),
+                          backgroundColor: colorScheme.outline.withValues(alpha: 0.1),
                           valueColor: AlwaysStoppedAnimation(
                             _getAvailabilityColor(slot.availabilityRatio),
                           ),
@@ -223,7 +223,7 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
                   children: [
                     Icon(
                       isExpanded ? Icons.expand_less : Icons.expand_more,
-                      color: Colors.white60,
+                      color: appColors.textMuted,
                       size: 20,
                     ),
                     if (widget.onSlotSelected != null) ...[
@@ -233,20 +233,16 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                SunsetCoralTheme.rose500,
-                                SunsetCoralTheme.orange500,
-                              ],
-                            ),
+                            // Per Minimal theme: solid primary color
+                            color: colorScheme.primary,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Use',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                              color: colorScheme.onPrimary,
                             ),
                           ),
                         ),
@@ -260,12 +256,12 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
         ),
 
         // Expanded member list
-        if (isExpanded) _buildMemberList(slot),
+        if (isExpanded) _buildMemberList(slot, colorScheme, appColors),
       ],
     );
   }
 
-  Widget _buildMemberList(TimeSlotAvailability slot) {
+  Widget _buildMemberList(TimeSlotAvailability slot, ColorScheme colorScheme, AppColorsExtension appColors) {
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -276,7 +272,7 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: SunsetCoralTheme.rose900.withValues(alpha: 0.5),
+          color: colorScheme.surfaceContainer,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -288,7 +284,7 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
               children: [
                 Icon(
                   Icons.keyboard_arrow_up_rounded,
-                  color: Colors.white38,
+                  color: appColors.textDisabled,
                   size: 16,
                 ),
                 const SizedBox(width: 4),
@@ -296,7 +292,7 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
                   'Tap to close',
                   style: TextStyle(
                     fontSize: 10,
-                    color: Colors.white38,
+                    color: appColors.textDisabled,
                   ),
                 ),
               ],
@@ -305,89 +301,86 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
 
             // Free members
             if (slot.availableMembers.isNotEmpty) ...[
-            Row(
-              children: [
-                Icon(
-                  Icons.check_circle_rounded,
-                  color: Colors.greenAccent.withValues(alpha: 0.8),
-                  size: 14,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Free (${slot.availableMembers.length})',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.greenAccent.withValues(alpha: 0.8),
+              Row(
+                children: [
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.success,
+                    size: 14,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: slot.availableMembers.map((userId) {
-                final member = _getMemberById(userId);
-                return _buildMemberChip(member, true);
-              }).toList(),
-            ),
-          ],
-
-          if (slot.availableMembers.isNotEmpty && slot.busyMembers.isNotEmpty)
-            const SizedBox(height: 12),
-
-          // Busy members
-          if (slot.busyMembers.isNotEmpty) ...[
-            Row(
-              children: [
-                Icon(
-                  Icons.cancel_rounded,
-                  color: SunsetCoralTheme.rose400.withValues(alpha: 0.8),
-                  size: 14,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Busy (${slot.busyMembers.length})',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: SunsetCoralTheme.rose400.withValues(alpha: 0.8),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Free (${slot.availableMembers.length})',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.success,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: slot.busyMembers.map((userId) {
-                final member = _getMemberById(userId);
-                return _buildMemberChip(member, false);
-              }).toList(),
-            ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: slot.availableMembers.map((userId) {
+                  final member = _getMemberById(userId);
+                  return _buildMemberChip(member, true, colorScheme);
+                }).toList(),
+              ),
+            ],
+
+            if (slot.availableMembers.isNotEmpty && slot.busyMembers.isNotEmpty)
+              const SizedBox(height: 12),
+
+            // Busy members
+            if (slot.busyMembers.isNotEmpty) ...[
+              Row(
+                children: [
+                  Icon(
+                    Icons.cancel_rounded,
+                    color: colorScheme.error,
+                    size: 14,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Busy (${slot.busyMembers.length})',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.error,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: slot.busyMembers.map((userId) {
+                  final member = _getMemberById(userId);
+                  return _buildMemberChip(member, false, colorScheme);
+                }).toList(),
+              ),
+            ],
           ],
-        ],
         ),
       ),
     );
   }
 
-  Widget _buildMemberChip(GroupMemberProfile? member, bool isFree) {
+  Widget _buildMemberChip(GroupMemberProfile? member, bool isFree, ColorScheme colorScheme) {
     final name = member?.displayName ?? 'Unknown';
     final initials = member?.initials ?? '?';
+    final chipColor = isFree ? AppColors.success : colorScheme.error;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isFree
-            ? Colors.greenAccent.withValues(alpha: 0.1)
-            : SunsetCoralTheme.rose500.withValues(alpha: 0.1),
+        color: chipColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isFree
-              ? Colors.greenAccent.withValues(alpha: 0.3)
-              : SunsetCoralTheme.rose500.withValues(alpha: 0.3),
+          color: chipColor.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -395,15 +388,13 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
         children: [
           CircleAvatar(
             radius: 10,
-            backgroundColor: isFree
-                ? Colors.greenAccent.withValues(alpha: 0.3)
-                : SunsetCoralTheme.rose500.withValues(alpha: 0.3),
+            backgroundColor: chipColor.withValues(alpha: 0.3),
             child: Text(
               initials,
               style: TextStyle(
                 fontSize: 8,
                 fontWeight: FontWeight.w600,
-                color: isFree ? Colors.greenAccent : SunsetCoralTheme.rose300,
+                color: chipColor,
               ),
             ),
           ),
@@ -412,7 +403,7 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
             name.split(' ').first,
             style: TextStyle(
               fontSize: 11,
-              color: isFree ? Colors.greenAccent : SunsetCoralTheme.rose300,
+              color: chipColor,
             ),
           ),
         ],
@@ -428,30 +419,31 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
     }
   }
 
+  /// Get availability color based on ratio
+  /// Per Minimal theme: emerald for high availability, grayscale for lower
   Color _getAvailabilityColor(double ratio) {
-    if (ratio >= 1.0) return Colors.greenAccent;
-    if (ratio >= 0.75) return Colors.lightGreenAccent;
-    if (ratio >= 0.5) return SunsetCoralTheme.amber500;
-    if (ratio >= 0.25) return SunsetCoralTheme.orange400;
-    return SunsetCoralTheme.rose400;
+    if (ratio >= 0.75) return AppColors.success;
+    if (ratio >= 0.5) return AppColors.warning;
+    if (ratio >= 0.25) return AppColors.orange400;
+    return AppColors.error;
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(ColorScheme colorScheme, AppColorsExtension appColors) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: SunsetCoralTheme.rose950.withValues(alpha: 0.4),
+        color: colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: SunsetCoralTheme.rose500.withValues(alpha: 0.1),
+          color: colorScheme.outline.withValues(alpha: 0.1),
         ),
       ),
       child: Row(
         children: [
           Icon(
             Icons.hourglass_empty_rounded,
-            color: SunsetCoralTheme.rose400.withValues(alpha: 0.6),
+            color: appColors.textMuted,
             size: 20,
           ),
           const SizedBox(width: 12),
@@ -459,7 +451,7 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
             'Loading time suggestions...',
             style: TextStyle(
               fontSize: 13,
-              color: SunsetCoralTheme.rose300.withValues(alpha: 0.6),
+              color: appColors.textMuted,
             ),
           ),
         ],
@@ -467,22 +459,22 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
     );
   }
 
-  Widget _buildNoAvailabilityState() {
+  Widget _buildNoAvailabilityState(ColorScheme colorScheme, AppColorsExtension appColors) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: SunsetCoralTheme.rose950.withValues(alpha: 0.4),
+        color: colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: SunsetCoralTheme.rose500.withValues(alpha: 0.1),
+          color: colorScheme.outline.withValues(alpha: 0.1),
         ),
       ),
       child: Row(
         children: [
           Icon(
             Icons.event_busy_rounded,
-            color: SunsetCoralTheme.rose400.withValues(alpha: 0.6),
+            color: appColors.textMuted,
             size: 20,
           ),
           const SizedBox(width: 12),
@@ -491,7 +483,7 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
               'Everyone is busy on this day. Try another date!',
               style: TextStyle(
                 fontSize: 13,
-                color: SunsetCoralTheme.rose300.withValues(alpha: 0.6),
+                color: appColors.textMuted,
               ),
             ),
           ),
