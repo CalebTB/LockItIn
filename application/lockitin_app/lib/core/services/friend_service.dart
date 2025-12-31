@@ -32,6 +32,42 @@ class FriendService {
   FriendService._internal();
 
   // ============================================================================
+  // Rate Limiting
+  // ============================================================================
+
+  /// Rate limit: max requests per minute
+  static const int _maxRequestsPerMinute = 10;
+
+  /// Track recent friend request timestamps for rate limiting
+  final List<DateTime> _recentRequestTimestamps = [];
+
+  /// Check if rate limit is exceeded for friend requests
+  bool _isRateLimited() {
+    final now = DateTime.now();
+    final oneMinuteAgo = now.subtract(const Duration(minutes: 1));
+
+    // Remove timestamps older than 1 minute
+    _recentRequestTimestamps.removeWhere((ts) => ts.isBefore(oneMinuteAgo));
+
+    // Check if limit exceeded
+    return _recentRequestTimestamps.length >= _maxRequestsPerMinute;
+  }
+
+  /// Record a friend request for rate limiting
+  void _recordRequest() {
+    _recentRequestTimestamps.add(DateTime.now());
+  }
+
+  /// Get remaining requests before rate limit
+  int get remainingRequests {
+    final now = DateTime.now();
+    final oneMinuteAgo = now.subtract(const Duration(minutes: 1));
+    _recentRequestTimestamps.removeWhere((ts) => ts.isBefore(oneMinuteAgo));
+    return (_maxRequestsPerMinute - _recentRequestTimestamps.length)
+        .clamp(0, _maxRequestsPerMinute);
+  }
+
+  // ============================================================================
   // Friend Request Operations
   // ============================================================================
 
@@ -39,8 +75,19 @@ class FriendService {
   ///
   /// Creates a pending friendship from current user to target user
   /// Returns the created FriendshipModel
+  ///
+  /// Rate limited to [_maxRequestsPerMinute] requests per minute
   Future<FriendshipModel> sendFriendRequest(String friendId) async {
     try {
+      // Check rate limit first
+      if (_isRateLimited()) {
+        Logger.warning('FriendService', 'Rate limit exceeded for friend requests');
+        throw FriendServiceException(
+          'Too many friend requests. Please wait a moment before trying again.',
+          code: 'RATE_LIMITED',
+        );
+      }
+
       final currentUserId = SupabaseClientManager.currentUserId;
       if (currentUserId == null) {
         throw FriendServiceException('User not authenticated');
@@ -79,6 +126,9 @@ class FriendService {
           })
           .select()
           .single();
+
+      // Record successful request for rate limiting
+      _recordRequest();
 
       Logger.info('FriendService', 'Friend request sent successfully');
       return FriendshipModel.fromJson(response);
