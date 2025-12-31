@@ -298,30 +298,46 @@ class FriendProvider extends ChangeNotifier {
     }
   }
 
-  /// Accept a pending friend request
+  /// Accept a pending friend request (optimistic UI update)
   Future<bool> acceptFriendRequest(FriendRequest request) async {
     _actionError = null;
+
+    // Optimistic update: immediately update UI
+    _pendingRequests.removeWhere((r) => r.requestId == request.requestId);
+    final optimisticFriend = FriendProfile(
+      id: request.requesterId,
+      friendshipId: null, // Will be set after server confirms
+      fullName: request.fullName,
+      email: request.email,
+      avatarUrl: request.avatarUrl,
+      friendshipSince: DateTime.now(),
+    );
+    _friends.add(optimisticFriend);
+    notifyListeners(); // Instant feedback
 
     try {
       final friendship = await _friendService.acceptFriendRequest(request.requestId);
 
-      // Remove from pending requests
-      _pendingRequests.removeWhere((r) => r.requestId == request.requestId);
-
-      // Add to friends list with friendship ID for deletion
-      _friends.add(FriendProfile(
-        id: request.requesterId,
-        friendshipId: friendship.id,
-        fullName: request.fullName,
-        email: request.email,
-        avatarUrl: request.avatarUrl,
-        friendshipSince: friendship.acceptedAt,
-      ));
+      // Update with real friendship data from server
+      final index = _friends.indexWhere((f) => f.id == request.requesterId);
+      if (index >= 0) {
+        _friends[index] = FriendProfile(
+          id: request.requesterId,
+          friendshipId: friendship.id,
+          fullName: request.fullName,
+          email: request.email,
+          avatarUrl: request.avatarUrl,
+          friendshipSince: friendship.acceptedAt,
+        );
+      }
 
       Logger.info('FriendProvider', 'Accepted friend request from: ${request.requesterId}');
       notifyListeners();
       return true;
     } catch (e) {
+      // Rollback on failure
+      _friends.removeWhere((f) => f.id == request.requesterId);
+      _pendingRequests.add(request);
       _actionError = e.toString();
       Logger.error('FriendProvider', 'Failed to accept friend request: $e');
       notifyListeners();
@@ -329,20 +345,21 @@ class FriendProvider extends ChangeNotifier {
     }
   }
 
-  /// Decline a pending friend request
+  /// Decline a pending friend request (optimistic UI update)
   Future<bool> declineFriendRequest(FriendRequest request) async {
     _actionError = null;
 
+    // Optimistic update: immediately remove from UI
+    _pendingRequests.removeWhere((r) => r.requestId == request.requestId);
+    notifyListeners(); // Instant feedback
+
     try {
       await _friendService.declineFriendRequest(request.requestId);
-
-      // Remove from pending requests
-      _pendingRequests.removeWhere((r) => r.requestId == request.requestId);
-
       Logger.info('FriendProvider', 'Declined friend request from: ${request.requesterId}');
-      notifyListeners();
       return true;
     } catch (e) {
+      // Rollback on failure
+      _pendingRequests.add(request);
       _actionError = e.toString();
       Logger.error('FriendProvider', 'Failed to decline friend request: $e');
       notifyListeners();
@@ -350,20 +367,21 @@ class FriendProvider extends ChangeNotifier {
     }
   }
 
-  /// Cancel a sent friend request
+  /// Cancel a sent friend request (optimistic UI update)
   Future<bool> cancelFriendRequest(SentRequest request) async {
     _actionError = null;
 
+    // Optimistic update: immediately remove from UI
+    _sentRequests.removeWhere((r) => r.requestId == request.requestId);
+    notifyListeners(); // Instant feedback
+
     try {
       await _friendService.cancelFriendRequest(request.requestId);
-
-      // Remove from sent requests
-      _sentRequests.removeWhere((r) => r.requestId == request.requestId);
-
       Logger.info('FriendProvider', 'Canceled friend request: ${request.requestId}');
-      notifyListeners();
       return true;
     } catch (e) {
+      // Rollback on failure
+      _sentRequests.add(request);
       _actionError = e.toString();
       Logger.error('FriendProvider', 'Failed to cancel friend request: $e');
       notifyListeners();
@@ -371,20 +389,21 @@ class FriendProvider extends ChangeNotifier {
     }
   }
 
-  /// Remove a friend
+  /// Remove a friend (optimistic UI update)
   Future<bool> removeFriend(FriendProfile friend, String friendshipId) async {
     _actionError = null;
 
+    // Optimistic update: immediately remove from UI
+    _friends.removeWhere((f) => f.id == friend.id);
+    notifyListeners(); // Instant feedback
+
     try {
       await _friendService.removeFriend(friendshipId);
-
-      // Remove from friends list
-      _friends.removeWhere((f) => f.id == friend.id);
-
       Logger.info('FriendProvider', 'Removed friend: ${friend.id}');
-      notifyListeners();
       return true;
     } catch (e) {
+      // Rollback on failure
+      _friends.add(friend);
       _actionError = e.toString();
       Logger.error('FriendProvider', 'Failed to remove friend: $e');
       notifyListeners();
@@ -396,23 +415,33 @@ class FriendProvider extends ChangeNotifier {
   // Block Operations
   // ============================================================================
 
-  /// Block a user
+  /// Block a user (optimistic UI update)
   Future<bool> blockUser(String userId) async {
     _actionError = null;
 
+    // Store for rollback
+    final removedFriend = _friends.cast<FriendProfile?>().firstWhere(
+      (f) => f?.id == userId,
+      orElse: () => null,
+    );
+    final removedRequest = _pendingRequests.cast<FriendRequest?>().firstWhere(
+      (r) => r?.requesterId == userId,
+      orElse: () => null,
+    );
+
+    // Optimistic update: immediately remove from UI
+    _friends.removeWhere((f) => f.id == userId);
+    _pendingRequests.removeWhere((r) => r.requesterId == userId);
+    notifyListeners(); // Instant feedback
+
     try {
       await _friendService.blockUser(userId);
-
-      // Remove from friends if present
-      _friends.removeWhere((f) => f.id == userId);
-
-      // Remove any pending requests from this user
-      _pendingRequests.removeWhere((r) => r.requesterId == userId);
-
       Logger.info('FriendProvider', 'Blocked user: $userId');
-      notifyListeners();
       return true;
     } catch (e) {
+      // Rollback on failure
+      if (removedFriend != null) _friends.add(removedFriend);
+      if (removedRequest != null) _pendingRequests.add(removedRequest);
       _actionError = e.toString();
       Logger.error('FriendProvider', 'Failed to block user: $e');
       notifyListeners();

@@ -438,7 +438,7 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
-  /// Leave a group (remove self)
+  /// Leave a group (remove self) - optimistic UI update
   Future<bool> leaveGroup(String groupId) async {
     _actionError = null;
 
@@ -449,21 +449,29 @@ class GroupProvider extends ChangeNotifier {
       return false;
     }
 
+    // Store for rollback
+    final removedGroup = _groups.cast<GroupModel?>().firstWhere(
+      (g) => g?.id == groupId,
+      orElse: () => null,
+    );
+    final wasSelectedGroup = _selectedGroup?.id == groupId;
+
+    // Optimistic update: immediately remove from UI
+    _groups.removeWhere((g) => g.id == groupId);
+    if (wasSelectedGroup) {
+      clearSelectedGroup();
+    }
+    notifyListeners(); // Instant feedback
+
     try {
       await _groupService.removeMember(groupId: groupId, userId: currentUserId);
-
-      // Remove from local list (we're no longer a member)
-      _groups.removeWhere((g) => g.id == groupId);
-
-      // Clear selected if it was this group
-      if (_selectedGroup?.id == groupId) {
-        clearSelectedGroup();
-      }
-
       Logger.info('GroupProvider', 'Left group: $groupId');
-      notifyListeners();
       return true;
     } catch (e) {
+      // Rollback on failure
+      if (removedGroup != null) {
+        _groups.add(removedGroup);
+      }
       _actionError = e.toString();
       Logger.error('GroupProvider', 'Failed to leave group: $e');
       notifyListeners();
@@ -582,23 +590,31 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
-  /// Accept a group invite
+  /// Accept a group invite - optimistic UI update
   Future<bool> acceptInvite(String inviteId) async {
     _actionError = null;
 
+    // Store for rollback
+    final removedInvite = _pendingInvites.cast<GroupInvite?>().firstWhere(
+      (i) => i?.id == inviteId,
+      orElse: () => null,
+    );
+
+    // Optimistic update: immediately remove invite from UI
+    _pendingInvites.removeWhere((i) => i.id == inviteId);
+    notifyListeners(); // Instant feedback
+
     try {
       await _groupService.acceptInvite(inviteId);
-
-      // Remove from pending invites
-      _pendingInvites.removeWhere((i) => i.id == inviteId);
-
       // Reload groups to include the new group
       await loadGroups();
-
       Logger.info('GroupProvider', 'Accepted invite $inviteId');
-      notifyListeners();
       return true;
     } catch (e) {
+      // Rollback on failure
+      if (removedInvite != null) {
+        _pendingInvites.add(removedInvite);
+      }
       _actionError = e.toString();
       Logger.error('GroupProvider', 'Failed to accept invite: $e');
       notifyListeners();
@@ -606,20 +622,29 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
-  /// Decline a group invite
+  /// Decline a group invite - optimistic UI update
   Future<bool> declineInvite(String inviteId) async {
     _actionError = null;
 
+    // Store for rollback
+    final removedInvite = _pendingInvites.cast<GroupInvite?>().firstWhere(
+      (i) => i?.id == inviteId,
+      orElse: () => null,
+    );
+
+    // Optimistic update: immediately remove from UI
+    _pendingInvites.removeWhere((i) => i.id == inviteId);
+    notifyListeners(); // Instant feedback
+
     try {
       await _groupService.declineInvite(inviteId);
-
-      // Remove from pending invites
-      _pendingInvites.removeWhere((i) => i.id == inviteId);
-
       Logger.info('GroupProvider', 'Declined invite $inviteId');
-      notifyListeners();
       return true;
     } catch (e) {
+      // Rollback on failure
+      if (removedInvite != null) {
+        _pendingInvites.add(removedInvite);
+      }
       _actionError = e.toString();
       Logger.error('GroupProvider', 'Failed to decline invite: $e');
       notifyListeners();
