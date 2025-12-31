@@ -24,6 +24,7 @@ enum CalendarPermissionStatus {
 /// iOS: EventKit integration
 /// Android: CalendarContract integration
 class CalendarManager {
+  static const _tag = 'CalendarManager';
   static const MethodChannel _channel =
       MethodChannel('com.lockitin.calendar');
 
@@ -31,17 +32,17 @@ class CalendarManager {
   /// Returns true if permission granted, false otherwise
   Future<CalendarPermissionStatus> requestPermission() async {
     try {
-      Logger.info('Requesting calendar permission');
+      Logger.info(_tag, 'Requesting calendar permission');
       final String result = await _channel.invokeMethod('requestPermission');
-      Logger.info('Calendar permission result: $result');
+      Logger.info(_tag, 'Calendar permission result: $result');
 
       return _parsePermissionStatus(result);
     } on MissingPluginException {
-      Logger.warning('Platform channel not implemented - calendar integration not available');
+      Logger.warning(_tag, 'Platform channel not implemented - calendar integration not available');
       // Return denied when platform channel isn't implemented
       return CalendarPermissionStatus.denied;
     } on PlatformException catch (e) {
-      Logger.error('Failed to request calendar permission: ${e.message}');
+      Logger.error(_tag, 'Failed to request calendar permission: ${e.message}');
       throw CalendarAccessException(
         'Failed to request permission: ${e.message}',
       );
@@ -54,11 +55,11 @@ class CalendarManager {
       final String result = await _channel.invokeMethod('checkPermission');
       return _parsePermissionStatus(result);
     } on MissingPluginException {
-      Logger.warning('Platform channel not implemented - using test events mode');
+      Logger.warning(_tag, 'Platform channel not implemented - using test events mode');
       // Return notDetermined when platform channel isn't implemented
       return CalendarPermissionStatus.notDetermined;
     } on PlatformException catch (e) {
-      Logger.error('Failed to check calendar permission: ${e.message}');
+      Logger.error(_tag, 'Failed to check calendar permission: ${e.message}');
       throw CalendarAccessException(
         'Failed to check permission: ${e.message}',
       );
@@ -80,6 +81,7 @@ class CalendarManager {
   }) async {
     try {
       Logger.info(
+        _tag,
         'Fetching events from ${startDate.toIso8601String()} to ${endDate.toIso8601String()}',
       );
 
@@ -91,17 +93,17 @@ class CalendarManager {
         },
       );
 
-      Logger.info('Fetched ${result.length} events from native calendar');
+      Logger.info(_tag, 'Fetched ${result.length} events from native calendar');
 
       // Convert native events to EventModel
       return result.map((eventData) {
         return _parseNativeEvent(eventData as Map<dynamic, dynamic>);
       }).toList();
     } on MissingPluginException {
-      Logger.warning('Platform channel not implemented - returning empty event list');
+      Logger.warning(_tag, 'Platform channel not implemented - returning empty event list');
       return [];
     } on PlatformException catch (e) {
-      Logger.error('Failed to fetch events: ${e.message}');
+      Logger.error(_tag, 'Failed to fetch events: ${e.message}');
 
       if (e.code == 'PERMISSION_DENIED') {
         throw CalendarAccessException(
@@ -120,7 +122,7 @@ class CalendarManager {
   /// Returns native calendar event ID for bidirectional sync
   Future<String> createEvent(EventModel event) async {
     try {
-      Logger.info('Creating event in native calendar: ${event.title}');
+      Logger.info(_tag, 'Creating event in native calendar: ${event.title}');
 
       final String nativeEventId = await _channel.invokeMethod(
         'createEvent',
@@ -133,10 +135,10 @@ class CalendarManager {
         },
       );
 
-      Logger.info('Created event with native ID: $nativeEventId');
+      Logger.info(_tag, 'Created event with native ID: $nativeEventId');
       return nativeEventId;
     } on PlatformException catch (e) {
-      Logger.error('Failed to create event: ${e.message}');
+      Logger.error(_tag, 'Failed to create event: ${e.message}');
       throw CalendarAccessException('Failed to create event: ${e.message}');
     }
   }
@@ -154,7 +156,7 @@ class CalendarManager {
     }
 
     try {
-      Logger.info('Updating native event: ${event.nativeCalendarId}');
+      Logger.info(_tag, 'Updating native event: ${event.nativeCalendarId}');
 
       await _channel.invokeMethod(
         'updateEvent',
@@ -168,9 +170,9 @@ class CalendarManager {
         },
       );
 
-      Logger.info('Updated native event successfully');
+      Logger.info(_tag, 'Updated native event successfully');
     } on PlatformException catch (e) {
-      Logger.error('Failed to update event: ${e.message}');
+      Logger.error(_tag, 'Failed to update event: ${e.message}');
       throw CalendarAccessException('Failed to update event: ${e.message}');
     }
   }
@@ -180,16 +182,16 @@ class CalendarManager {
   /// [nativeEventId] - Native calendar event ID
   Future<void> deleteEvent(String nativeEventId) async {
     try {
-      Logger.info('Deleting native event: $nativeEventId');
+      Logger.info(_tag, 'Deleting native event: $nativeEventId');
 
       await _channel.invokeMethod(
         'deleteEvent',
         {'nativeEventId': nativeEventId},
       );
 
-      Logger.info('Deleted native event successfully');
+      Logger.info(_tag, 'Deleted native event successfully');
     } on PlatformException catch (e) {
-      Logger.error('Failed to delete event: ${e.message}');
+      Logger.error(_tag, 'Failed to delete event: ${e.message}');
       throw CalendarAccessException('Failed to delete event: ${e.message}');
     }
   }
@@ -231,7 +233,7 @@ class CalendarManager {
       case 'not_determined':
         return CalendarPermissionStatus.notDetermined;
       default:
-        Logger.warning('Unknown permission status: $status');
+        Logger.warning(_tag, 'Unknown permission status: $status');
         return CalendarPermissionStatus.denied;
     }
   }

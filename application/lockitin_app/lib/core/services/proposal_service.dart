@@ -7,6 +7,7 @@ import '../../data/models/vote_model.dart';
 
 /// Service for managing event proposals and voting
 class ProposalService {
+  static const _tag = 'ProposalService';
   static final ProposalService _instance = ProposalService._internal();
   static ProposalService get instance => _instance;
   ProposalService._internal();
@@ -47,7 +48,7 @@ class ProposalService {
       Logger.info('ProposalService', 'Created proposal: $proposalId');
       return proposalId;
     } catch (e) {
-      Logger.error('ProposalService: Failed to create proposal: $e');
+      Logger.error(_tag, 'Failed to create proposal: $e');
       rethrow;
     }
   }
@@ -69,7 +70,7 @@ class ProposalService {
       Logger.info('ProposalService', 'Fetched ${proposals.length} proposals');
       return proposals;
     } catch (e) {
-      Logger.error('ProposalService: Failed to fetch group proposals: $e');
+      Logger.error(_tag, 'Failed to fetch group proposals: $e');
       rethrow;
     }
   }
@@ -114,7 +115,7 @@ class ProposalService {
       Logger.info('ProposalService', 'Fetched proposal with ${timeOptions.length} options');
       return proposal;
     } catch (e) {
-      Logger.error('ProposalService: Failed to fetch proposal: $e');
+      Logger.error(_tag, 'Failed to fetch proposal: $e');
       rethrow;
     }
   }
@@ -131,7 +132,7 @@ class ProposalService {
           .map((json) => VoteSummary.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      Logger.error('ProposalService: Failed to fetch vote summary: $e');
+      Logger.error(_tag, 'Failed to fetch vote summary: $e');
       rethrow;
     }
   }
@@ -155,7 +156,7 @@ class ProposalService {
               ))
           .toList();
     } catch (e) {
-      Logger.error('ProposalService: Failed to fetch time option votes: $e');
+      Logger.error(_tag, 'Failed to fetch time option votes: $e');
       rethrow;
     }
   }
@@ -181,7 +182,7 @@ class ProposalService {
 
       Logger.info('ProposalService', 'Vote cast successfully');
     } catch (e) {
-      Logger.error('ProposalService: Failed to cast vote: $e');
+      Logger.error(_tag, 'Failed to cast vote: $e');
       rethrow;
     }
   }
@@ -204,7 +205,7 @@ class ProposalService {
 
       Logger.info('ProposalService', 'Vote removed successfully');
     } catch (e) {
-      Logger.error('ProposalService: Failed to remove vote: $e');
+      Logger.error(_tag, 'Failed to remove vote: $e');
       rethrow;
     }
   }
@@ -229,7 +230,7 @@ class ProposalService {
       Logger.info('ProposalService', 'Proposal confirmed, event created: $eventId');
       return eventId;
     } catch (e) {
-      Logger.error('ProposalService: Failed to confirm proposal: $e');
+      Logger.error(_tag, 'Failed to confirm proposal: $e');
       rethrow;
     }
   }
@@ -244,7 +245,7 @@ class ProposalService {
 
       Logger.info('ProposalService', 'Proposal cancelled: $proposalId');
     } catch (e) {
-      Logger.error('ProposalService: Failed to cancel proposal: $e');
+      Logger.error(_tag, 'Failed to cancel proposal: $e');
       rethrow;
     }
   }
@@ -275,7 +276,7 @@ class ProposalService {
 
       Logger.info('ProposalService', 'Proposal updated: $proposalId');
     } catch (e) {
-      Logger.error('ProposalService: Failed to update proposal: $e');
+      Logger.error(_tag, 'Failed to update proposal: $e');
       rethrow;
     }
   }
@@ -290,7 +291,7 @@ class ProposalService {
 
       Logger.info('ProposalService', 'Proposal deleted: $proposalId');
     } catch (e) {
-      Logger.error('ProposalService: Failed to delete proposal: $e');
+      Logger.error(_tag, 'Failed to delete proposal: $e');
       rethrow;
     }
   }
@@ -311,7 +312,7 @@ class ProposalService {
 
       return result as bool;
     } catch (e) {
-      Logger.error('ProposalService: Failed to check user vote status: $e');
+      Logger.error(_tag, 'Failed to check user vote status: $e');
       return false;
     }
   }
@@ -335,7 +336,7 @@ class ProposalService {
       }
       return votes;
     } catch (e) {
-      Logger.error('ProposalService: Failed to fetch user votes: $e');
+      Logger.error(_tag, 'Failed to fetch user votes: $e');
       return {};
     }
   }
