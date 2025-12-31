@@ -6,27 +6,53 @@ import 'package:uuid/uuid.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/event_model.dart';
 import '../providers/auth_provider.dart';
+import 'group_proposal_wizard.dart';
+
+/// Event creation mode enum for dual-context support
+///
+/// Personal events: Simple form, quick save to personal calendar
+/// Group proposals: Wizard flow with time options + voting
+enum EventCreationMode {
+  personalEvent,      // Simple form, no group features
+  groupProposal,      // Advanced form with time options + voting
+  editPersonalEvent,  // Edit existing personal event
+  editGroupProposal,  // Edit existing group proposal
+}
 
 /// Event creation/editing screen with progressive disclosure form
 ///
 /// Redesigned for better UX with:
+/// - Dual-mode support (personal events vs group proposals)
 /// - Privacy promoted to field 2 (core differentiator)
 /// - Progressive disclosure (5 required fields, optional collapsed)
 /// - Bottom CTA button (large, prominent, sticky)
 /// - Template chips for quick event creation
 /// - Grouped date/time card
 class EventCreationScreen extends StatefulWidget {
+  final EventCreationMode mode;
   final DateTime? initialDate;
   final EventModel? eventToEdit;
+  final String? groupId;           // Group context for proposals
+  final String? groupName;         // Group name for display
+  final int? groupMemberCount;     // Number of members in the group
 
   const EventCreationScreen({
     super.key,
+    this.mode = EventCreationMode.personalEvent,
     this.initialDate,
     this.eventToEdit,
+    this.groupId,
+    this.groupName,
+    this.groupMemberCount,
   });
 
   /// Check if this screen is in edit mode
-  bool get isEditMode => eventToEdit != null;
+  bool get isEditMode => mode == EventCreationMode.editPersonalEvent ||
+                         mode == EventCreationMode.editGroupProposal;
+
+  /// Check if this screen is in group proposal mode
+  bool get isProposalMode => mode == EventCreationMode.groupProposal ||
+                             mode == EventCreationMode.editGroupProposal;
 
   @override
   State<EventCreationScreen> createState() => _EventCreationScreenState();
@@ -169,7 +195,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           onPressed: () => _handleClose(context),
         ),
         title: Text(
-          widget.isEditMode ? 'Edit Event' : 'New Event',
+          _getAppBarTitle(),
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -192,8 +218,14 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Template chips (quick start)
-                  if (!widget.isEditMode) ...[
+                  // Group context header (for proposal mode)
+                  if (widget.isProposalMode && widget.groupName != null) ...[
+                    _buildGroupContextHeader(colorScheme, appColors),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Template chips (quick start) - personal events only
+                  if (!widget.isEditMode && !widget.isProposalMode) ...[
                     _buildTemplateChips(colorScheme),
                     const SizedBox(height: 20),
                   ],
@@ -1011,7 +1043,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           width: double.infinity,
           height: Platform.isIOS ? 50 : 56, // iOS 44pt min + padding, Android 56dp
           child: ElevatedButton(
-            onPressed: isFormValid ? _saveEvent : null,
+            onPressed: isFormValid ? _handleCTAPress : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: colorScheme.primary,
               foregroundColor: colorScheme.onPrimary,
@@ -1023,7 +1055,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
               elevation: 0,
             ),
             child: Text(
-              widget.isEditMode ? 'Save Changes' : 'Create Event',
+              _getCTAButtonText(),
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -1101,6 +1133,33 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           _endDate = _startDate;
         }
       });
+    }
+  }
+
+  /// Handle CTA button press
+  /// In personal mode: saves the event
+  /// In proposal mode: navigates to the GroupProposalWizard
+  void _handleCTAPress() {
+    if (widget.isProposalMode && widget.mode == EventCreationMode.groupProposal) {
+      // Validate form first
+      if (!_formKey.currentState!.validate()) {
+        return;
+      }
+
+      // Navigate to the Group Proposal Wizard
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => GroupProposalWizard(
+            groupId: widget.groupId!,
+            groupName: widget.groupName!,
+            groupMemberCount: widget.groupMemberCount!,
+            initialDate: _startDate,
+          ),
+        ),
+      );
+    } else {
+      // Personal event or edit mode - save the event
+      _saveEvent();
     }
   }
 
@@ -1216,6 +1275,115 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     }
 
     Navigator.of(context).pop(event);
+  }
+
+  /// Get app bar title based on mode
+  String _getAppBarTitle() {
+    switch (widget.mode) {
+      case EventCreationMode.personalEvent:
+        return 'New Event';
+      case EventCreationMode.groupProposal:
+        return 'Propose Event';
+      case EventCreationMode.editPersonalEvent:
+        return 'Edit Event';
+      case EventCreationMode.editGroupProposal:
+        return 'Edit Proposal';
+    }
+  }
+
+  /// Get CTA button text based on mode
+  String _getCTAButtonText() {
+    switch (widget.mode) {
+      case EventCreationMode.personalEvent:
+        return 'Create Event';
+      case EventCreationMode.groupProposal:
+        return 'Continue to Time Options';
+      case EventCreationMode.editPersonalEvent:
+        return 'Save Changes';
+      case EventCreationMode.editGroupProposal:
+        return 'Save Changes';
+    }
+  }
+
+  /// Build group context header (shown in proposal mode)
+  Widget _buildGroupContextHeader(ColorScheme colorScheme, AppColorsExtension appColors) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            colorScheme.primary.withValues(alpha: 0.12),
+            colorScheme.secondary.withValues(alpha: 0.08),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colorScheme.primary.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Group icon
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: colorScheme.primary,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.people,
+              color: colorScheme.onPrimary,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Group name and member count
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.groupName ?? 'Group',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${widget.groupMemberCount ?? 0} members will be notified',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: appColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Change group button (if not editing)
+          if (!widget.isEditMode) ...[
+            IconButton(
+              icon: Icon(
+                Icons.swap_horiz,
+                size: 22,
+                color: colorScheme.primary,
+              ),
+              onPressed: () {
+                // TODO: Navigate back to group selection
+                Navigator.of(context).pop();
+              },
+              tooltip: 'Change group',
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   /// Get default emoji for a category

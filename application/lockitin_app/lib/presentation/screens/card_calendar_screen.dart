@@ -36,6 +36,7 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
     final result = await Navigator.of(context).push<EventModel>(
       MaterialPageRoute(
         builder: (context) => EventCreationScreen(
+          mode: EventCreationMode.personalEvent,
           initialDate: _selectedDate ?? DateTime.now(),
         ),
       ),

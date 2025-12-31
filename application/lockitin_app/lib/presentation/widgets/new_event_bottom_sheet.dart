@@ -392,9 +392,11 @@ class _NewEventBottomSheetState extends State<NewEventBottomSheet> {
     widget.onClose();
 
     // Navigate to EventCreationScreen and await the result
+    // TODO: Support groupProposal mode when group is selected
     final result = await Navigator.of(context).push<EventModel>(
       MaterialPageRoute(
         builder: (context) => EventCreationScreen(
+          mode: EventCreationMode.personalEvent,
           initialDate: widget.initialDate ?? DateTime.now(),
         ),
       ),

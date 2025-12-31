@@ -16,6 +16,7 @@ import '../../widgets/group_members_sheet.dart';
 import '../../widgets/group_filters_sheet.dart';
 import '../../widgets/group_best_days_section.dart';
 import '../../widgets/group_settings_sheet.dart';
+import '../group_proposal_wizard.dart';
 import 'widgets/widgets.dart';
 
 /// Group detail screen showing group calendar with availability heatmap
@@ -1156,13 +1157,20 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   void _showProposeEventFlow(BuildContext context) {
-    // TODO: Navigate to propose event screen with pre-filled group
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Event proposal coming soon!'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    final groupProvider = context.read<GroupProvider>();
+    final memberCount = groupProvider.selectedGroupMembers.length;
+
+    // Navigate to the Group Proposal Wizard
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => GroupProposalWizard(
+          groupId: widget.group.id,
+          groupName: widget.group.name,
+          groupMemberCount: memberCount > 0 ? memberCount : 1,
+          initialDate: _selectedDay != null
+              ? DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDay!)
+              : null,
+        ),
       ),
     );
   }

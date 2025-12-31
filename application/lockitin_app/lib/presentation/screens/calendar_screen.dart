@@ -58,7 +58,9 @@ class _CalendarViewState extends State<_CalendarView> {
     // Navigate to event creation screen
     final result = await Navigator.of(context).push<EventModel>(
       MaterialPageRoute(
-        builder: (context) => const EventCreationScreen(),
+        builder: (context) => const EventCreationScreen(
+          mode: EventCreationMode.personalEvent,
+        ),
       ),
     );
 
