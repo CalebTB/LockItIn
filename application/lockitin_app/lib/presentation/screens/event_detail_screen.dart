@@ -393,6 +393,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final updatedEvent = await Navigator.of(context).push<EventModel>(
       MaterialPageRoute(
         builder: (context) => EventCreationScreen(
+          mode: EventCreationMode.editPersonalEvent,
           eventToEdit: _currentEvent,
         ),
       ),

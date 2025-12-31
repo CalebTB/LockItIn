@@ -49,7 +49,9 @@
       "Bash(application/lockitin_app/lib/presentation/widgets/agenda_list_view.dart )",
       "Bash(application/lockitin_app/lib/presentation/widgets/empty_state.dart )",
       "Bash(application/lockitin_app/lib/presentation/widgets/month_grid_view.dart )",
-      "Bash(application/lockitin_app/lib/presentation/widgets/week_grid_view.dart)"
+      "Bash(application/lockitin_app/lib/presentation/widgets/week_grid_view.dart)",
+      "Bash(pkill:*)",
+      "Bash(git -C /Users/calebbyers/Code/LockItIn diff application/lockitin_app/lib/presentation/screens/group_detail/group_detail_screen.dart)"
     ],
     "deny": [],
     "ask": []

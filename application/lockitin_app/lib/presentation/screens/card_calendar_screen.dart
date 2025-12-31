@@ -8,9 +8,9 @@ import '../../data/models/event_model.dart';
 import '../providers/calendar_provider.dart';
 import '../widgets/agenda_list_view.dart';
 import '../widgets/month_grid_view.dart';
-import '../widgets/new_event_bottom_sheet.dart';
 import '../widgets/week_grid_view.dart';
 import 'day_detail_screen.dart';
+import 'event_creation_screen.dart';
 import 'event_detail_screen.dart';
 
 /// Calendar view modes
@@ -31,17 +31,22 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
   DateTime _focusedDate = DateTime.now();
   DateTime? _selectedDate;
 
-  void _showNewEventSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.4),
-      builder: (context) => NewEventBottomSheet(
-        onClose: () => Navigator.of(context).pop(),
-        initialDate: DateTime.now(),
+  void _showNewEventSheet() async {
+    // Navigate directly to EventCreationScreen (skip bottom sheet for personal events)
+    final result = await Navigator.of(context).push<EventModel>(
+      MaterialPageRoute(
+        builder: (context) => EventCreationScreen(
+          mode: EventCreationMode.personalEvent,
+          initialDate: _selectedDate ?? DateTime.now(),
+        ),
       ),
     );
+
+    // If event was created, save it
+    if (result != null && mounted) {
+      final provider = context.read<CalendarProvider>();
+      provider.addEvent(result);
+    }
   }
 
   @override
