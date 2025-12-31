@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import 'signup_screen.dart';
-import '../home_screen.dart';
+import '../main_screen.dart';
 
 /// Login screen with email/password authentication
 class LoginScreen extends StatefulWidget {
@@ -37,9 +37,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
-      // Navigate to home screen
+      // Navigate to main screen with bottom tabs
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const MainScreen()),
       );
     } else {
       // Show error message

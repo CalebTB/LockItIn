@@ -36,7 +36,20 @@
       "mcp__supabase__list_tables",
       "mcp__supabase__execute_sql",
       "mcp__supabase__get_advisors",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(git -C /Users/calebbyers/Code/LockItIn status)",
+      "Bash(git -C /Users/calebbyers/Code/LockItIn log --oneline -5)",
+      "Bash(git -C /Users/calebbyers/Code/LockItIn diff --stat)",
+      "Bash(git -C /Users/calebbyers/Code/LockItIn diff HEAD --stat -- application/)",
+      "Bash(git -C /Users/calebbyers/Code/LockItIn add:*)",
+      "Bash(application/lockitin_app/lib/presentation/screens/card_calendar_screen.dart )",
+      "Bash(application/lockitin_app/lib/presentation/screens/main_screen.dart )",
+      "Bash(application/lockitin_app/lib/presentation/screens/profile_screen.dart )",
+      "Bash(application/lockitin_app/lib/presentation/screens/tabs/ )",
+      "Bash(application/lockitin_app/lib/presentation/widgets/agenda_list_view.dart )",
+      "Bash(application/lockitin_app/lib/presentation/widgets/empty_state.dart )",
+      "Bash(application/lockitin_app/lib/presentation/widgets/month_grid_view.dart )",
+      "Bash(application/lockitin_app/lib/presentation/widgets/week_grid_view.dart)"
     ],
     "deny": [],
     "ask": []

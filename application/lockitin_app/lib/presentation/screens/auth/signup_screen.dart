@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../home_screen.dart';
+import '../main_screen.dart';
 
 /// Sign up screen with full name, email, password, and confirm password
 class SignUpScreen extends StatefulWidget {
@@ -42,9 +42,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!mounted) return;
 
     if (success) {
-      // Navigate to home screen
+      // Navigate to main screen with bottom tabs
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const MainScreen()),
         (route) => false,
       );
     } else {
