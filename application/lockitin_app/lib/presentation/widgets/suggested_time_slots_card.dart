@@ -154,7 +154,8 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: _getAvailabilityColor(slot.availabilityRatio),
+                      // Use darker text color for contrast on light backgrounds
+                      color: AppColors.getAvailabilityTextColorDark(slot.availabilityRatio),
                     ),
                   ),
                 ),
@@ -419,13 +420,9 @@ class _SuggestedTimeSlotsCardState extends State<SuggestedTimeSlotsCard> {
     }
   }
 
-  /// Get availability color based on ratio
-  /// Per Minimal theme: emerald for high availability, grayscale for lower
+  /// Get availability color based on ratio (5-tier scale)
   Color _getAvailabilityColor(double ratio) {
-    if (ratio >= 0.75) return AppColors.success;
-    if (ratio >= 0.5) return AppColors.warning;
-    if (ratio >= 0.25) return AppColors.orange400;
-    return AppColors.error;
+    return AppColors.getAvailabilityDotColor(ratio);
   }
 
   Widget _buildEmptyState(ColorScheme colorScheme, AppColorsExtension appColors) {

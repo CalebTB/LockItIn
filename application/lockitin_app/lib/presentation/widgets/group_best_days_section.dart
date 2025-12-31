@@ -11,12 +11,14 @@ class BestDayInfo {
   final int availableCount;
   final int totalMembers;
   final List<GroupMemberProfile> unavailableMembers;
+  final String? timeSlot;
 
   const BestDayInfo({
     required this.day,
     required this.availableCount,
     required this.totalMembers,
     this.unavailableMembers = const [],
+    this.timeSlot,
   });
 
   bool get isFullAvailability => availableCount == totalMembers && totalMembers > 0;
@@ -24,11 +26,12 @@ class BestDayInfo {
 }
 
 /// Section showing the best days for scheduling in the current month
-/// Uses Minimal theme color system - emerald for best days (availability)
+/// Redesigned to match screenshot: vertical stacked cards with rich details
 ///
 /// Displays:
-/// - "Best Days This Month" header with time range badge
-/// - Large cards with availability counts and conflict details
+/// - "Best Days to Meet" header with target icon
+/// - Vertical cards with date, member count, availability badge, time slot
+/// - "View all X best days →" link at bottom
 /// - "No dates to propose" message when no good days found
 class GroupBestDaysSection extends StatelessWidget {
   final DateTime focusedMonth;
@@ -38,7 +41,7 @@ class GroupBestDaysSection extends StatelessWidget {
   final List<int> Function(Set<TimeFilter> filters) getBestDaysForFilters;
   final ValueChanged<int> onDaySelected;
 
-  // New callbacks for availability details
+  // Callbacks for availability details
   final int Function(DateTime date)? getAvailabilityForDay;
   final int Function()? getTotalMembers;
   final List<GroupMemberProfile> Function(DateTime date)? getUnavailableMembersForDay;
@@ -66,6 +69,39 @@ class GroupBestDaysSection extends StatelessWidget {
     return '$hour:${time.minute.toString().padLeft(2, '0')}$period';
   }
 
+  /// Get time slot label based on current filters
+  String _getTimeSlotLabel() {
+    final hasSpecificFilters = !selectedTimeFilters.contains(TimeFilter.allDay);
+
+    if (!hasSpecificFilters) {
+      return '${_formatTimeOfDay(customStartTime)}-${_formatTimeOfDay(customEndTime)}';
+    }
+
+    // Consolidate time ranges into earliest start - latest end
+    final filters = selectedTimeFilters.toList();
+    int earliestStart = 24;
+    int latestEnd = 0;
+    for (final filter in filters) {
+      if (filter.startHour < earliestStart) {
+        earliestStart = filter.startHour;
+      }
+      final effectiveEnd = filter == TimeFilter.night ? 30 : filter.endHour;
+      if (effectiveEnd > latestEnd) {
+        latestEnd = effectiveEnd;
+      }
+    }
+
+    String formatHour(int hour) {
+      final h = hour % 24;
+      if (h == 0) return '12am';
+      if (h == 12) return '12pm';
+      if (h < 12) return '${h}am';
+      return '${h - 12}pm';
+    }
+
+    return '${formatHour(earliestStart)}-${formatHour(latestEnd % 24)}';
+  }
+
   /// Get BestDayInfo for a specific day
   BestDayInfo _getBestDayInfo(int day) {
     final date = DateTime(focusedMonth.year, focusedMonth.month, day);
@@ -78,6 +114,7 @@ class GroupBestDaysSection extends StatelessWidget {
       availableCount: availableCount,
       totalMembers: totalMembers,
       unavailableMembers: unavailable,
+      timeSlot: _getTimeSlotLabel(),
     );
   }
 
@@ -85,91 +122,54 @@ class GroupBestDaysSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final appColors = context.appColors;
+
+    // Get best days for current filters
     final hasSpecificFilters = !selectedTimeFilters.contains(TimeFilter.allDay);
-    final customTimeLabel = '${_formatTimeOfDay(customStartTime)} - ${_formatTimeOfDay(customEndTime)}';
-
-    // Get best days for custom time range (when Custom filter is selected)
-    final customBestDays = getBestDaysForFilters({TimeFilter.allDay});
-
-    // Get best days for selected filters if specific ones are selected
-    List<int> filteredBestDays = [];
-    String filterLabel = '';
-    if (hasSpecificFilters) {
-      filteredBestDays = getBestDaysForFilters(selectedTimeFilters);
-      // Consolidate time ranges into earliest start - latest end
-      final filters = selectedTimeFilters.toList();
-      int earliestStart = 24;
-      int latestEnd = 0;
-      for (final filter in filters) {
-        if (filter.startHour < earliestStart) {
-          earliestStart = filter.startHour;
-        }
-        // Handle night filter (ends at 6am next day = 30 in 24h terms)
-        final effectiveEnd = filter == TimeFilter.night ? 30 : filter.endHour;
-        if (effectiveEnd > latestEnd) {
-          latestEnd = effectiveEnd;
-        }
-      }
-      // Format the consolidated range
-      String formatHour(int hour) {
-        final h = hour % 24;
-        if (h == 0) return '12am';
-        if (h == 12) return '12pm';
-        if (h < 12) return '${h}am';
-        return '${h - 12}pm';
-      }
-      filterLabel = '${formatHour(earliestStart)} - ${formatHour(latestEnd % 24)}';
-    }
+    final bestDays = hasSpecificFilters
+        ? getBestDaysForFilters(selectedTimeFilters)
+        : getBestDaysForFilters({TimeFilter.allDay});
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
+        color: colorScheme.surface,
         border: Border(
           bottom: BorderSide(
-            color: colorScheme.outline.withValues(alpha: 0.2),
+            color: colorScheme.outline.withValues(alpha: 0.15),
           ),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Show custom time range when Custom filter is selected
-          if (!hasSpecificFilters) ...[
-            _buildHeader(context, customTimeLabel, colorScheme, appColors),
-            const SizedBox(height: 12),
-            if (customBestDays.isNotEmpty)
-              _buildBestDayCards(context, customBestDays, colorScheme, appColors)
-            else
-              _buildNoDatesMessage(context, colorScheme, appColors),
-          ],
+          // Header with target icon
+          _buildHeader(appColors),
+          const SizedBox(height: 12),
 
-          // Show filtered best days when specific filters are selected
-          if (hasSpecificFilters) ...[
-            _buildHeader(context, filterLabel, colorScheme, appColors),
-            const SizedBox(height: 12),
-            if (filteredBestDays.isNotEmpty)
-              _buildBestDayCards(context, filteredBestDays, colorScheme, appColors)
-            else
-              _buildNoDatesMessage(context, colorScheme, appColors),
-          ],
+          // Best day card (single top recommendation) or empty state
+          // Show only 1 card for compact layout - maximizes calendar visibility
+          // "View all" link provides access to more options (progressive disclosure)
+          if (bestDays.isNotEmpty) ...[
+            _buildBestDayCards(context, bestDays.take(1).toList(), colorScheme, appColors),
+            // "View all X best days" link - show only if 2+ best days exist
+            if (bestDays.length > 1) ...[
+              const SizedBox(height: 10),
+              _buildViewAllLink(context, bestDays, colorScheme, appColors),
+            ],
+          ] else
+            _buildNoDatesMessage(context, colorScheme, appColors),
         ],
       ),
     );
   }
 
-  Widget _buildHeader(
-    BuildContext context,
-    String timeLabel,
-    ColorScheme colorScheme,
-    AppColorsExtension appColors,
-  ) {
+  Widget _buildHeader(AppColorsExtension appColors) {
     return Row(
       children: [
-        // Coral star icon for visual prominence
         Icon(
-          Icons.star_rounded,
+          Icons.gps_fixed_rounded, // Target icon like in screenshot
           size: 16,
-          color: AppColors.secondary, // Coral/orange for "best days"
+          color: AppColors.secondary,
         ),
         const SizedBox(width: 6),
         Text(
@@ -181,66 +181,49 @@ class GroupBestDaysSection extends StatelessWidget {
             color: appColors.textSecondary,
           ),
         ),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: AppColors.secondary.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(
-            timeLabel,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: AppColors.secondary,
-            ),
-          ),
-        ),
       ],
     );
   }
 
-  /// Build large cards with availability details instead of simple chips
+  /// Build vertical stacked cards matching screenshot design
   Widget _buildBestDayCards(
     BuildContext context,
     List<int> days,
     ColorScheme colorScheme,
     AppColorsExtension appColors,
   ) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: days.map((day) {
-          final info = _getBestDayInfo(day);
-          return Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: _buildBestDayCard(context, info, colorScheme, appColors),
-          );
-        }).toList(),
-      ),
+    return Column(
+      children: days.asMap().entries.map((entry) {
+        final index = entry.key;
+        final day = entry.value;
+        final info = _getBestDayInfo(day);
+        return Padding(
+          padding: EdgeInsets.only(bottom: index < days.length - 1 ? 8 : 0),
+          child: _buildBestDayCard(context, info, index == 0, colorScheme, appColors),
+        );
+      }).toList(),
     );
   }
 
-  /// Build a single best day card with rich details
+  /// Build a single best day card matching screenshot design
   Widget _buildBestDayCard(
     BuildContext context,
     BestDayInfo info,
+    bool isFirst,
     ColorScheme colorScheme,
     AppColorsExtension appColors,
   ) {
     final date = DateTime(focusedMonth.year, focusedMonth.month, info.day);
-    final dayOfWeek = DateFormat('EEE').format(date);
-    final monthDay = DateFormat('MMM d').format(date);
+    final dateFormat = DateFormat('EEE, MMM d'); // "Sat, Dec 20"
 
-    // Color based on availability
-    final cardColor = info.isFullAvailability
-        ? AppColors.success
-        : (info.ratio >= 0.5 ? AppColors.warning : AppColors.secondary);
-
-    final cardBgColor = cardColor.withValues(alpha: 0.08);
-    final cardBorderColor = cardColor.withValues(alpha: 0.25);
+    // Card styling based on availability
+    final isEveryoneFree = info.isFullAvailability;
+    final cardBgColor = isFirst
+        ? AppColors.secondary.withValues(alpha: 0.08)
+        : colorScheme.surface;
+    final cardBorderColor = isFirst
+        ? AppColors.secondary.withValues(alpha: 0.25)
+        : colorScheme.outline.withValues(alpha: 0.2);
 
     return GestureDetector(
       onTap: () {
@@ -248,113 +231,347 @@ class GroupBestDaysSection extends StatelessWidget {
         onDaySelected(info.day);
       },
       child: Container(
-        width: 140,
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: cardBgColor,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: cardBorderColor),
-          boxShadow: [
-            BoxShadow(
-              color: cardColor.withValues(alpha: 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Day and date header
+            // Top row: Date and availability badge
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // Date and member count
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      dateFormat.format(date),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${info.availableCount}/${info.totalMembers} members available',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                // Availability badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(6),
+                    color: isEveryoneFree
+                        ? AppColors.success.withValues(alpha: 0.15)
+                        : AppColors.warning.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    dayOfWeek,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                    isEveryoneFree
+                        ? 'Everyone free'
+                        : '${info.availableCount} free',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isEveryoneFree ? AppColors.success : AppColors.warning,
                     ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  monthDay,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.onSurface,
                   ),
                 ),
               ],
             ),
+            // Time slot info with icon
             const SizedBox(height: 8),
-
-            // Availability count
             Row(
               children: [
                 Icon(
-                  info.isFullAvailability
+                  isEveryoneFree
                       ? Icons.check_circle_rounded
-                      : Icons.people_rounded,
+                      : Icons.schedule_rounded,
                   size: 14,
-                  color: cardColor,
+                  color: isEveryoneFree ? AppColors.success : appColors.textMuted,
                 ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    info.isFullAvailability
-                        ? 'Everyone free!'
-                        : '${info.availableCount}/${info.totalMembers} available',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: colorScheme.onSurface,
-                    ),
+                const SizedBox(width: 6),
+                Text(
+                  isEveryoneFree
+                      ? 'Everyone free ${info.timeSlot ?? ''}'
+                      : _formatConflictInfo(info),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isEveryoneFree ? AppColors.success : appColors.textMuted,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
-
-            // Conflict details (who's busy) - only show if not fully available
-            if (!info.isFullAvailability && info.unavailableMembers.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                _formatUnavailableMembers(info.unavailableMembers),
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w400,
-                  color: appColors.textMuted,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
           ],
         ),
       ),
     );
   }
 
-  /// Format unavailable members for display
-  String _formatUnavailableMembers(List<GroupMemberProfile> members) {
-    if (members.isEmpty) return '';
-
-    if (members.length == 1) {
-      return '${members.first.displayName.split(' ').first} busy';
-    } else if (members.length == 2) {
-      final names = members.map((m) => m.displayName.split(' ').first).toList();
-      return '${names[0]} & ${names[1]} busy';
-    } else {
-      final firstName = members.first.displayName.split(' ').first;
-      return '$firstName +${members.length - 1} busy';
+  /// Format conflict info for partially available days
+  String _formatConflictInfo(BestDayInfo info) {
+    if (info.unavailableMembers.isEmpty) {
+      return info.timeSlot ?? '';
     }
+
+    if (info.unavailableMembers.length == 1) {
+      final name = info.unavailableMembers.first.displayName.split(' ').first;
+      return '$name has conflict';
+    } else {
+      return '${info.unavailableMembers.length} members have conflicts';
+    }
+  }
+
+  /// "View all X best days →" link
+  Widget _buildViewAllLink(
+    BuildContext context,
+    List<int> allBestDays,
+    ColorScheme colorScheme,
+    AppColorsExtension appColors,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        _showAllBestDaysSheet(context, allBestDays, colorScheme, appColors);
+      },
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'View all ${allBestDays.length} best days',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Icon(
+            Icons.arrow_forward_rounded,
+            size: 16,
+            color: colorScheme.primary,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Show bottom sheet with all best days
+  void _showAllBestDaysSheet(
+    BuildContext context,
+    List<int> allBestDays,
+    ColorScheme colorScheme,
+    AppColorsExtension appColors,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Drag handle
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colorScheme.outline.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.gps_fixed_rounded,
+                      size: 18,
+                      color: AppColors.secondary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'All Best Days to Meet',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Icon(
+                        Icons.close_rounded,
+                        size: 24,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(color: colorScheme.outline.withValues(alpha: 0.15)),
+              // List of all best days
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: allBestDays.length,
+                  itemBuilder: (context, index) {
+                    final day = allBestDays[index];
+                    final info = _getBestDayInfo(day);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _buildBestDayCardInSheet(
+                        context,
+                        info,
+                        index == 0,
+                        colorScheme,
+                        appColors,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build best day card for the sheet (with close on tap)
+  Widget _buildBestDayCardInSheet(
+    BuildContext context,
+    BestDayInfo info,
+    bool isFirst,
+    ColorScheme colorScheme,
+    AppColorsExtension appColors,
+  ) {
+    final date = DateTime(focusedMonth.year, focusedMonth.month, info.day);
+    final dateFormat = DateFormat('EEE, MMM d');
+    final isEveryoneFree = info.isFullAvailability;
+
+    final cardBgColor = isFirst
+        ? AppColors.secondary.withValues(alpha: 0.08)
+        : colorScheme.surface;
+    final cardBorderColor = isFirst
+        ? AppColors.secondary.withValues(alpha: 0.25)
+        : colorScheme.outline.withValues(alpha: 0.2);
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        Navigator.of(context).pop(); // Close sheet
+        onDaySelected(info.day); // Select the day
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: cardBgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: cardBorderColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top row: Date and availability badge
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Date and member count
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      dateFormat.format(date),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${info.availableCount}/${info.totalMembers} members available',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                // Availability badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: isEveryoneFree
+                        ? AppColors.success.withValues(alpha: 0.15)
+                        : AppColors.warning.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    isEveryoneFree
+                        ? 'Everyone free'
+                        : '${info.availableCount} free',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isEveryoneFree ? AppColors.success : AppColors.warning,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // Time slot info with icon
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  isEveryoneFree
+                      ? Icons.check_circle_rounded
+                      : Icons.schedule_rounded,
+                  size: 14,
+                  color: isEveryoneFree ? AppColors.success : appColors.textMuted,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  isEveryoneFree
+                      ? 'Everyone free ${info.timeSlot ?? ''}'
+                      : _formatConflictInfo(info),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isEveryoneFree ? AppColors.success : appColors.textMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildNoDatesMessage(
@@ -362,49 +579,48 @@ class GroupBestDaysSection extends StatelessWidget {
     ColorScheme colorScheme,
     AppColorsExtension appColors,
   ) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: colorScheme.outline.withValues(alpha: 0.2),
-          ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: colorScheme.outline.withValues(alpha: 0.15),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.event_busy_rounded,
-              size: 18,
-              color: appColors.textMuted,
-            ),
-            const SizedBox(width: 10),
-            Column(
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.event_busy_rounded,
+            size: 20,
+            color: appColors.textMuted,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'No dates to propose this month',
+                  'No ideal days this month',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Try expanding your time filters',
+                  'Try adjusting your time filters',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     color: appColors.textMuted,
                   ),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

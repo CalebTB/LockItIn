@@ -393,8 +393,9 @@ class DayDetailSheet extends StatelessWidget {
       }
     }
 
-    // Compute best time slots for this date
-    final timeSlots = availabilityService.findBestTimeSlots(
+    // Use consolidated time slots (merges adjacent hours with same availability)
+    // e.g., 9am-10am + 10am-11am (both 8/8) → 9am-11am (8/8)
+    final timeSlots = availabilityService.findConsolidatedTimeSlots(
       memberEvents: memberEvents,
       date: date,
       startHour: startHour,

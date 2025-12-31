@@ -12,7 +12,6 @@ import '../../../core/utils/time_filter_utils.dart';
 import '../../providers/group_provider.dart';
 import '../../providers/calendar_provider.dart';
 import '../../widgets/group_calendar_legend.dart';
-import '../../widgets/group_members_section.dart';
 import '../../widgets/group_members_sheet.dart';
 import '../../widgets/group_filters_sheet.dart';
 import '../../widgets/group_best_days_section.dart';
@@ -200,23 +199,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   /// Get dot color for heatmap cell based on availability ratio
-  /// Uses semantic colors: green = good availability, red = poor availability
+  /// Uses 5-tier semantic colors: green → lime → yellow → orange → red
   /// This enables progressive disclosure - dots at a glance, details on tap
   Color _getHeatmapDotColor(int available, int total) {
     if (total == 0) return AppColors.neutral400;
-
     final ratio = available / total;
-
-    // Semantic availability colors
-    if (ratio >= 0.75) {
-      return AppColors.success; // Emerald - most/all available
-    } else if (ratio >= 0.5) {
-      return AppColors.warning; // Amber - moderate availability
-    } else if (ratio >= 0.25) {
-      return AppColors.secondary; // Orange - limited availability
-    } else {
-      return AppColors.rose500; // Rose/red - poor/no availability
-    }
+    return AppColors.getAvailabilityDotColor(ratio);
   }
 
   void _previousMonth() {
@@ -272,18 +260,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                           getUnavailableMembersForDay: _getUnavailableMembersForDate,
                         ),
                         // Calendar legend and heatmap
+                        // Members section removed - access via header icon instead
+                        // This maximizes calendar visibility per UX best practices
                         const GroupCalendarLegend(),
                         SizedBox(
-                          height: 360,
+                          height: 380, // Increased since members section removed
                           child: _buildCalendarPageView(),
                         ),
-                        // Members section at bottom
-                        GroupMembersSection(
-                          group: widget.group,
-                          onInvite: () => _showInviteFlow(context),
-                          onViewAllMembers: () => _showMembersSheet(context),
-                        ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 80), // Space for FAB
                       ],
                     ),
                   ),
@@ -353,114 +337,114 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   Widget _buildHeader(BuildContext context, ColorScheme colorScheme) {
+    final appColors = context.appColors;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
+          bottom: BorderSide(color: colorScheme.outline.withValues(alpha: 0.2)),
         ),
       ),
       child: Row(
         children: [
-          // Back button with haptic and accessibility
+          // Back button
           Semantics(
             button: true,
             label: 'Go back',
-            child: IconButton(
-              onPressed: () {
+            child: GestureDetector(
+              onTap: () {
                 HapticFeedback.selectionClick();
                 Navigator.of(context).pop();
               },
-              icon: const Icon(Icons.chevron_left, size: 24),
-              color: colorScheme.onSurface,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              tooltip: 'Go back',
+              child: Icon(
+                Icons.chevron_left,
+                size: 28,
+                color: colorScheme.onSurface,
+              ),
             ),
           ),
           const SizedBox(width: 8),
-          // Group emoji badge (excluded from semantics - decorative)
+          // Group emoji badge
           ExcludeSemantics(
             child: Container(
-              width: 36,
-              height: 36,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 color: colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Center(
                 child: Text(
                   widget.group.emoji,
-                  style: const TextStyle(fontSize: 18),
+                  style: const TextStyle(fontSize: 16),
                 ),
               ),
             ),
           ),
           const SizedBox(width: 10),
-          // Group name with semantic header
+          // Group name and member count - single line with ellipsis
           Expanded(
             child: Semantics(
               header: true,
-              child: Text(
-                widget.group.name,
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.group.name,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '${widget.group.memberCount} members',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: appColors.textMuted,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          // My Calendar button - quick jump to personal calendar
-          Semantics(
-            button: true,
-            label: 'Go to my calendar',
-            child: IconButton(
-              onPressed: () {
-                HapticFeedback.selectionClick();
-                _jumpToMyCalendar(context);
-              },
-              icon: const Icon(Icons.calendar_today_rounded, size: 18),
-              color: colorScheme.onSurfaceVariant,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              tooltip: 'My Calendar',
-            ),
-          ),
-          const SizedBox(width: 4),
           // Filter button with badge
           _buildFilterButton(colorScheme),
-          const SizedBox(width: 4),
-          // Members button with haptic and accessibility
+          const SizedBox(width: 8),
+          // Members button
           Semantics(
             button: true,
             label: 'View ${widget.group.memberCount} members',
-            child: IconButton(
-              onPressed: () {
+            child: GestureDetector(
+              onTap: () {
                 HapticFeedback.selectionClick();
                 _showMembersSheet(context);
               },
-              icon: const Icon(Icons.people_rounded, size: 20),
-              color: colorScheme.onSurfaceVariant,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              tooltip: 'View members',
-            ),
-          ),
-          // Settings button - opens bottom sheet instead of popup menu
-          Semantics(
-            button: true,
-            label: 'Open group settings',
-            child: IconButton(
-              onPressed: () => _showSettingsSheet(context),
-              icon: const Icon(Icons.settings_rounded, size: 20),
-              color: colorScheme.onSurfaceVariant,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              tooltip: 'Settings',
+              child: Icon(
+                Icons.people_rounded,
+                size: 22,
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           const SizedBox(width: 8),
+          // Settings button (more menu icon)
+          Semantics(
+            button: true,
+            label: 'Open group settings',
+            child: GestureDetector(
+              onTap: () => _showSettingsSheet(context),
+              child: Icon(
+                Icons.more_vert_rounded,
+                size: 22,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1179,21 +1163,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         backgroundColor: Theme.of(context).colorScheme.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  void _jumpToMyCalendar(BuildContext context) {
-    // Pop back to main screen and switch to Calendar tab (index 0)
-    // Using popUntil to get back to the root, then the MainScreen will show Calendar tab
-    Navigator.of(context).popUntil((route) => route.isFirst);
-  }
-
-  void _showInviteFlow(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Invite flow coming soon!'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }
