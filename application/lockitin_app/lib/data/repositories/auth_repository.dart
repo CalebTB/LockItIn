@@ -26,7 +26,7 @@ class AuthRepository {
     String? fullName,
   }) async {
     try {
-      Logger.info('Signing up user: $email', 'AuthRepository');
+      Logger.info('AuthRepository', 'Signing up user: $email');
 
       final response = await _client.auth.signUp(
         email: email,
@@ -37,7 +37,7 @@ class AuthRepository {
       );
 
       if (response.user != null) {
-        Logger.success('Sign up successful', 'AuthRepository');
+        Logger.success('AuthRepository', 'Sign up successful');
 
         // Save credentials
         await SecureStorage.saveUserId(response.user!.id);
@@ -60,7 +60,7 @@ class AuthRepository {
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e, stackTrace) {
-      Logger.error('Sign up failed', e, stackTrace);
+      Logger.error('AuthRepository', 'Sign up failed', e, stackTrace);
       rethrow;
     }
   }
@@ -71,7 +71,7 @@ class AuthRepository {
     required String password,
   }) async {
     try {
-      Logger.info('Signing in user: $email', 'AuthRepository');
+      Logger.info('AuthRepository', 'Signing in user: $email');
 
       final response = await _client.auth.signInWithPassword(
         email: email,
@@ -79,7 +79,7 @@ class AuthRepository {
       );
 
       if (response.user != null) {
-        Logger.success('Sign in successful', 'AuthRepository');
+        Logger.success('AuthRepository', 'Sign in successful');
 
         // Save credentials
         await SecureStorage.saveUserId(response.user!.id);
@@ -101,7 +101,7 @@ class AuthRepository {
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e, stackTrace) {
-      Logger.error('Sign in failed', e, stackTrace);
+      Logger.error('AuthRepository', 'Sign in failed', e, stackTrace);
       rethrow;
     }
   }
@@ -109,14 +109,14 @@ class AuthRepository {
   /// Sign out
   Future<void> signOut() async {
     try {
-      Logger.info('Signing out user', 'AuthRepository');
+      Logger.info('AuthRepository', 'Signing out user');
       await _client.auth.signOut();
       await SecureStorage.clearAll();
-      Logger.success('Sign out successful', 'AuthRepository');
+      Logger.success('AuthRepository', 'Sign out successful');
     } on AuthException catch (e) {
       throw _handleAuthError(e);
     } catch (e, stackTrace) {
-      Logger.error('Sign out failed', e, stackTrace);
+      Logger.error('AuthRepository', 'Sign out failed', e, stackTrace);
       rethrow;
     }
   }
@@ -132,10 +132,10 @@ class AuthRepository {
 
       return UserModel.fromJson(userData);
     } on PostgrestException catch (e) {
-      Logger.error('Get current user failed: ${e.code} - ${e.message}', 'AuthRepository');
+      Logger.error('AuthRepository', 'Get current user failed: ${e.code} - ${e.message}');
       return null;
     } catch (e, stackTrace) {
-      Logger.error('Get current user failed', e, stackTrace);
+      Logger.error('AuthRepository', 'Get current user failed', e, stackTrace);
       return null;
     }
   }
@@ -162,22 +162,22 @@ class AuthRepository {
   /// Refresh session token
   Future<bool> refreshSession() async {
     try {
-      Logger.info('Refreshing session token', 'AuthRepository');
+      Logger.info('AuthRepository', 'Refreshing session token');
 
       final session = await _client.auth.refreshSession();
 
       if (session.session != null) {
-        Logger.success('Session refreshed successfully', 'AuthRepository');
+        Logger.success('AuthRepository', 'Session refreshed successfully');
         return true;
       }
 
-      Logger.warning('Session refresh returned null', 'AuthRepository');
+      Logger.warning('AuthRepository', 'Session refresh returned null');
       return false;
     } on AuthException catch (e) {
-      Logger.error('Session refresh failed: ${e.statusCode} - ${e.message}', 'AuthRepository');
+      Logger.error('AuthRepository', 'Session refresh failed: ${e.statusCode} - ${e.message}');
       return false;
     } catch (e, stackTrace) {
-      Logger.error('Session refresh failed', e, stackTrace);
+      Logger.error('AuthRepository', 'Session refresh failed', e, stackTrace);
       return false;
     }
   }
@@ -185,13 +185,13 @@ class AuthRepository {
   /// Reset password
   Future<void> resetPassword(String email) async {
     try {
-      Logger.info('Sending password reset email to: $email', 'AuthRepository');
+      Logger.info('AuthRepository', 'Sending password reset email to: $email');
       await _client.auth.resetPasswordForEmail(email);
-      Logger.success('Password reset email sent', 'AuthRepository');
+      Logger.success('AuthRepository', 'Password reset email sent');
     } on AuthException catch (e) {
       throw _handleAuthError(e);
     } catch (e, stackTrace) {
-      Logger.error('Password reset failed', e, stackTrace);
+      Logger.error('AuthRepository', 'Password reset failed', e, stackTrace);
       rethrow;
     }
   }
@@ -204,7 +204,7 @@ class AuthRepository {
     String? avatarUrl,
   }) async {
     try {
-      Logger.info('Updating profile for user: $userId', 'AuthRepository');
+      Logger.info('AuthRepository', 'Updating profile for user: $userId');
 
       final updates = <String, dynamic>{};
       if (fullName != null) updates['full_name'] = fullName;
@@ -218,21 +218,21 @@ class AuthRepository {
           .select()
           .single();
 
-      Logger.success('Profile updated successfully', 'AuthRepository');
+      Logger.success('AuthRepository', 'Profile updated successfully');
       return UserModel.fromJson(response);
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } on AuthException catch (e) {
       throw _handleAuthError(e);
     } catch (e, stackTrace) {
-      Logger.error('Profile update failed', e, stackTrace);
+      Logger.error('AuthRepository', 'Profile update failed', e, stackTrace);
       rethrow;
     }
   }
 
   /// Convert AuthException to user-friendly AuthRepositoryException
   AuthRepositoryException _handleAuthError(AuthException e) {
-    Logger.error('Auth error: ${e.statusCode} - ${e.message}', 'AuthRepository');
+    Logger.error('AuthRepository', 'Auth error: ${e.statusCode} - ${e.message}');
 
     // Handle common auth error messages
     final message = e.message.toLowerCase();
@@ -282,7 +282,7 @@ class AuthRepository {
 
   /// Convert PostgrestException to user-friendly AuthRepositoryException
   AuthRepositoryException _handlePostgrestError(PostgrestException e) {
-    Logger.error('Database error: ${e.code} - ${e.message}', 'AuthRepository');
+    Logger.error('AuthRepository', 'Database error: ${e.code} - ${e.message}');
 
     switch (e.code) {
       case '23505': // unique_violation

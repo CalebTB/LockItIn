@@ -18,21 +18,21 @@ void main() async {
 
   // Initialize Supabase
   try {
-    Logger.info('Initializing Supabase...', 'Main');
+    Logger.info('Main', 'Initializing Supabase...');
     await SupabaseClientManager.initialize();
-    Logger.success('Supabase initialized successfully', 'Main');
+    Logger.success('Main', 'Supabase initialized successfully');
   } catch (e) {
-    Logger.error('Failed to initialize Supabase', e);
+    Logger.error('Main', 'Failed to initialize Supabase', e);
     // Continue anyway - will show error in UI
   }
 
   // Setup dependency injection
   try {
-    Logger.info('Setting up dependencies...', 'Main');
+    Logger.info('Main', 'Setting up dependencies...');
     await setupDependencies();
-    Logger.success('Dependencies configured successfully', 'Main');
+    Logger.success('Main', 'Dependencies configured successfully');
   } catch (e) {
-    Logger.error('Failed to setup dependencies', e);
+    Logger.error('Main', 'Failed to setup dependencies', e);
   }
 
   runApp(const LockItInApp());

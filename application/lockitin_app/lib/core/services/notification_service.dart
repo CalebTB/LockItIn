@@ -35,7 +35,7 @@ class NotificationService {
       Logger.info('NotificationService', 'Fetched ${notifications.length} notifications');
       return notifications;
     } catch (e) {
-      Logger.error('NotificationService: Failed to fetch notifications: $e');
+      Logger.error('NotificationService', 'Failed to fetch notifications: $e');
       rethrow;
     }
   }
@@ -46,7 +46,7 @@ class NotificationService {
       final result = await _supabase.rpc('get_unread_notification_count');
       return result as int;
     } catch (e) {
-      Logger.error('NotificationService: Failed to get unread count: $e');
+      Logger.error('NotificationService', 'Failed to get unread count: $e');
       return 0;
     }
   }
@@ -60,7 +60,7 @@ class NotificationService {
       );
       Logger.info('NotificationService', 'Marked notification as read: $notificationId');
     } catch (e) {
-      Logger.error('NotificationService: Failed to mark as read: $e');
+      Logger.error('NotificationService', 'Failed to mark as read: $e');
       rethrow;
     }
   }
@@ -73,7 +73,7 @@ class NotificationService {
       Logger.info('NotificationService', 'Marked $count notifications as read');
       return count;
     } catch (e) {
-      Logger.error('NotificationService: Failed to mark all as read: $e');
+      Logger.error('NotificationService', 'Failed to mark all as read: $e');
       rethrow;
     }
   }
@@ -87,7 +87,7 @@ class NotificationService {
       );
       Logger.info('NotificationService', 'Dismissed notification: $notificationId');
     } catch (e) {
-      Logger.error('NotificationService: Failed to dismiss notification: $e');
+      Logger.error('NotificationService', 'Failed to dismiss notification: $e');
       rethrow;
     }
   }
@@ -101,7 +101,7 @@ class NotificationService {
           .eq('id', notificationId);
       Logger.info('NotificationService', 'Deleted notification: $notificationId');
     } catch (e) {
-      Logger.error('NotificationService: Failed to delete notification: $e');
+      Logger.error('NotificationService', 'Failed to delete notification: $e');
       rethrow;
     }
   }
@@ -134,7 +134,7 @@ class NotificationService {
             final notification = NotificationModel.fromJson(payload.newRecord);
             onNewNotification(notification);
           } catch (e) {
-            Logger.error('NotificationService: Failed to parse notification: $e');
+            Logger.error('NotificationService', 'Failed to parse notification: $e');
           }
         },
       )
