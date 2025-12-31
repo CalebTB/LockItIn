@@ -590,7 +590,8 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
   ) {
     final dateLabel = DateFormat('EEEE, MMMM d').format(option.startTime);
     final timeLabel = '${DateFormat('h:mm a').format(option.startTime)} to ${DateFormat('h:mm a').format(option.endTime)}';
-    final semanticLabel = 'Option ${index + 1}: $dateLabel, $timeLabel. Tap to edit. ${_timeOptions.length > 1 ? 'Swipe left to delete.' : ''}';
+    final deleteHint = _timeOptions.length > 1 ? 'Use delete button or swipe left to remove.' : '';
+    final semanticLabel = 'Option ${index + 1}: $dateLabel, $timeLabel. $deleteHint';
 
     return Semantics(
       button: true,
@@ -670,11 +671,38 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
                 ),
               ),
 
-              // Edit icon
-              Icon(
-                Icons.edit_outlined,
-                size: 20,
-                color: colorScheme.primary,
+              // Action buttons
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Edit button
+                  IconButton(
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      size: 20,
+                      color: colorScheme.primary,
+                    ),
+                    onPressed: () => _editTimeOption(index, option),
+                    tooltip: 'Edit time option',
+                    padding: const EdgeInsets.all(8),
+                    constraints: const BoxConstraints(),
+                  ),
+                  // Delete button (only show if more than 1 option)
+                  if (_timeOptions.length > 1) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: Icon(
+                        Icons.delete_outline,
+                        size: 20,
+                        color: colorScheme.error,
+                      ),
+                      onPressed: () => _confirmDeleteTimeOption(index),
+                      tooltip: 'Delete time option',
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
@@ -973,6 +1001,37 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
         _timeOptions.removeAt(index);
       });
     }
+  }
+
+  /// Show confirmation dialog before deleting a time option
+  void _confirmDeleteTimeOption(int index) {
+    final option = _timeOptions[index];
+    final dateLabel = DateFormat('EEE, MMM d').format(option.startTime);
+    final timeLabel = '${DateFormat('h:mm a').format(option.startTime)} - ${DateFormat('h:mm a').format(option.endTime)}';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Time Option?'),
+        content: Text('Remove "$dateLabel, $timeLabel" from the proposal?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _removeTimeOption(index);
+            },
+            child: Text(
+              'Delete',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Edit a time option
