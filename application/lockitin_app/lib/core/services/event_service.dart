@@ -57,14 +57,14 @@ class EventService {
     String? supabaseEventId;
 
     try {
-      Logger.info('Creating event: ${event.title}');
+      Logger.info('EventService', 'Creating event: ${event.title}');
 
       // Step 1: Create in native calendar first
       try {
         nativeEventId = await _calendarManager.createEvent(event);
-        Logger.info('Created event in native calendar: $nativeEventId');
+        Logger.info('EventService', 'Created event in native calendar: $nativeEventId');
       } catch (e) {
-        Logger.error('Failed to create event in native calendar: $e');
+        Logger.error('EventService', 'Failed to create event in native calendar', e);
         throw EventServiceException(
           'Failed to save event to your device calendar. Please check calendar permissions.',
         );
@@ -83,33 +83,39 @@ class EventService {
             .select()
             .single();
 
-        supabaseEventId = response['id'] as String;
-        Logger.info('Created event in Supabase: $supabaseEventId');
+        supabaseEventId = response['id'] as String?;
+        if (supabaseEventId == null) {
+          throw EventServiceException('Supabase returned null event ID');
+        }
+        Logger.info('EventService', 'Created event in Supabase: $supabaseEventId');
 
         // Return the complete event with both IDs
         return eventWithNativeId.copyWith(id: supabaseEventId);
       } on PostgrestException catch (e) {
-        Logger.error('Failed to create event in Supabase: $e');
+        Logger.error('EventService', 'Failed to create event in Supabase', e);
 
         // Rollback: Delete from native calendar
-        try {
-          await _calendarManager.deleteEvent(nativeEventId);
-          Logger.info('Rolled back native calendar event: $nativeEventId');
-        } catch (rollbackError) {
-          Logger.error('Failed to rollback native calendar event: $rollbackError');
+        if (nativeEventId != null) {
+          try {
+            await _calendarManager.deleteEvent(nativeEventId);
+            Logger.info('EventService', 'Rolled back native calendar event: $nativeEventId');
+          } catch (rollbackError) {
+            Logger.error('EventService', 'Failed to rollback native calendar event', rollbackError);
+          }
         }
 
         throw _handlePostgrestError(e, nativeEventId: nativeEventId);
       } catch (e) {
-        Logger.error('Failed to create event in Supabase: $e');
+        Logger.error('EventService', 'Failed to create event in Supabase', e);
 
         // Rollback: Delete from native calendar
-        // nativeEventId is guaranteed to be non-null here since Step 1 succeeded
-        try {
-          await _calendarManager.deleteEvent(nativeEventId);
-          Logger.info('Rolled back native calendar event: $nativeEventId');
-        } catch (rollbackError) {
-          Logger.error('Failed to rollback native calendar event: $rollbackError');
+        if (nativeEventId != null) {
+          try {
+            await _calendarManager.deleteEvent(nativeEventId);
+            Logger.info('EventService', 'Rolled back native calendar event: $nativeEventId');
+          } catch (rollbackError) {
+            Logger.error('EventService', 'Failed to rollback native calendar event', rollbackError);
+          }
         }
 
         throw EventServiceException(
@@ -121,7 +127,7 @@ class EventService {
       if (e is EventServiceException) {
         rethrow;
       }
-      Logger.error('Unexpected error creating event: $e');
+      Logger.error('EventService', 'Unexpected error creating event', e);
       throw EventServiceException(
         'An unexpected error occurred while creating the event.',
         nativeEventId: nativeEventId,
@@ -137,7 +143,7 @@ class EventService {
   /// we still update Supabase to keep data in sync
   Future<EventModel> updateEvent(EventModel event) async {
     try {
-      Logger.info('Updating event: ${event.id}');
+      Logger.info('EventService', 'Updating event: ${event.id}');
 
       bool nativeUpdateFailed = false;
 
@@ -145,11 +151,11 @@ class EventService {
       if (event.nativeCalendarId != null) {
         try {
           await _calendarManager.updateEvent(event);
-          Logger.info('Updated event in native calendar');
+          Logger.info('EventService', 'Updated event in native calendar');
         } catch (e) {
           // Native calendar update failed - event might have been deleted externally
           // Continue with Supabase update
-          Logger.warning('Native calendar update failed (event may not exist): $e');
+          Logger.warning('EventService', 'Native calendar update failed (event may not exist): $e');
           nativeUpdateFailed = true;
         }
       }
@@ -161,11 +167,11 @@ class EventService {
             .update(event.toJson())
             .eq('id', event.id);
 
-        Logger.info('Updated event in Supabase');
+        Logger.info('EventService', 'Updated event in Supabase');
       } on PostgrestException catch (e) {
         throw _handlePostgrestError(e, supabaseEventId: event.id);
       } catch (e) {
-        Logger.error('Failed to update event in Supabase: $e');
+        Logger.error('EventService', 'Failed to update event in Supabase', e);
         throw EventServiceException(
           'Failed to sync event changes to cloud: $e',
         );
@@ -173,10 +179,9 @@ class EventService {
 
       // If native update failed but Supabase succeeded, warn but don't fail
       if (nativeUpdateFailed) {
-        Logger.warning(
+        Logger.warning('EventService',
           'Event updated in Supabase but native calendar sync failed. '
-          'The event may have been modified or deleted in Apple Calendar.',
-        );
+          'The event may have been modified or deleted in Apple Calendar.');
       }
 
       return event;
@@ -184,7 +189,7 @@ class EventService {
       throw _handlePostgrestError(e, supabaseEventId: event.id);
     } catch (e) {
       if (e is EventServiceException) rethrow;
-      Logger.error('Failed to update event: $e');
+      Logger.error('EventService', 'Failed to update event', e);
       throw EventServiceException('Failed to update event: $e');
     }
   }
@@ -197,15 +202,15 @@ class EventService {
     final errors = <String>[];
 
     try {
-      Logger.info('Deleting event: ${event.id}');
+      Logger.info('EventService', 'Deleting event: ${event.id}');
 
       // Delete from native calendar
       if (event.nativeCalendarId != null) {
         try {
           await _calendarManager.deleteEvent(event.nativeCalendarId!);
-          Logger.info('Deleted event from native calendar');
+          Logger.info('EventService', 'Deleted event from native calendar');
         } catch (e) {
-          Logger.error('Failed to delete from native calendar: $e');
+          Logger.error('EventService', 'Failed to delete from native calendar', e);
           errors.add('Failed to delete from device calendar');
         }
       }
@@ -217,12 +222,12 @@ class EventService {
             .delete()
             .eq('id', event.id);
 
-        Logger.info('Deleted event from Supabase');
+        Logger.info('EventService', 'Deleted event from Supabase');
       } on PostgrestException catch (e) {
-        Logger.error('Failed to delete from Supabase: ${e.code} - ${e.message}');
+        Logger.error('EventService', 'Failed to delete from Supabase: ${e.code} - ${e.message}');
         errors.add('Failed to delete from cloud: ${e.message}');
       } catch (e) {
-        Logger.error('Failed to delete from Supabase: $e');
+        Logger.error('EventService', 'Failed to delete from Supabase: $e');
         errors.add('Failed to delete from cloud');
       }
 
@@ -237,7 +242,7 @@ class EventService {
       if (e is EventServiceException) {
         rethrow;
       }
-      Logger.error('Unexpected error deleting event: $e');
+      Logger.error('EventService', 'Unexpected error deleting event: $e');
       throw EventServiceException('Failed to delete event: $e');
     }
   }
@@ -254,11 +259,11 @@ class EventService {
       final targetUserId = userId ?? SupabaseClientManager.currentUserId;
 
       if (targetUserId == null) {
-        Logger.warning('No user ID available, skipping Supabase event fetch');
+        Logger.warning('EventService', 'No user ID available, skipping Supabase event fetch');
         return [];
       }
 
-      Logger.info(
+      Logger.info('EventService',
         'Fetching events from Supabase: ${startDate.toIso8601String()} to ${endDate.toIso8601String()}',
       );
 
@@ -273,14 +278,14 @@ class EventService {
           .map((json) => EventModel.fromJson(json as Map<String, dynamic>))
           .toList();
 
-      Logger.info('Fetched ${events.length} events from Supabase');
+      Logger.info('EventService', 'Fetched ${events.length} events from Supabase');
       return events;
     } on PostgrestException catch (e) {
-      Logger.error('Failed to fetch events from Supabase: ${e.code} - ${e.message}');
+      Logger.error('EventService', 'Failed to fetch events from Supabase: ${e.code} - ${e.message}');
       // Don't throw - return empty list to allow app to continue with native events
       return [];
     } catch (e) {
-      Logger.error('Failed to fetch events from Supabase: $e');
+      Logger.error('EventService', 'Failed to fetch events from Supabase: $e');
       // Don't throw - return empty list to allow app to continue with native events
       return [];
     }
@@ -331,15 +336,15 @@ class EventService {
         0,
         (sum, events) => sum + events.length,
       );
-      Logger.info('Fetched $totalEvents total events for group members');
+      Logger.info('EventService', 'Fetched $totalEvents total events for group members');
 
       return eventsByUser;
     } on PostgrestException catch (e) {
-      Logger.error('Failed to fetch group members events: ${e.code} - ${e.message}');
+      Logger.error('EventService', 'Failed to fetch group members events: ${e.code} - ${e.message}');
       // Return empty map to allow app to continue
       return {};
     } catch (e) {
-      Logger.error('Failed to fetch group members events: $e');
+      Logger.error('EventService', 'Failed to fetch group members events: $e');
       // Return empty map to allow app to continue
       return {};
     }
@@ -357,7 +362,7 @@ class EventService {
     required DateTime endDate,
   }) async {
     try {
-      Logger.info(
+      Logger.info('EventService',
         'Fetching shadow calendar for ${memberUserIds.length} members: '
         '${startDate.toIso8601String()} to ${endDate.toIso8601String()}',
       );
@@ -393,15 +398,15 @@ class EventService {
         0,
         (sum, entries) => sum + entries.length,
       );
-      Logger.info('Fetched $totalEntries shadow calendar entries for group');
+      Logger.info('EventService', 'Fetched $totalEntries shadow calendar entries for group');
 
       return entriesByUser;
     } on PostgrestException catch (e) {
-      Logger.error('Failed to fetch shadow calendar: ${e.code} - ${e.message}');
+      Logger.error('EventService', 'Failed to fetch shadow calendar: ${e.code} - ${e.message}');
       // Return empty map to allow app to continue
       return {};
     } catch (e) {
-      Logger.error('Failed to fetch shadow calendar: $e');
+      Logger.error('EventService', 'Failed to fetch shadow calendar: $e');
       // Return empty map to allow app to continue
       return {};
     }
@@ -450,7 +455,7 @@ class EventService {
     String? nativeEventId,
     String? supabaseEventId,
   }) {
-    Logger.error('Supabase error: ${e.code} - ${e.message}');
+    Logger.error('EventService', 'Supabase error: ${e.code} - ${e.message}');
 
     switch (e.code) {
       case '23505': // unique_violation
