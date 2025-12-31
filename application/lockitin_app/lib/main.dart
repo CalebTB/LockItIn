@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'core/network/supabase_client.dart';
 import 'core/utils/logger.dart';
 import 'core/theme/app_theme.dart';
+import 'core/di/service_locator.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/calendar_provider.dart';
 import 'presentation/providers/device_calendar_provider.dart';
@@ -23,6 +24,15 @@ void main() async {
   } catch (e) {
     Logger.error('Failed to initialize Supabase', e);
     // Continue anyway - will show error in UI
+  }
+
+  // Setup dependency injection
+  try {
+    Logger.info('Setting up dependencies...', 'Main');
+    await setupDependencies();
+    Logger.success('Dependencies configured successfully', 'Main');
+  } catch (e) {
+    Logger.error('Failed to setup dependencies', e);
   }
 
   runApp(const LockItInApp());

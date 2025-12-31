@@ -922,4 +922,121 @@ class GroupService {
         );
     }
   }
+
+  // ============================================================================
+  // REAL-TIME SUBSCRIPTIONS
+  // ============================================================================
+
+  /// Subscribe to group invites for the current user
+  RealtimeChannel subscribeToGroupInvites({
+    required void Function(Map<String, dynamic> payload) onNewInvite,
+    required void Function(Map<String, dynamic> payload) onInviteStatusChange,
+  }) {
+    final userId = SupabaseClientManager.currentUserId;
+    if (userId == null) throw GroupServiceException('User not authenticated');
+
+    Logger.info('GroupService', 'Subscribing to group invites for user: $userId');
+
+    return SupabaseClientManager.client.channel('group_invites:$userId')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'group_invites',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'invited_user_id',
+          value: userId,
+        ),
+        callback: (payload) {
+          Logger.info('GroupService', 'New group invite received');
+          onNewInvite(payload.newRecord);
+        },
+      )
+      .onPostgresChanges(
+        event: PostgresChangeEvent.update,
+        schema: 'public',
+        table: 'group_invites',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'invited_user_id',
+          value: userId,
+        ),
+        callback: (payload) {
+          Logger.info('GroupService', 'Group invite status changed');
+          onInviteStatusChange(payload.newRecord);
+        },
+      )
+      .subscribe();
+  }
+
+  /// Subscribe to member changes for a specific group
+  RealtimeChannel subscribeToGroupMembers({
+    required String groupId,
+    required void Function(Map<String, dynamic> payload) onMemberJoined,
+    required void Function(Map<String, dynamic> payload) onMemberLeft,
+  }) {
+    Logger.info('GroupService', 'Subscribing to group members for group: $groupId');
+
+    return SupabaseClientManager.client.channel('group_members:$groupId')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'group_members',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'group_id',
+          value: groupId,
+        ),
+        callback: (payload) {
+          Logger.info('GroupService', 'Member joined group');
+          onMemberJoined(payload.newRecord);
+        },
+      )
+      .onPostgresChanges(
+        event: PostgresChangeEvent.delete,
+        schema: 'public',
+        table: 'group_members',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'group_id',
+          value: groupId,
+        ),
+        callback: (payload) {
+          Logger.info('GroupService', 'Member left group');
+          onMemberLeft(payload.oldRecord);
+        },
+      )
+      .subscribe();
+  }
+
+  /// Subscribe to group updates (name, emoji, settings changes)
+  RealtimeChannel subscribeToGroupUpdates({
+    required String groupId,
+    required void Function(Map<String, dynamic> payload) onGroupUpdated,
+  }) {
+    Logger.info('GroupService', 'Subscribing to group updates for group: $groupId');
+
+    return SupabaseClientManager.client.channel('groups:$groupId')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.update,
+        schema: 'public',
+        table: 'groups',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'id',
+          value: groupId,
+        ),
+        callback: (payload) {
+          Logger.info('GroupService', 'Group updated');
+          onGroupUpdated(payload.newRecord);
+        },
+      )
+      .subscribe();
+  }
+
+  /// Unsubscribe from a channel
+  Future<void> unsubscribe(RealtimeChannel channel) async {
+    await SupabaseClientManager.client.removeChannel(channel);
+    Logger.info('GroupService', 'Unsubscribed from channel');
+  }
 }

@@ -51,7 +51,8 @@
       "Bash(application/lockitin_app/lib/presentation/widgets/month_grid_view.dart )",
       "Bash(application/lockitin_app/lib/presentation/widgets/week_grid_view.dart)",
       "Bash(pkill:*)",
-      "Bash(git -C /Users/calebbyers/Code/LockItIn diff application/lockitin_app/lib/presentation/screens/group_detail/group_detail_screen.dart)"
+      "Bash(git -C /Users/calebbyers/Code/LockItIn diff application/lockitin_app/lib/presentation/screens/group_detail/group_detail_screen.dart)",
+      "mcp__supabase__apply_migration"
     ],
     "deny": [],
     "ask": []

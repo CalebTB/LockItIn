@@ -534,4 +534,84 @@ class FriendService {
         );
     }
   }
+
+  // ============================================================================
+  // REAL-TIME SUBSCRIPTIONS
+  // ============================================================================
+
+  /// Subscribe to friend request updates for the current user
+  /// Receives notifications when:
+  /// - Someone sends a friend request to the user (INSERT with friend_id = userId)
+  /// - A friend request status changes (UPDATE)
+  RealtimeChannel subscribeToFriendRequests({
+    required void Function(Map<String, dynamic> payload) onNewRequest,
+    required void Function(Map<String, dynamic> payload) onRequestStatusChange,
+  }) {
+    final userId = SupabaseClientManager.currentUserId;
+    if (userId == null) throw FriendServiceException('User not authenticated');
+
+    Logger.info('FriendService', 'Subscribing to friend requests for user: $userId');
+
+    return SupabaseClientManager.client.channel('friendships:$userId')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'friendships',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'friend_id',
+          value: userId,
+        ),
+        callback: (payload) {
+          Logger.info('FriendService', 'New friend request received');
+          onNewRequest(payload.newRecord);
+        },
+      )
+      .onPostgresChanges(
+        event: PostgresChangeEvent.update,
+        schema: 'public',
+        table: 'friendships',
+        callback: (payload) {
+          // Check if this update involves the current user
+          final record = payload.newRecord;
+          if (record['user_id'] == userId || record['friend_id'] == userId) {
+            Logger.info('FriendService', 'Friend request status changed');
+            onRequestStatusChange(payload.newRecord);
+          }
+        },
+      )
+      .subscribe();
+  }
+
+  /// Subscribe to friendship deletions (unfriend events)
+  RealtimeChannel subscribeToFriendshipChanges({
+    required void Function(Map<String, dynamic> payload) onFriendRemoved,
+  }) {
+    final userId = SupabaseClientManager.currentUserId;
+    if (userId == null) throw FriendServiceException('User not authenticated');
+
+    Logger.info('FriendService', 'Subscribing to friendship changes for user: $userId');
+
+    return SupabaseClientManager.client.channel('friendships_delete:$userId')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.delete,
+        schema: 'public',
+        table: 'friendships',
+        callback: (payload) {
+          // Check if this deletion involves the current user
+          final record = payload.oldRecord;
+          if (record['user_id'] == userId || record['friend_id'] == userId) {
+            Logger.info('FriendService', 'Friend removed');
+            onFriendRemoved(payload.oldRecord);
+          }
+        },
+      )
+      .subscribe();
+  }
+
+  /// Unsubscribe from a channel
+  Future<void> unsubscribe(RealtimeChannel channel) async {
+    await SupabaseClientManager.client.removeChannel(channel);
+    Logger.info('FriendService', 'Unsubscribed from channel');
+  }
 }

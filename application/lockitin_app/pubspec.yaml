@@ -33,6 +33,9 @@ dependencies:
   uuid: ^4.3.3
   equatable: ^2.0.5
 
+  # Dependency Injection
+  get_it: ^8.0.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

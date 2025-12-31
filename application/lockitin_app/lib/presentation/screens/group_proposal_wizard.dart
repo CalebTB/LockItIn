@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/services/proposal_service.dart';
 import '../../data/models/proposal_time_option.dart';
 
 /// Group Proposal Wizard - 3-step flow for creating event proposals
@@ -1136,9 +1137,19 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
     setState(() => _isSubmitting = true);
 
     try {
-      // TODO: Implement proposal submission via ProposalService
-      // For now, simulate a network delay
-      await Future.delayed(const Duration(seconds: 1));
+      // Create proposal via ProposalService
+      await ProposalService.instance.createProposal(
+        groupId: widget.groupId,
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim().isEmpty
+            ? null
+            : _descriptionController.text.trim(),
+        location: _locationController.text.trim().isEmpty
+            ? null
+            : _locationController.text.trim(),
+        votingDeadline: _votingDeadline,
+        timeOptions: _timeOptions,
+      );
 
       if (!mounted) return;
 
@@ -1150,8 +1161,8 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
         ),
       );
 
-      // Navigate back
-      Navigator.of(context).pop();
+      // Navigate back with success result
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
 
