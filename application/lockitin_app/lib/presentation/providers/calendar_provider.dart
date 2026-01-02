@@ -114,6 +114,20 @@ class CalendarProvider extends ChangeNotifier {
     _currentPageIndex = todayMonthIndex;
   }
 
+  /// Reset all state (call on logout to prevent data leaks between accounts)
+  void reset() {
+    _eventsByDate.clear();
+    _eventIndicatorsCache.clear();
+    _upcomingEventsCache = null;
+    _upcomingEventsCacheTime = null;
+    _eventLoadError = null;
+    _isLoadingEvents = false;
+    _focusedDate = DateTime.now();
+    _initializeMonths();
+    notifyListeners();
+    Logger.info('CalendarProvider', 'State reset for logout');
+  }
+
   /// Navigate to today's month
   void goToToday() {
     _focusedDate = DateTime.now();
@@ -170,7 +184,7 @@ class CalendarProvider extends ChangeNotifier {
       if (TestEventsService.enableTestEvents) {
         final testEvents = TestEventsService.generateTestEvents();
         allEvents.addAll(testEvents);
-        Logger.info('Loaded ${testEvents.length} test events');
+        Logger.info('CalendarProvider', 'Loaded ${testEvents.length} test events');
       }
 
       // Fetch events from Supabase (user-specific, RLS-protected)
@@ -179,7 +193,7 @@ class CalendarProvider extends ChangeNotifier {
         endDate: endDate,
       );
       allEvents.addAll(supabaseEvents);
-      Logger.info('Loaded ${supabaseEvents.length} events from Supabase');
+      Logger.info('CalendarProvider', 'Loaded ${supabaseEvents.length} events from Supabase');
 
       // Track native calendar IDs from Supabase to avoid duplicates
       final nativeCalendarIds = supabaseEvents
@@ -204,12 +218,12 @@ class CalendarProvider extends ChangeNotifier {
         }).toList();
 
         allEvents.addAll(newNativeEvents);
-        Logger.info(
+        Logger.info('CalendarProvider',
           'Loaded ${newNativeEvents.length} new events from native calendar '
           '(${nativeEvents.length - newNativeEvents.length} duplicates filtered)',
         );
       } else {
-        Logger.info('Calendar permission not granted, showing Supabase events only');
+        Logger.info('CalendarProvider', 'Calendar permission not granted, showing Supabase events only');
       }
 
       // Index all events (Supabase + native calendar events) by date
@@ -218,7 +232,7 @@ class CalendarProvider extends ChangeNotifier {
       _isLoadingEvents = false;
       notifyListeners();
     } catch (e) {
-      Logger.error('Failed to load events: $e');
+      Logger.error('CalendarProvider', 'Failed to load events: $e');
       _eventLoadError = e.toString();
       _isLoadingEvents = false;
       notifyListeners();

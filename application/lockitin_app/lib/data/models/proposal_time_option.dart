@@ -1,34 +1,71 @@
+import 'vote_model.dart';
+
 /// Represents a time option for a group proposal
 /// Users vote on multiple time options to find the best meeting time
 class ProposalTimeOption {
   final String? id;
+  final String? proposalId;
   final DateTime startTime;
   final DateTime endTime;
-  final int voteCount;
+  final int optionOrder;
+
+  // Vote counts (from vote summary)
+  final int yesCount;
+  final int maybeCount;
+  final int noCount;
+
+  // UI state
   final bool isSelected;
+
+  // User's vote on this option (if any)
+  final VoteType? userVote;
 
   const ProposalTimeOption({
     this.id,
+    this.proposalId,
     required this.startTime,
     required this.endTime,
-    this.voteCount = 0,
+    this.optionOrder = 1,
+    this.yesCount = 0,
+    this.maybeCount = 0,
+    this.noCount = 0,
     this.isSelected = false,
+    this.userVote,
   });
+
+  /// Total number of votes cast on this option
+  int get totalVotes => yesCount + maybeCount + noCount;
+
+  /// Legacy getter for backward compatibility
+  int get voteCount => yesCount;
+
+  /// Weighted score for ranking (yes=2, maybe=1, no=0)
+  int get score => (yesCount * 2) + maybeCount;
 
   /// Create a copy with modified fields
   ProposalTimeOption copyWith({
     String? id,
+    String? proposalId,
     DateTime? startTime,
     DateTime? endTime,
-    int? voteCount,
+    int? optionOrder,
+    int? yesCount,
+    int? maybeCount,
+    int? noCount,
     bool? isSelected,
+    VoteType? userVote,
   }) {
     return ProposalTimeOption(
       id: id ?? this.id,
+      proposalId: proposalId ?? this.proposalId,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
-      voteCount: voteCount ?? this.voteCount,
+      optionOrder: optionOrder ?? this.optionOrder,
+      yesCount: yesCount ?? this.yesCount,
+      maybeCount: maybeCount ?? this.maybeCount,
+      noCount: noCount ?? this.noCount,
       isSelected: isSelected ?? this.isSelected,
+      userVote: userVote ?? this.userVote,
     );
   }
 
@@ -40,29 +77,57 @@ class ProposalTimeOption {
     return startTime.isBefore(other.endTime) && endTime.isAfter(other.startTime);
   }
 
-  /// Convert to JSON for API
+  /// Convert to JSON for API (insert/update)
   Map<String, dynamic> toJson() {
     return {
       if (id != null) 'id': id,
+      if (proposalId != null) 'proposal_id': proposalId,
       'start_time': startTime.toIso8601String(),
       'end_time': endTime.toIso8601String(),
-      'vote_count': voteCount,
+      'option_order': optionOrder,
     };
   }
 
-  /// Create from JSON
+  /// Convert to JSON for creating proposals (minimal data)
+  Map<String, dynamic> toCreateJson() {
+    return {
+      'start_time': startTime.toIso8601String(),
+      'end_time': endTime.toIso8601String(),
+    };
+  }
+
+  /// Create from JSON (database response)
   factory ProposalTimeOption.fromJson(Map<String, dynamic> json) {
     return ProposalTimeOption(
       id: json['id'] as String?,
+      proposalId: json['proposal_id'] as String?,
       startTime: DateTime.parse(json['start_time'] as String),
       endTime: DateTime.parse(json['end_time'] as String),
-      voteCount: json['vote_count'] as int? ?? 0,
+      optionOrder: json['option_order'] as int? ?? 1,
+      yesCount: json['yes_count'] as int? ?? 0,
+      maybeCount: json['maybe_count'] as int? ?? 0,
+      noCount: json['no_count'] as int? ?? 0,
+      userVote: json['user_vote'] != null
+          ? VoteType.fromString(json['user_vote'] as String)
+          : null,
+    );
+  }
+
+  /// Create from vote summary RPC response
+  factory ProposalTimeOption.fromVoteSummary(Map<String, dynamic> json) {
+    return ProposalTimeOption(
+      id: json['time_option_id'] as String,
+      startTime: DateTime.parse(json['start_time'] as String),
+      endTime: DateTime.parse(json['end_time'] as String),
+      yesCount: json['yes_count'] as int? ?? 0,
+      maybeCount: json['maybe_count'] as int? ?? 0,
+      noCount: json['no_count'] as int? ?? 0,
     );
   }
 
   @override
   String toString() {
-    return 'ProposalTimeOption(startTime: $startTime, endTime: $endTime, voteCount: $voteCount)';
+    return 'ProposalTimeOption(startTime: $startTime, endTime: $endTime, yes: $yesCount, maybe: $maybeCount, no: $noCount)';
   }
 
   @override

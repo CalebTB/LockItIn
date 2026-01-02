@@ -274,3 +274,62 @@ class FriendRequest extends Equatable with UserDisplayMixin {
   List<Object?> get props =>
       [requestId, requesterId, fullName, email, avatarUrl, requestedAt];
 }
+
+/// Availability status for a friend
+enum AvailabilityStatus {
+  free,    // No events in the next hour
+  busy,    // Currently in an event or event starting within 15 minutes
+  unknown, // Friend's calendar not shared
+}
+
+/// Model for friend availability status
+class FriendAvailability extends Equatable {
+  final String friendId;
+  final AvailabilityStatus status;
+  final DateTime? busyUntil;
+
+  const FriendAvailability({
+    required this.friendId,
+    required this.status,
+    this.busyUntil,
+  });
+
+  /// Create from Supabase get_friends_availability function result
+  factory FriendAvailability.fromJson(Map<String, dynamic> json) {
+    return FriendAvailability(
+      friendId: json['friend_id'] as String,
+      status: _statusFromString(json['status'] as String),
+      busyUntil: json['busy_until'] != null
+          ? DateTime.parse(json['busy_until'] as String)
+          : null,
+    );
+  }
+
+  /// Convert string to status enum
+  static AvailabilityStatus _statusFromString(String status) {
+    switch (status.toLowerCase()) {
+      case 'free':
+        return AvailabilityStatus.free;
+      case 'busy':
+        return AvailabilityStatus.busy;
+      case 'unknown':
+      default:
+        return AvailabilityStatus.unknown;
+    }
+  }
+
+  /// Convert status to display string
+  String get statusLabel {
+    switch (status) {
+      case AvailabilityStatus.free:
+        return 'Free';
+      case AvailabilityStatus.busy:
+        return 'Busy';
+      case AvailabilityStatus.unknown:
+        return 'Unknown';
+    }
+  }
+
+  @override
+  List<Object?> get props => [friendId, status, busyUntil];
+}

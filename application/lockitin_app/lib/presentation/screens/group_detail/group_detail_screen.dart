@@ -1,8 +1,5 @@
-import 'dart:io' show Platform;
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../core/network/supabase_client.dart';
 import '../../../core/theme/app_colors.dart';
@@ -12,7 +9,6 @@ import '../../../core/services/event_service.dart';
 import '../../../core/services/availability_calculator_service.dart';
 import '../../../core/utils/time_filter_utils.dart';
 import '../../providers/group_provider.dart';
-import '../../providers/calendar_provider.dart';
 import '../../widgets/group_calendar_legend.dart';
 import '../../widgets/group_members_sheet.dart';
 import '../../widgets/group_filters_sheet.dart';
@@ -45,71 +41,49 @@ class GroupDetailScreen extends StatefulWidget {
 }
 
 class _GroupDetailScreenState extends State<GroupDetailScreen> {
-  // Colors are now accessed via Theme.of(context).colorScheme and context.appColors
-  // No more hardcoded color constants
-
-  // Availability calculation service
   final _availabilityService = AvailabilityCalculatorService();
 
-  // View mode toggle (Month vs Day view)
   GroupCalendarViewMode _viewMode = GroupCalendarViewMode.month;
-
-  // Day view style toggle - allows switching between new timeline and classic sheet
-  // Default to timeline, but can be changed for A/B testing
   DayViewStyle _dayViewStyle = DayViewStyle.timeline;
 
   late DateTime _focusedMonth;
-  DateTime? _selectedDate; // Full date for day view
-  int? _selectedDay; // Day number for month view selection (for classic mode)
+  DateTime? _selectedDate;
+  int? _selectedDay;
   late PageController _pageController;
   Set<TimeFilter> _selectedTimeFilters = {TimeFilter.allDay};
   DateTimeRange? _selectedDateRange;
 
-  // Custom time range (used when allDay/Custom is selected)
   TimeOfDay _customStartTime = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _customEndTime = const TimeOfDay(hour: 17, minute: 0);
 
-  // Group members' events for availability calculation
   Map<String, List<EventModel>> _memberEvents = {};
   bool _isLoadingMemberEvents = false;
   String? _memberEventsError;
 
-  // Availability cache for performance (Issue #100)
-  // Key format: 'YYYY-MM-DD', Value: number of available members
   final Map<String, int> _availabilityCache = {};
 
   @override
   void initState() {
     super.initState();
     _focusedMonth = DateTime.now();
-    _pageController = PageController(initialPage: 12); // Start at current month
+    _pageController = PageController(initialPage: 12);
 
-    // Load group members and their events
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeGroupData();
     });
   }
 
-  /// Initialize group data - load members, then their events
   Future<void> _initializeGroupData() async {
     final groupProvider = context.read<GroupProvider>();
-
-    // Wait for group selection and member loading to complete
     await groupProvider.selectGroup(widget.group.id);
-
-    // Now load member events
     await _loadMemberEvents();
   }
 
-  /// Load shadow calendar entries for all group members
-  /// Uses the privacy-respecting shadow calendar system
   Future<void> _loadMemberEvents() async {
     final groupProvider = context.read<GroupProvider>();
     final members = groupProvider.selectedGroupMembers;
 
-    if (members.isEmpty) {
-      return;
-    }
+    if (members.isEmpty) return;
 
     setState(() {
       _isLoadingMemberEvents = true;
@@ -118,8 +92,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
     try {
       final memberIds = members.map((m) => m.userId).toList();
-
-      // Fetch events for 2 months before and after current month
       final now = DateTime.now();
       final startDate = DateTime(now.year, now.month - 2, 1);
       final endDate = DateTime(now.year, now.month + 3, 0);
@@ -137,7 +109,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           _memberEvents = events;
           _isLoadingMemberEvents = false;
           _memberEventsError = null;
-          _clearAvailabilityCache(); // Clear cache when member events change
+          _clearAvailabilityCache();
         });
       }
     } catch (e) {
@@ -146,33 +118,32 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           _isLoadingMemberEvents = false;
           _memberEventsError = 'Failed to load member availability';
         });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Could not load group availability'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            action: SnackBarAction(
-              label: 'Retry',
-              textColor: Colors.white,
-              onPressed: _loadMemberEvents,
-            ),
-          ),
-        );
+        _showErrorSnackBar('Could not load group availability');
       }
     }
   }
 
-  /// Calculate how many group members are available on a specific date
-  /// Uses memoization cache to avoid recalculating 42 times per build (Issue #100)
-  int _getAvailabilityForDay(CalendarProvider calendarProvider, DateTime date) {
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+        action: SnackBarAction(
+          label: 'Retry',
+          textColor: Colors.white,
+          onPressed: _loadMemberEvents,
+        ),
+      ),
+    );
+  }
+
+  int _getAvailabilityForDay(DateTime date) {
     final key = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
-    // Return cached value if available
     if (_availabilityCache.containsKey(key)) {
       return _availabilityCache[key]!;
     }
 
-    // Calculate and cache the result
     final result = _availabilityService.calculateGroupAvailability(
       memberEvents: _memberEvents,
       date: date,
@@ -185,49 +156,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     return result;
   }
 
-  /// Clear availability cache when filters or data change
-  void _clearAvailabilityCache() {
-    _availabilityCache.clear();
-  }
+  void _clearAvailabilityCache() => _availabilityCache.clear();
 
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
-  }
-
-  /// Get background color for heatmap cell based on availability ratio
-  /// Uses Minimal theme: emerald for available, grayscale for unavailable
-  Color _getHeatmapBackgroundColor(int available, int total, Brightness brightness) {
-    if (total == 0) {
-      return brightness == Brightness.dark
-          ? AppColors.neutral900
-          : AppColors.gray100;
-    }
-
-    final ratio = available / total;
-    return AppColors.getAvailabilityColor(ratio, brightness);
-  }
-
-  /// Get text color for heatmap cell
-  Color _getHeatmapTextColor(int available, int total, Brightness brightness) {
-    if (total == 0) {
-      return brightness == Brightness.dark
-          ? AppColors.neutral500
-          : AppColors.gray500;
-    }
-
-    final ratio = available / total;
-    return AppColors.getAvailabilityTextColor(ratio, brightness);
-  }
-
-  /// Get dot color for heatmap cell based on availability ratio
-  /// Uses 5-tier semantic colors: green → lime → yellow → orange → red
-  /// This enables progressive disclosure - dots at a glance, details on tap
-  Color _getHeatmapDotColor(int available, int total) {
-    if (total == 0) return AppColors.neutral400;
-    final ratio = available / total;
-    return AppColors.getAvailabilityDotColor(ratio);
   }
 
   void _previousMonth() {
@@ -244,34 +178,178 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
+  /// Jump to a specific month, keeping PageController and _focusedMonth in sync
+  void _jumpToMonth(DateTime targetMonth) {
+    // If in day view mode, just update _focusedMonth directly
+    // (PageController is only attached in month view)
+    if (_viewMode == GroupCalendarViewMode.day) {
+      setState(() {
+        _focusedMonth = DateTime(targetMonth.year, targetMonth.month);
+      });
+      return;
+    }
+
+    final now = DateTime.now();
+    final monthDiff = (targetMonth.year - now.year) * 12 + (targetMonth.month - now.month);
+    final targetPage = 12 + monthDiff;
+
+    // Clamp to valid page range [0, 23]
+    if (targetPage >= 0 && targetPage < 24) {
+      _pageController.jumpToPage(targetPage);
+      // _focusedMonth will be updated via onPageChanged callback
+    }
+  }
+
+  void _switchToDayView(DateTime date) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _viewMode = GroupCalendarViewMode.day;
+      _selectedDate = date;
+      _selectedDay = date.day;
+      // Keep focusedMonth in sync with the date being viewed
+      _focusedMonth = DateTime(date.year, date.month);
+    });
+  }
+
+  void _switchToMonthView() {
+    HapticFeedback.selectionClick();
+
+    // Determine target month BEFORE setState
+    // Use selectedDate's month if available, otherwise keep current focusedMonth
+    final DateTime targetMonth;
+    if (_selectedDate != null) {
+      targetMonth = DateTime(_selectedDate!.year, _selectedDate!.month);
+    } else {
+      targetMonth = _focusedMonth;
+    }
+
+    setState(() {
+      _viewMode = GroupCalendarViewMode.month;
+      // Update focusedMonth immediately to match the date we're showing
+      _focusedMonth = targetMonth;
+      if (_selectedDate != null) {
+        _selectedDay = _selectedDate!.day;
+      }
+    });
+
+    // Jump PageController to correct page AFTER rebuild
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_pageController.hasClients) {
+        _jumpToMonth(targetMonth);
+      }
+    });
+  }
+
+  void _handleViewModeChanged(GroupCalendarViewMode mode) {
+    if (mode == GroupCalendarViewMode.day) {
+      // Use selectedDate if available, otherwise use a day in the focused month
+      // (not DateTime.now() which would jump to current month)
+      final dateToShow = _selectedDate ??
+          DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDay ?? 1);
+      _switchToDayView(dateToShow);
+    } else {
+      _switchToMonthView();
+    }
+  }
+
+  void _handleDayViewStyleToggle() {
+    HapticFeedback.selectionClick();
+    final wasTimeline = _dayViewStyle == DayViewStyle.timeline;
+    final wasInDayView = _viewMode == GroupCalendarViewMode.day;
+
+    // Determine the target month BEFORE setState
+    // If coming from day view, use selectedDate; otherwise use focusedMonth
+    final DateTime targetMonth;
+    if (wasTimeline && wasInDayView && _selectedDate != null) {
+      targetMonth = DateTime(_selectedDate!.year, _selectedDate!.month);
+    } else {
+      targetMonth = DateTime(_focusedMonth.year, _focusedMonth.month);
+    }
+
+    setState(() {
+      _dayViewStyle = wasTimeline ? DayViewStyle.classic : DayViewStyle.timeline;
+      _viewMode = GroupCalendarViewMode.month;
+
+      if (wasTimeline && wasInDayView && _selectedDate != null) {
+        // Coming from timeline day view - use selectedDate as source of truth
+        _selectedDay = _selectedDate!.day;
+      } else {
+        // Coming from month view - sync selectedDate to match focusedMonth
+        final day = _selectedDay ?? 1;
+        _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+      }
+    });
+
+    // ALWAYS jump PageController to correct page AFTER new PageView is built
+    // This is critical because PageController may reset to initialPage during widget rebuild
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_pageController.hasClients) {
+        _jumpToMonth(targetMonth);
+      }
+    });
+
+    _showSnackBar(
+      _dayViewStyle == DayViewStyle.timeline
+          ? 'Switched to Timeline day view'
+          : 'Switched to Classic day view',
+    );
+  }
+
+  void _showSnackBar(String message) {
+    final colorScheme = Theme.of(context).colorScheme;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final appColors = context.appColors;
 
-    // Classic mode uses Stack with bottom sheet overlay
     if (_dayViewStyle == DayViewStyle.classic) {
       return _buildClassicLayout(colorScheme, appColors);
     }
 
-    // Timeline mode uses Column with view toggle
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      floatingActionButton: _buildProposeFAB(colorScheme),
+      floatingActionButton: ProposeFAB(
+        groupName: widget.group.name,
+        onPressed: () => _showProposeEventFlow(context),
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(context, colorScheme),
-            if (_memberEventsError != null) _buildErrorBanner(colorScheme, appColors),
-
-            // View mode toggle (Month / Day) - only in timeline mode
-            _buildViewModeToggle(colorScheme, appColors),
-
-            // Conditional content based on view mode
+            GroupDetailHeader(
+              group: widget.group,
+              selectedDateRange: _selectedDateRange,
+              selectedTimeFilters: _selectedTimeFilters,
+              onBackPressed: () => Navigator.of(context).pop(),
+              onFilterPressed: () => _showFiltersSheet(context),
+              onMembersPressed: () => _showMembersSheet(context),
+              onSettingsPressed: () => _showSettingsSheet(context),
+            ),
+            if (_memberEventsError != null)
+              ErrorBanner(
+                errorMessage: _memberEventsError,
+                onRetry: _loadMemberEvents,
+              ),
+            ViewModeToggle(
+              viewMode: _viewMode,
+              dayViewStyle: _dayViewStyle,
+              onViewModeChanged: _handleViewModeChanged,
+              onDayViewStyleToggle: _handleDayViewStyleToggle,
+            ),
             Expanded(
               child: _viewMode == GroupCalendarViewMode.month
                   ? _buildMonthView(colorScheme, appColors)
-                  : _buildDayView(colorScheme, appColors),
+                  : _buildDayView(),
             ),
           ],
         ),
@@ -279,41 +357,69 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  /// Classic layout with month view and bottom sheet overlay
   Widget _buildClassicLayout(ColorScheme colorScheme, AppColorsExtension appColors) {
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      floatingActionButton: _buildProposeFAB(colorScheme),
+      floatingActionButton: ProposeFAB(
+        groupName: widget.group.name,
+        onPressed: () => _showProposeEventFlow(context),
+      ),
       body: SafeArea(
         child: Stack(
           children: [
             Column(
               children: [
-                _buildHeader(context, colorScheme),
-                if (_memberEventsError != null) _buildErrorBanner(colorScheme, appColors),
-                // Classic mode toggle bar
-                _buildClassicModeToggleBar(colorScheme, appColors),
-                _buildMonthNavigation(colorScheme),
+                GroupDetailHeader(
+                  group: widget.group,
+                  selectedDateRange: _selectedDateRange,
+                  selectedTimeFilters: _selectedTimeFilters,
+                  onBackPressed: () => Navigator.of(context).pop(),
+                  onFilterPressed: () => _showFiltersSheet(context),
+                  onMembersPressed: () => _showMembersSheet(context),
+                  onSettingsPressed: () => _showSettingsSheet(context),
+                ),
+                if (_memberEventsError != null)
+                  ErrorBanner(
+                    errorMessage: _memberEventsError,
+                    onRetry: _loadMemberEvents,
+                  ),
+                ClassicModeToggleBar(
+                  onSwitchToTimeline: () {
+                    HapticFeedback.selectionClick();
+
+                    // Capture focusedMonth before setState (PageController may lose position during rebuild)
+                    final targetMonth = DateTime(_focusedMonth.year, _focusedMonth.month);
+
+                    setState(() {
+                      _dayViewStyle = DayViewStyle.timeline;
+                      _viewMode = GroupCalendarViewMode.month;
+
+                      // Sync selectedDate to match the current focusedMonth
+                      final day = _selectedDay ?? 1;
+                      _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+                    });
+
+                    // Jump PageController to correct page AFTER new PageView is built
+                    // This is needed because PageController may reset to initialPage during widget rebuild
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (_pageController.hasClients) {
+                        _jumpToMonth(targetMonth);
+                      }
+                    });
+
+                    _showSnackBar('Switched to Timeline day view');
+                  },
+                ),
+                MonthNavigation(
+                  focusedMonth: _focusedMonth,
+                  onPreviousMonth: _previousMonth,
+                  onNextMonth: _nextMonth,
+                ),
                 Expanded(
                   child: SingleChildScrollView(
                     child: Column(
                       children: [
-                        GroupBestDaysSection(
-                          focusedMonth: _focusedMonth,
-                          selectedTimeFilters: _selectedTimeFilters,
-                          customStartTime: _customStartTime,
-                          customEndTime: _customEndTime,
-                          getBestDaysForFilters: (filters) =>
-                              _getBestDaysForFilters(
-                                context.read<CalendarProvider>(),
-                                filters,
-                              ),
-                          onDaySelected: (day) =>
-                              setState(() => _selectedDay = day),
-                          getAvailabilityForDay: _getAvailabilityForDate,
-                          getTotalMembers: _getTotalMemberCount,
-                          getUnavailableMembersForDay: _getUnavailableMembersForDate,
-                        ),
+                        _buildBestDaysSection(),
                         const GroupCalendarLegend(),
                         SizedBox(
                           height: 380,
@@ -326,14 +432,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 ),
               ],
             ),
-
-            // Classic day detail bottom sheet
             if (_selectedDay != null) ...[
               GestureDetector(
                 onTap: () => setState(() => _selectedDay = null),
-                child: Container(
-                  color: Colors.black.withValues(alpha: 0.6),
-                ),
+                child: Container(color: Colors.black.withValues(alpha: 0.6)),
               ),
               DayDetailSheet(
                 date: DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDay ?? 1),
@@ -353,146 +455,44 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  /// Toggle bar for classic mode to switch to timeline mode
-  Widget _buildClassicModeToggleBar(ColorScheme colorScheme, AppColorsExtension appColors) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outline.withValues(alpha: 0.2),
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          // Label showing current mode
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.calendar_view_day_outlined,
-                  size: 14,
-                  color: appColors.textMuted,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Classic View',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: appColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          // Switch to timeline button
-          Semantics(
-            button: true,
-            label: 'Switch to timeline day view',
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                setState(() {
-                  _dayViewStyle = DayViewStyle.timeline;
-                  _viewMode = GroupCalendarViewMode.month;
-                  _selectedDay = null;
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Switched to Timeline day view'),
-                    backgroundColor: colorScheme.primary,
-                    behavior: SnackBarBehavior.floating,
-                    duration: const Duration(seconds: 2),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.view_agenda_outlined,
-                      size: 14,
-                      color: colorScheme.primary,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Try Timeline',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Build the month view with heatmap calendar
   Widget _buildMonthView(ColorScheme colorScheme, AppColorsExtension appColors) {
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Month navigation
-          _buildMonthNavigation(colorScheme),
-
-          // Best Days section at TOP - most actionable info (#174)
-          GroupBestDaysSection(
+          MonthNavigation(
             focusedMonth: _focusedMonth,
-            selectedTimeFilters: _selectedTimeFilters,
-            customStartTime: _customStartTime,
-            customEndTime: _customEndTime,
-            getBestDaysForFilters: (filters) =>
-                _getBestDaysForFilters(
-                  context.read<CalendarProvider>(),
-                  filters,
-                ),
-            onDaySelected: (day) => _switchToDayView(
-              DateTime(_focusedMonth.year, _focusedMonth.month, day),
-            ),
-            getAvailabilityForDay: _getAvailabilityForDate,
-            getTotalMembers: _getTotalMemberCount,
-            getUnavailableMembersForDay: _getUnavailableMembersForDate,
+            onPreviousMonth: _previousMonth,
+            onNextMonth: _nextMonth,
           ),
-
-          // Calendar legend and heatmap
+          _buildBestDaysSection(),
           const GroupCalendarLegend(),
           SizedBox(
             height: 380,
             child: _buildCalendarPageView(),
           ),
-          const SizedBox(height: 80), // Space for FAB
+          const SizedBox(height: 80),
         ],
       ),
     );
   }
 
-  /// Build the day view with hour-by-hour timeline
-  Widget _buildDayView(ColorScheme colorScheme, AppColorsExtension appColors) {
+  Widget _buildBestDaysSection() {
+    return GroupBestDaysSection(
+      focusedMonth: _focusedMonth,
+      selectedTimeFilters: _selectedTimeFilters,
+      customStartTime: _customStartTime,
+      customEndTime: _customEndTime,
+      getBestDaysForFilters: (filters) => _getBestDaysForFilters(filters),
+      onDaySelected: (day) => _dayViewStyle == DayViewStyle.classic
+          ? setState(() => _selectedDay = day)
+          : _switchToDayView(DateTime(_focusedMonth.year, _focusedMonth.month, day)),
+      getAvailabilityForDay: _getAvailabilityForDay,
+      getTotalMembers: _getTotalMemberCount,
+      getUnavailableMembersForDay: _getUnavailableMembersForDate,
+    );
+  }
+
+  Widget _buildDayView() {
     return GroupDayTimelineView(
       selectedDate: _selectedDate ?? DateTime.now(),
       focusedMonth: _focusedMonth,
@@ -503,436 +503,102 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       availabilityService: _availabilityService,
       groupId: widget.group.id,
       groupName: widget.group.name,
-      onSwitchToMonthView: () => _switchToMonthView(),
+      onSwitchToMonthView: _switchToMonthView,
       onDateChanged: (date) {
         setState(() {
           _selectedDate = date;
-          // Update focused month if needed
+          // If month changed, jump PageController to keep it in sync
           if (date.month != _focusedMonth.month || date.year != _focusedMonth.year) {
-            _focusedMonth = DateTime(date.year, date.month);
+            _jumpToMonth(DateTime(date.year, date.month));
           }
         });
       },
     );
   }
 
-  /// Switch to day view for a specific date
-  void _switchToDayView(DateTime date) {
-    HapticFeedback.selectionClick();
-    setState(() {
-      _viewMode = GroupCalendarViewMode.day;
-      _selectedDate = date;
-      _selectedDay = date.day;
-    });
-  }
-
-  /// Switch back to month view, preserving context
-  void _switchToMonthView() {
-    HapticFeedback.selectionClick();
-    setState(() {
-      _viewMode = GroupCalendarViewMode.month;
-      // Sync month view to show the selected date's month
-      if (_selectedDate != null) {
-        _focusedMonth = DateTime(_selectedDate!.year, _selectedDate!.month);
-        _selectedDay = _selectedDate!.day;
-
-        // Calculate the page offset from current month and jump to it
-        final now = DateTime.now();
-        final monthDiff = (_selectedDate!.year - now.year) * 12 +
-                          (_selectedDate!.month - now.month);
-        final targetPage = 12 + monthDiff; // 12 is the initial page (current month)
-
-        // Jump to the correct page after the frame renders
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_pageController.hasClients) {
-            _pageController.jumpToPage(targetPage);
-          }
+  Widget _buildCalendarPageView() {
+    return PageView.builder(
+      controller: _pageController,
+      onPageChanged: (index) {
+        final monthOffset = index - 12;
+        setState(() {
+          _focusedMonth = DateTime(
+            DateTime.now().year,
+            DateTime.now().month + monthOffset,
+          );
         });
-      }
-    });
-  }
-
-  /// Platform-adaptive view mode toggle
-  Widget _buildViewModeToggle(ColorScheme colorScheme, AppColorsExtension appColors) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outline.withValues(alpha: 0.2),
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Platform.isIOS
-                ? _buildCupertinoSegmentedControl(colorScheme)
-                : _buildMaterialSegmentedButton(colorScheme, appColors),
-          ),
-          const SizedBox(width: 8),
-          // Day view style toggle (A/B testing)
-          Semantics(
-            button: true,
-            label: _dayViewStyle == DayViewStyle.timeline
-                ? 'Switch to classic day view'
-                : 'Switch to timeline day view',
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                setState(() {
-                  _dayViewStyle = _dayViewStyle == DayViewStyle.timeline
-                      ? DayViewStyle.classic
-                      : DayViewStyle.timeline;
-                  // Reset view mode when switching styles
-                  _viewMode = GroupCalendarViewMode.month;
-                  _selectedDay = null;
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      _dayViewStyle == DayViewStyle.timeline
-                          ? 'Switched to Timeline day view'
-                          : 'Switched to Classic day view',
-                    ),
-                    backgroundColor: colorScheme.primary,
-                    behavior: SnackBarBehavior.floating,
-                    duration: const Duration(seconds: 2),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  _dayViewStyle == DayViewStyle.timeline
-                      ? Icons.view_agenda_outlined // Shows timeline is active
-                      : Icons.calendar_view_day_outlined, // Shows classic is active
-                  size: 18,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCupertinoSegmentedControl(ColorScheme colorScheme) {
-    return SizedBox(
-      width: double.infinity,
-      child: CupertinoSlidingSegmentedControl<GroupCalendarViewMode>(
-        groupValue: _viewMode,
-        backgroundColor: colorScheme.surfaceContainerHigh,
-        thumbColor: colorScheme.surface,
-        onValueChanged: (value) {
-          if (value != null) {
-            HapticFeedback.selectionClick();
-            if (value == GroupCalendarViewMode.day) {
-              _switchToDayView(_selectedDate ?? DateTime.now());
-            } else {
-              _switchToMonthView();
-            }
-          }
-        },
-        children: {
-          GroupCalendarViewMode.month: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.calendar_view_month_rounded,
-                  size: 16,
-                  color: _viewMode == GroupCalendarViewMode.month
-                      ? colorScheme.onSurface
-                      : colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Month',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: _viewMode == GroupCalendarViewMode.month
-                        ? FontWeight.w600
-                        : FontWeight.w400,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          GroupCalendarViewMode.day: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.view_day_rounded,
-                  size: 16,
-                  color: _viewMode == GroupCalendarViewMode.day
-                      ? colorScheme.onSurface
-                      : colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Day',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: _viewMode == GroupCalendarViewMode.day
-                        ? FontWeight.w600
-                        : FontWeight.w400,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        },
-      ),
-    );
-  }
-
-  Widget _buildMaterialSegmentedButton(
-    ColorScheme colorScheme,
-    AppColorsExtension appColors,
-  ) {
-    return SegmentedButton<GroupCalendarViewMode>(
-      segments: const [
-        ButtonSegment<GroupCalendarViewMode>(
-          value: GroupCalendarViewMode.month,
-          label: Text('Month'),
-          icon: Icon(Icons.calendar_view_month_rounded, size: 18),
-        ),
-        ButtonSegment<GroupCalendarViewMode>(
-          value: GroupCalendarViewMode.day,
-          label: Text('Day'),
-          icon: Icon(Icons.view_day_rounded, size: 18),
-        ),
-      ],
-      selected: {_viewMode},
-      onSelectionChanged: (selection) {
-        final newMode = selection.first;
-        if (newMode == GroupCalendarViewMode.day) {
-          _switchToDayView(_selectedDate ?? DateTime.now());
-        } else {
-          _switchToMonthView();
-        }
       },
-      style: const ButtonStyle(
-        visualDensity: VisualDensity.compact,
-      ),
+      itemCount: 24,
+      itemBuilder: (context, pageIndex) {
+        final monthOffset = pageIndex - 12;
+        final month = DateTime(
+          DateTime.now().year,
+          DateTime.now().month + monthOffset,
+        );
+        return GroupCalendarGrid(
+          month: month,
+          selectedDate: _selectedDate,
+          selectedDateRange: _selectedDateRange,
+          dayViewStyle: _dayViewStyle,
+          isLoadingMemberEvents: _isLoadingMemberEvents,
+          getAvailabilityForDay: _getAvailabilityForDay,
+          onDayTapped: _switchToDayView,
+          onDaySelected: (day) => setState(() {
+            _selectedDay = day;
+            _selectedDate = DateTime(month.year, month.month, day);
+            // Note: _focusedMonth is already correct (set by PageView.onPageChanged)
+            // No need to manually sync - PageController is source of truth
+          }),
+        );
+      },
     );
   }
 
-  Widget _buildErrorBanner(ColorScheme colorScheme, AppColorsExtension appColors) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: colorScheme.error.withValues(alpha: 0.15),
-      child: Row(
-        children: [
-          Icon(Icons.warning_amber_rounded, size: 18, color: appColors.warning),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              _memberEventsError ?? 'Error loading availability',
-              style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
-            ),
-          ),
-          TextButton(
-            onPressed: _loadMemberEvents,
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Text(
-              'Retry',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: colorScheme.primary,
-              ),
-            ),
-          ),
-        ],
-      ),
+  List<int> _getBestDaysForFilters(Set<TimeFilter> filters) {
+    final allBestDays = _availabilityService.findBestDaysInMonth(
+      memberEvents: _memberEvents,
+      month: _focusedMonth,
+      timeFilters: filters,
+      dateRange: _selectedDateRange,
+      customStartTime: _customStartTime,
+      customEndTime: _customEndTime,
     );
+
+    final now = DateTime.now().subtract(const Duration(days: 1));
+    return allBestDays
+        .where((day) {
+          final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+          return date.isAfter(now);
+        })
+        .take(4)
+        .toList();
   }
 
-  Widget _buildHeader(BuildContext context, ColorScheme colorScheme) {
-    final appColors = context.appColors;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: colorScheme.outline.withValues(alpha: 0.2)),
-        ),
-      ),
-      child: Row(
-        children: [
-          // Back button
-          Semantics(
-            button: true,
-            label: 'Go back',
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                Navigator.of(context).pop();
-              },
-              child: Icon(
-                Icons.chevron_left,
-                size: 28,
-                color: colorScheme.onSurface,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Group emoji badge
-          ExcludeSemantics(
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: Text(
-                  widget.group.emoji,
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          // Group name and member count - single line with ellipsis
-          Expanded(
-            child: Semantics(
-              header: true,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    widget.group.name,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurface,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    '${widget.group.memberCount} members',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: appColors.textMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Filter button with badge
-          _buildFilterButton(colorScheme),
-          const SizedBox(width: 8),
-          // Members button
-          Semantics(
-            button: true,
-            label: 'View ${widget.group.memberCount} members',
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                _showMembersSheet(context);
-              },
-              child: Icon(
-                Icons.people_rounded,
-                size: 22,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Settings button (more menu icon)
-          Semantics(
-            button: true,
-            label: 'Open group settings',
-            child: GestureDetector(
-              onTap: () => _showSettingsSheet(context),
-              child: Icon(
-                Icons.more_vert_rounded,
-                size: 22,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  int _getTotalMemberCount() {
+    final groupProvider = context.read<GroupProvider>();
+    return groupProvider.selectedGroupMembers.isNotEmpty
+        ? groupProvider.selectedGroupMembers.length
+        : (groupProvider.selectedGroup?.memberCount ?? 1);
   }
 
-  Widget _buildFilterButton(ColorScheme colorScheme) {
-    final activeCount = GroupFiltersSheet.getActiveFilterCount(
-      _selectedDateRange,
-      _selectedTimeFilters,
-    );
+  List<GroupMemberProfile> _getUnavailableMembersForDate(DateTime date) {
+    final groupProvider = context.read<GroupProvider>();
+    final members = groupProvider.selectedGroupMembers;
+    final unavailable = <GroupMemberProfile>[];
 
-    return Semantics(
-      button: true,
-      label: activeCount > 0
-          ? '$activeCount filters active, tap to change'
-          : 'Open filters',
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          IconButton(
-            onPressed: () {
-              HapticFeedback.selectionClick();
-              _showFiltersSheet(context);
-            },
-            icon: const Icon(Icons.tune_rounded, size: 20),
-            color: activeCount > 0
-                ? colorScheme.primary
-                : colorScheme.onSurfaceVariant,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            tooltip: 'Filters',
-          ),
-          // Badge for active filter count
-          if (activeCount > 0)
-            Positioned(
-              top: -4,
-              right: -4,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: colorScheme.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  '$activeCount',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    color: colorScheme.onPrimary,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
+    for (final member in members) {
+      final memberEventList = _memberEvents[member.userId] ?? [];
+      final isBusy = _availabilityService.isMemberBusyOnDate(
+        events: memberEventList,
+        date: date,
+        timeFilters: _selectedTimeFilters,
+        customStartTime: _customStartTime,
+        customEndTime: _customEndTime,
+      );
+      if (isBusy) unavailable.add(member);
+    }
+
+    return unavailable;
   }
 
   void _showFiltersSheet(BuildContext context) {
@@ -964,53 +630,30 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  /// Show the group settings sheet (replaces popup menu)
-  void _showSettingsSheet(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+  void _showMembersSheet(BuildContext context) {
+    final provider = context.read<GroupProvider>();
+    final members = provider.selectedGroupMembers;
 
+    GroupMembersSheet.show(
+      context: context,
+      group: widget.group,
+      members: members,
+      currentUserId: SupabaseClientManager.currentUserId,
+      onMembersChanged: () {
+        // Refresh member list after members are added
+        provider.loadGroupMembers(widget.group.id);
+      },
+    );
+  }
+
+  void _showSettingsSheet(BuildContext context) {
     GroupSettingsSheet.show(
       context: context,
       group: widget.group,
-      onRename: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Rename group coming soon!'),
-            backgroundColor: colorScheme.primary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      },
-      onNotifications: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Notification settings coming soon!'),
-            backgroundColor: colorScheme.primary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      },
-      onPrivacy: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Privacy settings coming soon!'),
-            backgroundColor: colorScheme.primary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      },
-      onShare: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Share group coming soon!'),
-            backgroundColor: colorScheme.primary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      },
+      onRename: () => _showSnackBar('Rename group coming soon!'),
+      onNotifications: () => _showSnackBar('Notification settings coming soon!'),
+      onPrivacy: () => _showSnackBar('Privacy settings coming soon!'),
+      onShare: () => _showSnackBar('Share group coming soon!'),
       onLeave: () => _showLeaveGroupConfirmation(context),
     );
   }
@@ -1034,10 +677,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: colorScheme.primary),
-            ),
+            child: Text('Cancel', style: TextStyle(color: colorScheme.primary)),
           ),
           TextButton(
             onPressed: () {
@@ -1045,10 +685,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               Navigator.of(context).pop();
               _leaveGroup(context);
             },
-            child: Text(
-              'Leave',
-              style: TextStyle(color: colorScheme.error),
-            ),
+            child: Text('Leave', style: TextStyle(color: colorScheme.error)),
           ),
         ],
       ),
@@ -1066,7 +703,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     try {
       await provider.leaveGroup(groupId);
       if (mounted) {
-        navigator.pop(); // Go back to groups list
+        navigator.pop();
         messenger.showSnackBar(
           SnackBar(
             content: Text('Left $groupName'),
@@ -1090,513 +727,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     }
   }
 
-  Widget _buildMonthNavigation(ColorScheme colorScheme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            onPressed: _previousMonth,
-            icon: const Icon(Icons.chevron_left, size: 24),
-            color: colorScheme.onSurfaceVariant,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-          Text(
-            DateFormat('MMMM yyyy').format(_focusedMonth),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurface,
-            ),
-          ),
-          IconButton(
-            onPressed: _nextMonth,
-            icon: const Icon(Icons.chevron_right, size: 24),
-            color: colorScheme.onSurfaceVariant,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCalendarPageView() {
-    return PageView.builder(
-      controller: _pageController,
-      onPageChanged: (index) {
-        final monthOffset = index - 12;
-        setState(() {
-          _focusedMonth = DateTime(
-            DateTime.now().year,
-            DateTime.now().month + monthOffset,
-          );
-        });
-      },
-      itemCount: 24,
-      itemBuilder: (context, pageIndex) {
-        final monthOffset = pageIndex - 12;
-        final month = DateTime(
-          DateTime.now().year,
-          DateTime.now().month + monthOffset,
-        );
-        return _buildCalendarGrid(month);
-      },
-    );
-  }
-
-  Widget _buildCalendarGrid(DateTime month) {
-    final days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-    final firstDayOfMonth = DateTime(month.year, month.month, 1);
-    final lastDayOfMonth = DateTime(month.year, month.month + 1, 0);
-    final startWeekday = firstDayOfMonth.weekday % 7;
-    final daysInMonth = lastDayOfMonth.day;
-
-    // Today reference for highlighting and past day detection
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    return Consumer2<CalendarProvider, GroupProvider>(
-      builder: (context, calendarProvider, groupProvider, _) {
-        final colorScheme = Theme.of(context).colorScheme;
-        final appColors = context.appColors;
-        final brightness = Theme.of(context).brightness;
-        final totalMembers = groupProvider.selectedGroupMembers.isNotEmpty
-            ? groupProvider.selectedGroupMembers.length
-            : (groupProvider.selectedGroup?.memberCount ?? 1);
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Column(
-            children: [
-              // Day headers with improved styling
-              Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 8),
-                child: Row(
-                  children: days.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final day = entry.value;
-                    // Highlight weekend headers slightly differently
-                    final isWeekend = index == 0 || index == 6;
-                    return Expanded(
-                      child: Center(
-                        child: Text(
-                          day,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: isWeekend
-                                ? appColors.textMuted
-                                : colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-              Expanded(
-                child: GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 7,
-                    childAspectRatio: 1.0,
-                    crossAxisSpacing: 4,
-                    mainAxisSpacing: 4,
-                  ),
-                  itemCount: 42,
-                  itemBuilder: (context, index) {
-                    final dayNumber = index - startWeekday + 1;
-
-                    if (dayNumber < 1 || dayNumber > daysInMonth) {
-                      return const SizedBox.shrink();
-                    }
-
-                    final date = DateTime(month.year, month.month, dayNumber);
-                    final isToday = date.isAtSameMomentAs(today);
-                    final isPast = date.isBefore(today);
-                    final isSelected = _selectedDay == dayNumber &&
-                        month.month == _focusedMonth.month;
-
-                    final isInRange = _selectedDateRange == null ||
-                        (!date.isBefore(_selectedDateRange!.start) &&
-                         !date.isAfter(_selectedDateRange!.end));
-
-                    // Don't calculate availability for past days
-                    final available = (isInRange && !isPast)
-                        ? _getAvailabilityForDay(calendarProvider, date)
-                        : 0;
-
-                    final isFullyAvailable = isInRange && !isPast &&
-                        available == totalMembers && totalMembers > 0;
-
-                    // Determine colors based on state
-                    final CellColors cellColors = _getCellColors(
-                      isPast: isPast,
-                      isToday: isToday,
-                      isSelected: isSelected,
-                      isInRange: isInRange,
-                      isFullyAvailable: isFullyAvailable,
-                      available: available,
-                      totalMembers: totalMembers,
-                      brightness: brightness,
-                      colorScheme: colorScheme,
-                      appColors: appColors,
-                    );
-
-                    // Semantic label for accessibility (VoiceOver/TalkBack)
-                    final semanticLabel = _getSemanticLabelForCell(
-                      date: date,
-                      isToday: isToday,
-                      isSelected: isSelected,
-                      isPast: isPast,
-                      isInRange: isInRange,
-                      available: available,
-                      totalMembers: totalMembers,
-                    );
-
-                    return Semantics(
-                      button: !isPast,
-                      label: semanticLabel,
-                      selected: isSelected,
-                      child: GestureDetector(
-                        onTap: isPast
-                            ? null // Disable tap for past days
-                            : () {
-                                // In classic mode, just select the day (shows bottom sheet)
-                                // In timeline mode, switch to full day view
-                                if (_dayViewStyle == DayViewStyle.classic) {
-                                  HapticFeedback.selectionClick();
-                                  setState(() {
-                                    _selectedDay = dayNumber;
-                                    _focusedMonth = month;
-                                  });
-                                } else {
-                                  _switchToDayView(date);
-                                }
-                              },
-                        child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        curve: Curves.easeOut,
-                        decoration: BoxDecoration(
-                          color: cellColors.background,
-                          borderRadius: BorderRadius.circular(10),
-                          border: _getCellBorder(
-                            isToday: isToday,
-                            isSelected: isSelected,
-                            colorScheme: colorScheme,
-                          ),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: colorScheme.primary.withValues(alpha: 0.25),
-                                    blurRadius: 8,
-                                    spreadRadius: 0,
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Today indicator dot (top-right)
-                            if (isToday && !isSelected)
-                              Positioned(
-                                top: 4,
-                                right: 4,
-                                child: Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.primary,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                            // Main content
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  '$dayNumber',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: isToday || isSelected
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                    color: cellColors.text,
-                                  ),
-                                ),
-                                // Progressive disclosure: colored dot shows availability at a glance
-                                // Tap cell for full details (X/Y count, member list, time slots)
-                                if (!isPast && isInRange)
-                                  _isLoadingMemberEvents
-                                      ? Padding(
-                                          padding: const EdgeInsets.only(top: 3),
-                                          child: SizedBox(
-                                            width: 8,
-                                            height: 8,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 1.5,
-                                              color: cellColors.text.withValues(alpha: 0.5),
-                                            ),
-                                          ),
-                                        )
-                                      : Padding(
-                                          padding: const EdgeInsets.only(top: 3),
-                                          child: Container(
-                                            width: 8,
-                                            height: 8,
-                                            decoration: BoxDecoration(
-                                              color: _getHeatmapDotColor(available, totalMembers),
-                                              shape: BoxShape.circle,
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: _getHeatmapDotColor(available, totalMembers)
-                                                      .withValues(alpha: 0.4),
-                                                  blurRadius: 3,
-                                                  spreadRadius: 0,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  /// Generate semantic label for a heatmap cell
-  /// This is read by VoiceOver/TalkBack for accessibility
-  String _getSemanticLabelForCell({
-    required DateTime date,
-    required bool isToday,
-    required bool isSelected,
-    required bool isPast,
-    required bool isInRange,
-    required int available,
-    required int totalMembers,
-  }) {
-    final dateFormat = DateFormat('EEEE, MMMM d');
-    final dateStr = dateFormat.format(date);
-
-    final parts = <String>[dateStr];
-
-    if (isToday) {
-      parts.add('today');
-    }
-
-    if (isPast) {
-      parts.add('past date');
-    } else if (isInRange) {
-      if (available == totalMembers && totalMembers > 0) {
-        parts.add('everyone available');
-      } else if (available > 0) {
-        parts.add('$available of $totalMembers members available');
-      } else {
-        parts.add('no members available');
-      }
-      parts.add('double tap to see details');
-    } else {
-      parts.add('outside selected date range');
-    }
-
-    return parts.join(', ');
-  }
-
-  /// Get cell border based on state
-  Border? _getCellBorder({
-    required bool isToday,
-    required bool isSelected,
-    required ColorScheme colorScheme,
-  }) {
-    if (isSelected) {
-      return Border.all(color: colorScheme.primary, width: 2.5);
-    }
-    if (isToday) {
-      return Border.all(color: colorScheme.primary.withValues(alpha: 0.5), width: 1.5);
-    }
-    return null;
-  }
-
-  /// Get colors for a calendar cell based on its state
-  CellColors _getCellColors({
-    required bool isPast,
-    required bool isToday,
-    required bool isSelected,
-    required bool isInRange,
-    required bool isFullyAvailable,
-    required int available,
-    required int totalMembers,
-    required Brightness brightness,
-    required ColorScheme colorScheme,
-    required AppColorsExtension appColors,
-  }) {
-    // Past days - dimmed
-    if (isPast) {
-      return CellColors(
-        background: colorScheme.surfaceContainerLow,
-        text: appColors.textDisabled,
-        subtext: appColors.textDisabled,
-      );
-    }
-
-    // Not in selected date range
-    if (!isInRange) {
-      return CellColors(
-        background: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        text: colorScheme.onSurface.withValues(alpha: 0.3),
-        subtext: colorScheme.onSurface.withValues(alpha: 0.2),
-      );
-    }
-
-    // Fully available - emerald highlight
-    if (isFullyAvailable) {
-      return CellColors(
-        background: AppColors.success,
-        text: Colors.white,
-        subtext: Colors.white.withValues(alpha: 0.9),
-      );
-    }
-
-    // Partial availability - use heatmap colors
-    final backgroundColor = _getHeatmapBackgroundColor(available, totalMembers, brightness);
-    final textColor = _getHeatmapTextColor(available, totalMembers, brightness);
-
-    return CellColors(
-      background: backgroundColor,
-      text: textColor,
-      subtext: textColor.withValues(alpha: 0.8),
-    );
-  }
-
-  List<int> _getBestDaysForFilters(
-    CalendarProvider calendarProvider,
-    Set<TimeFilter> filters,
-  ) {
-    final allBestDays = _availabilityService.findBestDaysInMonth(
-      memberEvents: _memberEvents,
-      month: _focusedMonth,
-      timeFilters: filters,
-      dateRange: _selectedDateRange,
-      customStartTime: _customStartTime,
-      customEndTime: _customEndTime,
-    );
-
-    final now = DateTime.now().subtract(const Duration(days: 1));
-    return allBestDays
-        .where((day) {
-          final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
-          return date.isAfter(now);
-        })
-        .take(4)
-        .toList();
-  }
-
-  /// Get availability count for a specific date (for Best Days section)
-  int _getAvailabilityForDate(DateTime date) {
-    return _availabilityService.calculateGroupAvailability(
-      memberEvents: _memberEvents,
-      date: date,
-      timeFilters: _selectedTimeFilters,
-      customStartTime: _customStartTime,
-      customEndTime: _customEndTime,
-    );
-  }
-
-  /// Get total number of members in the group
-  int _getTotalMemberCount() {
-    final groupProvider = context.read<GroupProvider>();
-    return groupProvider.selectedGroupMembers.isNotEmpty
-        ? groupProvider.selectedGroupMembers.length
-        : (groupProvider.selectedGroup?.memberCount ?? 1);
-  }
-
-  /// Get list of unavailable members for a specific date (for conflict details)
-  List<GroupMemberProfile> _getUnavailableMembersForDate(DateTime date) {
-    final groupProvider = context.read<GroupProvider>();
-    final members = groupProvider.selectedGroupMembers;
-    final unavailable = <GroupMemberProfile>[];
-
-    for (final member in members) {
-      final memberEventList = _memberEvents[member.userId] ?? [];
-      final isBusy = _availabilityService.isMemberBusyOnDate(
-        events: memberEventList,
-        date: date,
-        timeFilters: _selectedTimeFilters,
-        customStartTime: _customStartTime,
-        customEndTime: _customEndTime,
-      );
-      if (isBusy) {
-        unavailable.add(member);
-      }
-    }
-
-    return unavailable;
-  }
-
-  void _showMembersSheet(BuildContext context) {
-    final provider = context.read<GroupProvider>();
-    final members = provider.selectedGroupMembers;
-
-    GroupMembersSheet.show(
-      context: context,
-      group: widget.group,
-      members: members,
-      currentUserId: _getCurrentUserId(),
-    );
-  }
-
-  String? _getCurrentUserId() {
-    return SupabaseClientManager.currentUserId;
-  }
-
-  /// FAB for proposing a new event - primary action for this screen
-  Widget _buildProposeFAB(ColorScheme colorScheme) {
-    return Semantics(
-      button: true,
-      label: 'Propose a new event for ${widget.group.name}',
-      child: FloatingActionButton.extended(
-        onPressed: () {
-          HapticFeedback.mediumImpact();
-          _showProposeEventFlow(context);
-        },
-        tooltip: 'Propose a new event',
-        backgroundColor: colorScheme.primary,
-        foregroundColor: colorScheme.onPrimary,
-        elevation: 4,
-        icon: const Icon(Icons.add_rounded, size: 22),
-        label: const Text(
-          'Propose',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
-        ),
-      ),
-    );
-  }
-
   void _showProposeEventFlow(BuildContext context) {
     final groupProvider = context.read<GroupProvider>();
-    final memberCount = groupProvider.selectedGroupMembers.length;
+    final members = groupProvider.selectedGroupMembers;
+    final memberCount = members.length;
+    final memberIds = members.map((m) => m.userId).toList();
 
-    // Navigate to the Group Proposal Wizard
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => GroupProposalWizard(
@@ -1606,21 +742,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           initialDate: _selectedDay != null
               ? DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDay!)
               : null,
+          memberEvents: _memberEvents,
+          memberIds: memberIds,
         ),
       ),
     );
   }
-}
-
-/// Helper class to hold cell colors for the heatmap calendar
-class CellColors {
-  final Color background;
-  final Color text;
-  final Color subtext;
-
-  const CellColors({
-    required this.background,
-    required this.text,
-    required this.subtext,
-  });
 }

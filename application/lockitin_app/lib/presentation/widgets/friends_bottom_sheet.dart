@@ -640,8 +640,10 @@ class _FriendsBottomSheetState extends State<FriendsBottomSheet> {
   }
 
   Widget _buildFriendTile(BuildContext context, FriendProfile friend) {
-    // Availability status - placeholder for now
-    const status = 'available'; // TODO: Get real availability status
+    // Get real availability status from provider
+    final provider = context.read<FriendProvider>();
+    final availabilityStatus = provider.getAvailabilityStatus(friend.id);
+    final status = _availabilityStatusToString(availabilityStatus);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
@@ -813,6 +815,18 @@ class _FriendsBottomSheetState extends State<FriendsBottomSheet> {
         ),
       ),
     );
+  }
+
+  /// Convert AvailabilityStatus enum to string for display methods
+  String _availabilityStatusToString(AvailabilityStatus status) {
+    switch (status) {
+      case AvailabilityStatus.free:
+        return 'available';
+      case AvailabilityStatus.busy:
+        return 'busy';
+      case AvailabilityStatus.unknown:
+        return 'unknown';
+    }
   }
 
   Color _getStatusColor(String status) {

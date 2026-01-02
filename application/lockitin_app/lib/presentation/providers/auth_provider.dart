@@ -28,14 +28,14 @@ class AuthProvider extends ChangeNotifier {
       if (_authRepository.isAuthenticated()) {
         // Check if session is expired
         if (_authRepository.isSessionExpired()) {
-          Logger.info('Session expired, attempting refresh', 'AuthProvider');
+          Logger.info('AuthProvider', 'Session expired, attempting refresh');
 
           // Try to refresh the session
           final refreshed = await _authRepository.refreshSession();
 
           if (!refreshed) {
             // Refresh failed, clear session
-            Logger.warning('Session refresh failed, clearing session', 'AuthProvider');
+            Logger.warning('AuthProvider', 'Session refresh failed, clearing session');
             await _authRepository.signOut();
             _currentUser = null;
             _setLoading(false);
@@ -47,19 +47,19 @@ class AuthProvider extends ChangeNotifier {
         _currentUser = await _authRepository.getCurrentUser();
 
         if (_currentUser != null) {
-          Logger.success('User session restored: ${_currentUser!.email}', 'AuthProvider');
+          Logger.success('AuthProvider', 'User session restored: ${_currentUser!.email}');
         } else {
-          Logger.warning('Session exists but user profile not found', 'AuthProvider');
+          Logger.warning('AuthProvider', 'Session exists but user profile not found');
           await _authRepository.signOut();
         }
       } else {
-        Logger.info('No active session found', 'AuthProvider');
+        Logger.info('AuthProvider', 'No active session found');
       }
 
       // Set up auth state listener for automatic token refresh
       _setupAuthStateListener();
     } catch (e) {
-      Logger.error('Failed to initialize auth', e);
+      Logger.error('AuthProvider', 'Failed to initialize auth', e);
       _errorMessage = 'Failed to restore session';
       // Clear potentially corrupted session
       try {
@@ -78,38 +78,38 @@ class AuthProvider extends ChangeNotifier {
     _authStateSubscription?.cancel();
     _authStateSubscription = client.auth.onAuthStateChange.listen((data) {
       final event = data.event;
-      Logger.info('Auth state changed: $event', 'AuthProvider');
+      Logger.info('AuthProvider', 'Auth state changed: $event');
 
       // Handle different auth events
       switch (event) {
         case AuthChangeEvent.initialSession:
-          Logger.info('Initial session loaded', 'AuthProvider');
+          Logger.info('AuthProvider', 'Initial session loaded');
           // Initial session is handled by initialize() method
           break;
 
         case AuthChangeEvent.signedIn:
-          Logger.info('User signed in via auth state listener', 'AuthProvider');
+          Logger.info('AuthProvider', 'User signed in via auth state listener');
           // User data will be fetched via signIn/signUp methods
           break;
 
         case AuthChangeEvent.signedOut:
-          Logger.info('User signed out via auth state listener', 'AuthProvider');
+          Logger.info('AuthProvider', 'User signed out via auth state listener');
           _currentUser = null;
           notifyListeners();
           break;
 
         case AuthChangeEvent.tokenRefreshed:
-          Logger.info('Token auto-refreshed by Supabase', 'AuthProvider');
+          Logger.info('AuthProvider', 'Token auto-refreshed by Supabase');
           // Supabase automatically handles token refresh, no action needed
           break;
 
         case AuthChangeEvent.userUpdated:
-          Logger.info('User profile updated', 'AuthProvider');
+          Logger.info('AuthProvider', 'User profile updated');
           // Optionally refresh user profile data
           break;
 
         default:
-          Logger.info('Unhandled auth event: $event', 'AuthProvider');
+          Logger.info('AuthProvider', 'Unhandled auth event: $event');
       }
     });
   }
@@ -137,7 +137,7 @@ class AuthProvider extends ChangeNotifier {
       );
 
       if (_currentUser != null) {
-        Logger.success('Sign up successful', 'AuthProvider');
+        Logger.success('AuthProvider', 'Sign up successful');
         _setLoading(false);
         return true;
       }
@@ -146,7 +146,7 @@ class AuthProvider extends ChangeNotifier {
       _setLoading(false);
       return false;
     } catch (e) {
-      Logger.error('Sign up error', e);
+      Logger.error('AuthProvider', 'Sign up error', e);
       _errorMessage = _getErrorMessage(e);
       _setLoading(false);
       return false;
@@ -168,7 +168,7 @@ class AuthProvider extends ChangeNotifier {
       );
 
       if (_currentUser != null) {
-        Logger.success('Sign in successful', 'AuthProvider');
+        Logger.success('AuthProvider', 'Sign in successful');
         _setLoading(false);
         return true;
       }
@@ -177,7 +177,7 @@ class AuthProvider extends ChangeNotifier {
       _setLoading(false);
       return false;
     } catch (e) {
-      Logger.error('Sign in error', e);
+      Logger.error('AuthProvider', 'Sign in error', e);
       _errorMessage = _getErrorMessage(e);
       _setLoading(false);
       return false;
@@ -190,9 +190,9 @@ class AuthProvider extends ChangeNotifier {
     try {
       await _authRepository.signOut();
       _currentUser = null;
-      Logger.success('Sign out successful', 'AuthProvider');
+      Logger.success('AuthProvider', 'Sign out successful');
     } catch (e) {
-      Logger.error('Sign out error', e);
+      Logger.error('AuthProvider', 'Sign out error', e);
       _errorMessage = 'Failed to sign out';
     } finally {
       _setLoading(false);
@@ -206,11 +206,11 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       await _authRepository.resetPassword(email);
-      Logger.success('Password reset email sent', 'AuthProvider');
+      Logger.success('AuthProvider', 'Password reset email sent');
       _setLoading(false);
       return true;
     } catch (e) {
-      Logger.error('Password reset error', e);
+      Logger.error('AuthProvider', 'Password reset error', e);
       _errorMessage = 'Failed to send reset email';
       _setLoading(false);
       return false;
@@ -241,7 +241,7 @@ class AuthProvider extends ChangeNotifier {
 
       if (updatedUser != null) {
         _currentUser = updatedUser;
-        Logger.success('Profile updated successfully', 'AuthProvider');
+        Logger.success('AuthProvider', 'Profile updated successfully');
         _setLoading(false);
         return true;
       }
@@ -250,7 +250,7 @@ class AuthProvider extends ChangeNotifier {
       _setLoading(false);
       return false;
     } catch (e) {
-      Logger.error('Profile update error', e);
+      Logger.error('AuthProvider', 'Profile update error', e);
       _errorMessage = 'Failed to update profile';
       _setLoading(false);
       return false;

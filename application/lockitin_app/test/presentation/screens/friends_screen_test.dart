@@ -21,6 +21,9 @@ class MockFriendProvider extends ChangeNotifier implements FriendProvider {
   String? _actionError;
   String _searchQuery = '';
   bool _isInitialized = false;
+  Map<String, FriendAvailability> _friendAvailability = {};
+  bool _hasMoreSearchResults = true;
+  bool _isLoadingMoreSearch = false;
 
   @override
   List<FriendProfile> get friends => _friends;
@@ -72,6 +75,30 @@ class MockFriendProvider extends ChangeNotifier implements FriendProvider {
 
   @override
   bool get isInitialized => _isInitialized;
+
+  @override
+  Map<String, FriendAvailability> get friendAvailability => _friendAvailability;
+
+  @override
+  bool get hasMoreSearchResults => _hasMoreSearchResults;
+
+  @override
+  bool get isLoadingMoreSearch => _isLoadingMoreSearch;
+
+  @override
+  AvailabilityStatus getAvailabilityStatus(String friendId) {
+    return _friendAvailability[friendId]?.status ?? AvailabilityStatus.unknown;
+  }
+
+  @override
+  Future<void> loadFriendsAvailability() async {
+    // Mock implementation
+  }
+
+  @override
+  Future<void> loadMoreSearchResults() async {
+    // Mock implementation
+  }
 
   // Setters for testing
   void setFriends(List<FriendProfile> friends) {

@@ -52,7 +52,7 @@ class GroupService {
         throw GroupServiceException('Group name cannot be empty');
       }
 
-      Logger.info('Creating group: $name');
+      Logger.info('GroupService', 'Creating group: $name');
 
       // Create the group
       final groupResponse = await SupabaseClientManager.client
@@ -74,14 +74,14 @@ class GroupService {
         'role': 'owner',
       });
 
-      Logger.info('Group created successfully: $groupId');
+      Logger.info('GroupService', 'Group created successfully: $groupId');
 
       return GroupModel.fromJson(groupResponse).copyWith(memberCount: 1);
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to create group: $e');
+      Logger.error('GroupService', 'Failed to create group', e);
       throw GroupServiceException('Failed to create group: $e');
     }
   }
@@ -104,7 +104,7 @@ class GroupService {
         throw GroupServiceException('You do not have permission to update this group');
       }
 
-      Logger.info('Updating group: $groupId');
+      Logger.info('GroupService', 'Updating group: $groupId');
 
       final updates = <String, dynamic>{
         'updated_at': DateTime.now().toIso8601String(),
@@ -119,13 +119,13 @@ class GroupService {
           .select()
           .single();
 
-      Logger.info('Group updated successfully');
+      Logger.info('GroupService', 'Group updated successfully');
       return GroupModel.fromJson(response);
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to update group: $e');
+      Logger.error('GroupService', 'Failed to update group', e);
       throw GroupServiceException('Failed to update group: $e');
     }
   }
@@ -146,7 +146,7 @@ class GroupService {
         throw GroupServiceException('Only the owner can delete this group');
       }
 
-      Logger.info('Deleting group: $groupId');
+      Logger.info('GroupService', 'Deleting group: $groupId');
 
       // Delete all members first (cascade should handle this, but explicit is safer)
       await SupabaseClientManager.client
@@ -160,12 +160,12 @@ class GroupService {
           .delete()
           .eq('id', groupId);
 
-      Logger.info('Group deleted successfully');
+      Logger.info('GroupService', 'Group deleted successfully');
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to delete group: $e');
+      Logger.error('GroupService', 'Failed to delete group', e);
       throw GroupServiceException('Failed to delete group: $e');
     }
   }
@@ -200,7 +200,7 @@ class GroupService {
         throw GroupServiceException('User is already a member of this group');
       }
 
-      Logger.info('Adding member $userId to group $groupId');
+      Logger.info('GroupService', 'Adding member $userId to group $groupId');
 
       final response = await SupabaseClientManager.client
           .from('group_members')
@@ -212,13 +212,13 @@ class GroupService {
           .select()
           .single();
 
-      Logger.info('Member added successfully');
+      Logger.info('GroupService', 'Member added successfully');
       return GroupMemberModel.fromJson(response);
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to add member: $e');
+      Logger.error('GroupService', 'Failed to add member', e);
       throw GroupServiceException('Failed to add member: $e');
     }
   }
@@ -279,7 +279,7 @@ class GroupService {
         // Co-owners can leave (they become a member first conceptually)
       }
 
-      Logger.info('Removing member $userId from group $groupId');
+      Logger.info('GroupService', 'Removing member $userId from group $groupId');
 
       await SupabaseClientManager.client
           .from('group_members')
@@ -287,12 +287,12 @@ class GroupService {
           .eq('group_id', groupId)
           .eq('user_id', userId);
 
-      Logger.info('Member removed successfully');
+      Logger.info('GroupService', 'Member removed successfully');
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to remove member: $e');
+      Logger.error('GroupService', 'Failed to remove member', e);
       throw GroupServiceException('Failed to remove member: $e');
     }
   }
@@ -337,7 +337,7 @@ class GroupService {
         throw GroupServiceException('User is already a co-owner');
       }
 
-      Logger.info('Promoting $userId to co-owner in group $groupId');
+      Logger.info('GroupService', 'Promoting $userId to co-owner in group $groupId');
 
       await SupabaseClientManager.client
           .from('group_members')
@@ -345,12 +345,12 @@ class GroupService {
           .eq('group_id', groupId)
           .eq('user_id', userId);
 
-      Logger.info('Member promoted to co-owner successfully');
+      Logger.info('GroupService', 'Member promoted to co-owner successfully');
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to promote member: $e');
+      Logger.error('GroupService', 'Failed to promote member', e);
       throw GroupServiceException('Failed to promote member: $e');
     }
   }
@@ -394,7 +394,7 @@ class GroupService {
         throw GroupServiceException('User is not a co-owner');
       }
 
-      Logger.info('Demoting $userId from co-owner in group $groupId');
+      Logger.info('GroupService', 'Demoting $userId from co-owner in group $groupId');
 
       await SupabaseClientManager.client
           .from('group_members')
@@ -402,12 +402,12 @@ class GroupService {
           .eq('group_id', groupId)
           .eq('user_id', userId);
 
-      Logger.info('Co-owner demoted to member successfully');
+      Logger.info('GroupService', 'Co-owner demoted to member successfully');
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to demote co-owner: $e');
+      Logger.error('GroupService', 'Failed to demote co-owner', e);
       throw GroupServiceException('Failed to demote co-owner: $e');
     }
   }
@@ -427,7 +427,7 @@ class GroupService {
         throw GroupServiceException('User not authenticated');
       }
 
-      Logger.info('Transferring ownership of $groupId to $newOwnerId');
+      Logger.info('GroupService', 'Transferring ownership of $groupId to $newOwnerId');
 
       // Use RPC function for atomic transaction
       // Function handles all validation and updates in a single transaction
@@ -440,7 +440,7 @@ class GroupService {
         },
       );
 
-      Logger.info('Ownership transferred successfully');
+      Logger.info('GroupService', 'Ownership transferred successfully');
     } on PostgrestException catch (e) {
       // Map PostgreSQL exceptions to user-friendly messages
       if (e.message.contains('Only the owner can transfer ownership')) {
@@ -452,7 +452,7 @@ class GroupService {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to transfer ownership: $e');
+      Logger.error('GroupService', 'Failed to transfer ownership', e);
       throw GroupServiceException('Failed to transfer ownership: $e');
     }
   }
@@ -472,7 +472,7 @@ class GroupService {
         throw GroupServiceException('User not authenticated');
       }
 
-      Logger.info('Fetching groups for user');
+      Logger.info('GroupService', 'Fetching groups for user');
 
       // Use RPC function for single-query optimization
       final response = await SupabaseClientManager.client.rpc(
@@ -494,13 +494,13 @@ class GroupService {
         );
       }).toList();
 
-      Logger.info('Fetched ${groups.length} groups');
+      Logger.info('GroupService', 'Fetched ${groups.length} groups');
       return groups;
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to fetch groups: $e');
+      Logger.error('GroupService', 'Failed to fetch groups', e);
       throw GroupServiceException('Failed to fetch groups: $e');
     }
   }
@@ -540,7 +540,7 @@ class GroupService {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to fetch group: $e');
+      Logger.error('GroupService', 'Failed to fetch group', e);
       throw GroupServiceException('Failed to fetch group: $e');
     }
   }
@@ -559,7 +559,7 @@ class GroupService {
         throw GroupServiceException('You are not a member of this group');
       }
 
-      Logger.info('Fetching members for group: $groupId');
+      Logger.info('GroupService', 'Fetching members for group: $groupId');
 
       final response = await SupabaseClientManager.client
           .from('group_members')
@@ -603,13 +603,13 @@ class GroupService {
         return a.joinedAt.compareTo(b.joinedAt);
       });
 
-      Logger.info('Fetched ${members.length} members');
+      Logger.info('GroupService', 'Fetched ${members.length} members');
       return members;
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to fetch group members: $e');
+      Logger.error('GroupService', 'Failed to fetch group members', e);
       throw GroupServiceException('Failed to fetch group members: $e');
     }
   }
@@ -625,7 +625,7 @@ class GroupService {
 
       return GroupMemberModel.roleFromString(membership['role'] as String);
     } catch (e) {
-      Logger.error('Failed to get user role: $e');
+      Logger.error('GroupService', 'Failed to get user role', e);
       return null;
     }
   }
@@ -671,7 +671,7 @@ class GroupService {
         throw GroupServiceException('User has already been invited');
       }
 
-      Logger.info('Inviting user $userId to group $groupId');
+      Logger.info('GroupService', 'Inviting user $userId to group $groupId');
 
       await SupabaseClientManager.client.from('group_invites').insert({
         'group_id': groupId,
@@ -679,12 +679,12 @@ class GroupService {
         'invited_by': currentUserId,
       });
 
-      Logger.info('Invite sent successfully');
+      Logger.info('GroupService', 'Invite sent successfully');
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to invite user: $e');
+      Logger.error('GroupService', 'Failed to invite user', e);
       throw GroupServiceException('Failed to invite user: $e');
     }
   }
@@ -699,7 +699,7 @@ class GroupService {
         throw GroupServiceException('User not authenticated');
       }
 
-      Logger.info('Accepting invite: $inviteId');
+      Logger.info('GroupService', 'Accepting invite: $inviteId');
 
       // Get the invite
       final invite = await SupabaseClientManager.client
@@ -732,13 +732,13 @@ class GroupService {
           .delete()
           .eq('id', inviteId);
 
-      Logger.info('Invite accepted, now a member of group $groupId');
+      Logger.info('GroupService', 'Invite accepted, now a member of group $groupId');
       return GroupMemberModel.fromJson(memberResponse);
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to accept invite: $e');
+      Logger.error('GroupService', 'Failed to accept invite', e);
       throw GroupServiceException('Failed to accept invite: $e');
     }
   }
@@ -751,7 +751,7 @@ class GroupService {
         throw GroupServiceException('User not authenticated');
       }
 
-      Logger.info('Declining invite: $inviteId');
+      Logger.info('GroupService', 'Declining invite: $inviteId');
 
       await SupabaseClientManager.client
           .from('group_invites')
@@ -759,12 +759,12 @@ class GroupService {
           .eq('id', inviteId)
           .eq('invited_user_id', currentUserId);
 
-      Logger.info('Invite declined');
+      Logger.info('GroupService', 'Invite declined');
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to decline invite: $e');
+      Logger.error('GroupService', 'Failed to decline invite', e);
       throw GroupServiceException('Failed to decline invite: $e');
     }
   }
@@ -796,19 +796,19 @@ class GroupService {
         throw GroupServiceException('You do not have permission to cancel invites');
       }
 
-      Logger.info('Canceling invite: $inviteId');
+      Logger.info('GroupService', 'Canceling invite: $inviteId');
 
       await SupabaseClientManager.client
           .from('group_invites')
           .delete()
           .eq('id', inviteId);
 
-      Logger.info('Invite canceled');
+      Logger.info('GroupService', 'Invite canceled');
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to cancel invite: $e');
+      Logger.error('GroupService', 'Failed to cancel invite', e);
       throw GroupServiceException('Failed to cancel invite: $e');
     }
   }
@@ -821,7 +821,7 @@ class GroupService {
         throw GroupServiceException('User not authenticated');
       }
 
-      Logger.info('Fetching pending group invites');
+      Logger.info('GroupService', 'Fetching pending group invites');
 
       final response = await SupabaseClientManager.client
           .rpc('get_pending_group_invites', params: {'user_uuid': currentUserId});
@@ -830,13 +830,13 @@ class GroupService {
           .map((json) => GroupInvite.fromJson(json as Map<String, dynamic>))
           .toList();
 
-      Logger.info('Fetched ${invites.length} pending invites');
+      Logger.info('GroupService', 'Fetched ${invites.length} pending invites');
       return invites;
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is GroupServiceException) rethrow;
-      Logger.error('Failed to fetch pending invites: $e');
+      Logger.error('GroupService', 'Failed to fetch pending invites', e);
       throw GroupServiceException('Failed to fetch pending invites: $e');
     }
   }
@@ -887,7 +887,7 @@ class GroupService {
 
   /// Convert PostgrestException to user-friendly GroupServiceException
   GroupServiceException _handlePostgrestError(PostgrestException e) {
-    Logger.error('Supabase error: ${e.code} - ${e.message}');
+    Logger.error('GroupService', 'Supabase error: ${e.code} - ${e.message}');
 
     switch (e.code) {
       case '23505': // unique_violation
@@ -921,5 +921,122 @@ class GroupService {
           code: e.code,
         );
     }
+  }
+
+  // ============================================================================
+  // REAL-TIME SUBSCRIPTIONS
+  // ============================================================================
+
+  /// Subscribe to group invites for the current user
+  RealtimeChannel subscribeToGroupInvites({
+    required void Function(Map<String, dynamic> payload) onNewInvite,
+    required void Function(Map<String, dynamic> payload) onInviteStatusChange,
+  }) {
+    final userId = SupabaseClientManager.currentUserId;
+    if (userId == null) throw GroupServiceException('User not authenticated');
+
+    Logger.info('GroupService', 'Subscribing to group invites for user: $userId');
+
+    return SupabaseClientManager.client.channel('group_invites:$userId')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'group_invites',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'invited_user_id',
+          value: userId,
+        ),
+        callback: (payload) {
+          Logger.info('GroupService', 'New group invite received');
+          onNewInvite(payload.newRecord);
+        },
+      )
+      .onPostgresChanges(
+        event: PostgresChangeEvent.update,
+        schema: 'public',
+        table: 'group_invites',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'invited_user_id',
+          value: userId,
+        ),
+        callback: (payload) {
+          Logger.info('GroupService', 'Group invite status changed');
+          onInviteStatusChange(payload.newRecord);
+        },
+      )
+      .subscribe();
+  }
+
+  /// Subscribe to member changes for a specific group
+  RealtimeChannel subscribeToGroupMembers({
+    required String groupId,
+    required void Function(Map<String, dynamic> payload) onMemberJoined,
+    required void Function(Map<String, dynamic> payload) onMemberLeft,
+  }) {
+    Logger.info('GroupService', 'Subscribing to group members for group: $groupId');
+
+    return SupabaseClientManager.client.channel('group_members:$groupId')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'group_members',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'group_id',
+          value: groupId,
+        ),
+        callback: (payload) {
+          Logger.info('GroupService', 'Member joined group');
+          onMemberJoined(payload.newRecord);
+        },
+      )
+      .onPostgresChanges(
+        event: PostgresChangeEvent.delete,
+        schema: 'public',
+        table: 'group_members',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'group_id',
+          value: groupId,
+        ),
+        callback: (payload) {
+          Logger.info('GroupService', 'Member left group');
+          onMemberLeft(payload.oldRecord);
+        },
+      )
+      .subscribe();
+  }
+
+  /// Subscribe to group updates (name, emoji, settings changes)
+  RealtimeChannel subscribeToGroupUpdates({
+    required String groupId,
+    required void Function(Map<String, dynamic> payload) onGroupUpdated,
+  }) {
+    Logger.info('GroupService', 'Subscribing to group updates for group: $groupId');
+
+    return SupabaseClientManager.client.channel('groups:$groupId')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.update,
+        schema: 'public',
+        table: 'groups',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'id',
+          value: groupId,
+        ),
+        callback: (payload) {
+          Logger.info('GroupService', 'Group updated');
+          onGroupUpdated(payload.newRecord);
+        },
+      )
+      .subscribe();
+  }
+
+  /// Unsubscribe from a channel
+  Future<void> unsubscribe(RealtimeChannel channel) async {
+    await SupabaseClientManager.client.removeChannel(channel);
+    Logger.info('GroupService', 'Unsubscribed from channel');
   }
 }

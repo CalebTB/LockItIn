@@ -166,10 +166,10 @@ class GroupProvider extends ChangeNotifier {
 
     try {
       _groups = await _groupService.getUserGroups();
-      Logger.info('Loaded ${_groups.length} groups');
+      Logger.info('GroupProvider', 'Loaded ${_groups.length} groups');
     } catch (e) {
       _groupsError = e.toString();
-      Logger.error('Failed to load groups: $e');
+      Logger.error('GroupProvider', 'Failed to load groups: $e');
     } finally {
       _isLoadingGroups = false;
       notifyListeners(); // Single rebuild with final state
@@ -189,10 +189,10 @@ class GroupProvider extends ChangeNotifier {
 
     try {
       _pendingInvites = await _groupService.getPendingInvites();
-      Logger.info('Loaded ${_pendingInvites.length} pending invites');
+      Logger.info('GroupProvider', 'Loaded ${_pendingInvites.length} pending invites');
     } catch (e) {
       _invitesError = e.toString();
-      Logger.error('Failed to load pending invites: $e');
+      Logger.error('GroupProvider', 'Failed to load pending invites: $e');
     } finally {
       _isLoadingInvites = false;
       notifyListeners(); // Single rebuild with final state
@@ -223,10 +223,10 @@ class GroupProvider extends ChangeNotifier {
   Future<void> _loadCurrentUserRole(String groupId) async {
     try {
       _currentUserRole = await _groupService.getUserRole(groupId);
-      Logger.info('Current user role: $_currentUserRole');
+      Logger.info('GroupProvider', 'Current user role: $_currentUserRole');
       notifyListeners();
     } catch (e) {
-      Logger.error('Failed to load user role: $e');
+      Logger.error('GroupProvider', 'Failed to load user role: $e');
       _currentUserRole = null;
     }
   }
@@ -248,10 +248,10 @@ class GroupProvider extends ChangeNotifier {
 
     try {
       _selectedGroupMembers = await _groupService.getGroupMembers(groupId);
-      Logger.info('Loaded ${_selectedGroupMembers.length} members');
+      Logger.info('GroupProvider', 'Loaded ${_selectedGroupMembers.length} members');
     } catch (e) {
       _membersError = e.toString();
-      Logger.error('Failed to load group members: $e');
+      Logger.error('GroupProvider', 'Failed to load group members: $e');
     } finally {
       _isLoadingMembers = false;
       notifyListeners(); // Single rebuild with final state
@@ -277,13 +277,13 @@ class GroupProvider extends ChangeNotifier {
       // Add to local list
       _groups.insert(0, group);
 
-      Logger.info('Created group: ${group.id}');
+      Logger.info('GroupProvider', 'Created group: ${group.id}');
       _isCreatingGroup = false;
       notifyListeners(); // Single rebuild with final state
       return group;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to create group: $e');
+      Logger.error('GroupProvider', 'Failed to create group: $e');
       _isCreatingGroup = false;
       notifyListeners(); // Single rebuild with error state
       return null;
@@ -322,13 +322,13 @@ class GroupProvider extends ChangeNotifier {
         );
       }
 
-      Logger.info('Updated group: $groupId');
+      Logger.info('GroupProvider', 'Updated group: $groupId');
       _isUpdatingGroup = false;
       notifyListeners(); // Single rebuild with final state
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to update group: $e');
+      Logger.error('GroupProvider', 'Failed to update group: $e');
       _isUpdatingGroup = false;
       notifyListeners(); // Single rebuild with error state
       return false;
@@ -350,12 +350,12 @@ class GroupProvider extends ChangeNotifier {
         clearSelectedGroup();
       }
 
-      Logger.info('Deleted group: $groupId');
+      Logger.info('GroupProvider', 'Deleted group: $groupId');
       notifyListeners();
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to delete group: $e');
+      Logger.error('GroupProvider', 'Failed to delete group: $e');
       notifyListeners();
       return false;
     }
@@ -393,12 +393,12 @@ class GroupProvider extends ChangeNotifier {
         await loadGroupMembers(groupId);
       }
 
-      Logger.info('Added member $userId to group $groupId');
+      Logger.info('GroupProvider', 'Added member $userId to group $groupId');
       notifyListeners();
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to add member: $e');
+      Logger.error('GroupProvider', 'Failed to add member: $e');
       notifyListeners();
       return false;
     }
@@ -427,18 +427,18 @@ class GroupProvider extends ChangeNotifier {
         _selectedGroupMembers.removeWhere((m) => m.userId == userId);
       }
 
-      Logger.info('Removed member $userId from group $groupId');
+      Logger.info('GroupProvider', 'Removed member $userId from group $groupId');
       notifyListeners();
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to remove member: $e');
+      Logger.error('GroupProvider', 'Failed to remove member: $e');
       notifyListeners();
       return false;
     }
   }
 
-  /// Leave a group (remove self)
+  /// Leave a group (remove self) - optimistic UI update
   Future<bool> leaveGroup(String groupId) async {
     _actionError = null;
 
@@ -449,23 +449,31 @@ class GroupProvider extends ChangeNotifier {
       return false;
     }
 
+    // Store for rollback
+    final removedGroup = _groups.cast<GroupModel?>().firstWhere(
+      (g) => g?.id == groupId,
+      orElse: () => null,
+    );
+    final wasSelectedGroup = _selectedGroup?.id == groupId;
+
+    // Optimistic update: immediately remove from UI
+    _groups.removeWhere((g) => g.id == groupId);
+    if (wasSelectedGroup) {
+      clearSelectedGroup();
+    }
+    notifyListeners(); // Instant feedback
+
     try {
       await _groupService.removeMember(groupId: groupId, userId: currentUserId);
-
-      // Remove from local list (we're no longer a member)
-      _groups.removeWhere((g) => g.id == groupId);
-
-      // Clear selected if it was this group
-      if (_selectedGroup?.id == groupId) {
-        clearSelectedGroup();
-      }
-
-      Logger.info('Left group: $groupId');
-      notifyListeners();
+      Logger.info('GroupProvider', 'Left group: $groupId');
       return true;
     } catch (e) {
+      // Rollback on failure
+      if (removedGroup != null) {
+        _groups.add(removedGroup);
+      }
       _actionError = e.toString();
-      Logger.error('Failed to leave group: $e');
+      Logger.error('GroupProvider', 'Failed to leave group: $e');
       notifyListeners();
       return false;
     }
@@ -489,12 +497,12 @@ class GroupProvider extends ChangeNotifier {
         await loadGroupMembers(groupId);
       }
 
-      Logger.info('Promoted $userId to co-owner in $groupId');
+      Logger.info('GroupProvider', 'Promoted $userId to co-owner in $groupId');
       notifyListeners();
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to promote member: $e');
+      Logger.error('GroupProvider', 'Failed to promote member: $e');
       notifyListeners();
       return false;
     }
@@ -518,12 +526,12 @@ class GroupProvider extends ChangeNotifier {
         await loadGroupMembers(groupId);
       }
 
-      Logger.info('Demoted $userId from co-owner in $groupId');
+      Logger.info('GroupProvider', 'Demoted $userId from co-owner in $groupId');
       notifyListeners();
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to demote co-owner: $e');
+      Logger.error('GroupProvider', 'Failed to demote co-owner: $e');
       notifyListeners();
       return false;
     }
@@ -547,12 +555,12 @@ class GroupProvider extends ChangeNotifier {
         await loadGroupMembers(groupId);
       }
 
-      Logger.info('Transferred ownership of $groupId to $newOwnerId');
+      Logger.info('GroupProvider', 'Transferred ownership of $groupId to $newOwnerId');
       notifyListeners();
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to transfer ownership: $e');
+      Logger.error('GroupProvider', 'Failed to transfer ownership: $e');
       notifyListeners();
       return false;
     }
@@ -571,57 +579,74 @@ class GroupProvider extends ChangeNotifier {
 
     try {
       await _groupService.inviteUser(groupId: groupId, userId: userId);
-      Logger.info('Invited user $userId to group $groupId');
+      Logger.info('GroupProvider', 'Invited user $userId to group $groupId');
       notifyListeners();
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to invite user: $e');
+      Logger.error('GroupProvider', 'Failed to invite user: $e');
       notifyListeners();
       return false;
     }
   }
 
-  /// Accept a group invite
+  /// Accept a group invite - optimistic UI update
   Future<bool> acceptInvite(String inviteId) async {
     _actionError = null;
 
+    // Store for rollback
+    final removedInvite = _pendingInvites.cast<GroupInvite?>().firstWhere(
+      (i) => i?.id == inviteId,
+      orElse: () => null,
+    );
+
+    // Optimistic update: immediately remove invite from UI
+    _pendingInvites.removeWhere((i) => i.id == inviteId);
+    notifyListeners(); // Instant feedback
+
     try {
       await _groupService.acceptInvite(inviteId);
-
-      // Remove from pending invites
-      _pendingInvites.removeWhere((i) => i.id == inviteId);
-
       // Reload groups to include the new group
       await loadGroups();
-
-      Logger.info('Accepted invite $inviteId');
-      notifyListeners();
+      Logger.info('GroupProvider', 'Accepted invite $inviteId');
       return true;
     } catch (e) {
+      // Rollback on failure
+      if (removedInvite != null) {
+        _pendingInvites.add(removedInvite);
+      }
       _actionError = e.toString();
-      Logger.error('Failed to accept invite: $e');
+      Logger.error('GroupProvider', 'Failed to accept invite: $e');
       notifyListeners();
       return false;
     }
   }
 
-  /// Decline a group invite
+  /// Decline a group invite - optimistic UI update
   Future<bool> declineInvite(String inviteId) async {
     _actionError = null;
 
+    // Store for rollback
+    final removedInvite = _pendingInvites.cast<GroupInvite?>().firstWhere(
+      (i) => i?.id == inviteId,
+      orElse: () => null,
+    );
+
+    // Optimistic update: immediately remove from UI
+    _pendingInvites.removeWhere((i) => i.id == inviteId);
+    notifyListeners(); // Instant feedback
+
     try {
       await _groupService.declineInvite(inviteId);
-
-      // Remove from pending invites
-      _pendingInvites.removeWhere((i) => i.id == inviteId);
-
-      Logger.info('Declined invite $inviteId');
-      notifyListeners();
+      Logger.info('GroupProvider', 'Declined invite $inviteId');
       return true;
     } catch (e) {
+      // Rollback on failure
+      if (removedInvite != null) {
+        _pendingInvites.add(removedInvite);
+      }
       _actionError = e.toString();
-      Logger.error('Failed to decline invite: $e');
+      Logger.error('GroupProvider', 'Failed to decline invite: $e');
       notifyListeners();
       return false;
     }
@@ -633,12 +658,12 @@ class GroupProvider extends ChangeNotifier {
 
     try {
       await _groupService.cancelInvite(inviteId);
-      Logger.info('Cancelled invite $inviteId');
+      Logger.info('GroupProvider', 'Cancelled invite $inviteId');
       notifyListeners();
       return true;
     } catch (e) {
       _actionError = e.toString();
-      Logger.error('Failed to cancel invite: $e');
+      Logger.error('GroupProvider', 'Failed to cancel invite: $e');
       notifyListeners();
       return false;
     }

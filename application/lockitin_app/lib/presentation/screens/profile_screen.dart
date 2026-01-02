@@ -8,6 +8,7 @@ import '../providers/friend_provider.dart';
 import '../providers/group_provider.dart';
 import '../providers/settings_provider.dart';
 import 'auth/login_screen.dart';
+import 'friends_screen.dart';
 
 /// Profile screen for viewing and editing user profile
 class ProfileScreen extends StatefulWidget {
@@ -88,6 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // This ensures cached data from this user won't be visible to the next user
     context.read<FriendProvider>().reset();
     context.read<GroupProvider>().reset();
+    context.read<CalendarProvider>().reset();
 
     final authProvider = context.read<AuthProvider>();
     await authProvider.signOut();
@@ -385,6 +387,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (!_isEditing) ...[
                     const SizedBox(height: 32),
 
+                    // Friends Section
+                    _buildFriendsSection(context, colorScheme),
+                    const SizedBox(height: 24),
+
                     // Calendar Sync Section
                     _buildCalendarSyncSection(context, colorScheme),
                     const SizedBox(height: 24),
@@ -485,6 +491,99 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // Use HSL to generate vibrant colors
     final hue = (hash % 360).toDouble();
     return HSLColor.fromAHSL(1.0, hue, 0.7, 0.6).toColor();
+  }
+
+  Widget _buildFriendsSection(BuildContext context, ColorScheme colorScheme) {
+    final friendProvider = context.watch<FriendProvider>();
+    final appColors = context.appColors;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Friends',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: colorScheme.onSurface.withValues(alpha: 0.1),
+            ),
+          ),
+          child: Column(
+            children: [
+              // Friends list tile
+              ListTile(
+                leading: Icon(
+                  Icons.people_rounded,
+                  color: colorScheme.primary,
+                ),
+                title: const Text(
+                  'My Friends',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  '${friendProvider.friends.length} friend${friendProvider.friends.length == 1 ? '' : 's'}',
+                  style: TextStyle(fontSize: 14, color: appColors.textMuted),
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const FriendsScreen(),
+                    ),
+                  );
+                },
+              ),
+
+              // Pending requests indicator
+              if (friendProvider.pendingRequestCount > 0) ...[
+                const Divider(height: 1),
+                ListTile(
+                  leading: Badge(
+                    label: Text('${friendProvider.pendingRequestCount}'),
+                    child: Icon(
+                      Icons.person_add_rounded,
+                      color: colorScheme.secondary,
+                    ),
+                  ),
+                  title: const Text(
+                    'Friend Requests',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${friendProvider.pendingRequestCount} pending request${friendProvider.pendingRequestCount == 1 ? '' : 's'}',
+                    style: TextStyle(fontSize: 14, color: appColors.textMuted),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const FriendsScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildCalendarSyncSection(BuildContext context, ColorScheme colorScheme) {

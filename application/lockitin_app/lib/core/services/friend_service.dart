@@ -32,6 +32,42 @@ class FriendService {
   FriendService._internal();
 
   // ============================================================================
+  // Rate Limiting
+  // ============================================================================
+
+  /// Rate limit: max requests per minute
+  static const int _maxRequestsPerMinute = 10;
+
+  /// Track recent friend request timestamps for rate limiting
+  final List<DateTime> _recentRequestTimestamps = [];
+
+  /// Check if rate limit is exceeded for friend requests
+  bool _isRateLimited() {
+    final now = DateTime.now();
+    final oneMinuteAgo = now.subtract(const Duration(minutes: 1));
+
+    // Remove timestamps older than 1 minute
+    _recentRequestTimestamps.removeWhere((ts) => ts.isBefore(oneMinuteAgo));
+
+    // Check if limit exceeded
+    return _recentRequestTimestamps.length >= _maxRequestsPerMinute;
+  }
+
+  /// Record a friend request for rate limiting
+  void _recordRequest() {
+    _recentRequestTimestamps.add(DateTime.now());
+  }
+
+  /// Get remaining requests before rate limit
+  int get remainingRequests {
+    final now = DateTime.now();
+    final oneMinuteAgo = now.subtract(const Duration(minutes: 1));
+    _recentRequestTimestamps.removeWhere((ts) => ts.isBefore(oneMinuteAgo));
+    return (_maxRequestsPerMinute - _recentRequestTimestamps.length)
+        .clamp(0, _maxRequestsPerMinute);
+  }
+
+  // ============================================================================
   // Friend Request Operations
   // ============================================================================
 
@@ -39,8 +75,19 @@ class FriendService {
   ///
   /// Creates a pending friendship from current user to target user
   /// Returns the created FriendshipModel
+  ///
+  /// Rate limited to [_maxRequestsPerMinute] requests per minute
   Future<FriendshipModel> sendFriendRequest(String friendId) async {
     try {
+      // Check rate limit first
+      if (_isRateLimited()) {
+        Logger.warning('FriendService', 'Rate limit exceeded for friend requests');
+        throw FriendServiceException(
+          'Too many friend requests. Please wait a moment before trying again.',
+          code: 'RATE_LIMITED',
+        );
+      }
+
       final currentUserId = SupabaseClientManager.currentUserId;
       if (currentUserId == null) {
         throw FriendServiceException('User not authenticated');
@@ -50,7 +97,7 @@ class FriendService {
         throw FriendServiceException('Cannot send friend request to yourself');
       }
 
-      Logger.info('Sending friend request to: $friendId');
+      Logger.info('FriendService', 'Sending friend request to: $friendId');
 
       // Check if friendship already exists (in either direction)
       final existingCheck = await SupabaseClientManager.client
@@ -80,13 +127,16 @@ class FriendService {
           .select()
           .single();
 
-      Logger.info('Friend request sent successfully');
+      // Record successful request for rate limiting
+      _recordRequest();
+
+      Logger.info('FriendService', 'Friend request sent successfully');
       return FriendshipModel.fromJson(response);
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
-      Logger.error('Failed to send friend request: $e');
+      Logger.error('FriendService', 'Failed to send friend request', e);
       throw FriendServiceException('Failed to send friend request: $e');
     }
   }
@@ -101,7 +151,7 @@ class FriendService {
         throw FriendServiceException('User not authenticated');
       }
 
-      Logger.info('Accepting friend request: $requestId');
+      Logger.info('FriendService', 'Accepting friend request: $requestId');
 
       final response = await SupabaseClientManager.client
           .from('friendships')
@@ -115,13 +165,13 @@ class FriendService {
           .select()
           .single();
 
-      Logger.info('Friend request accepted successfully');
+      Logger.info('FriendService', 'Friend request accepted successfully');
       return FriendshipModel.fromJson(response);
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
-      Logger.error('Failed to accept friend request: $e');
+      Logger.error('FriendService', 'Failed to accept friend request', e);
       throw FriendServiceException('Failed to accept friend request: $e');
     }
   }
@@ -136,7 +186,7 @@ class FriendService {
         throw FriendServiceException('User not authenticated');
       }
 
-      Logger.info('Declining friend request: $requestId');
+      Logger.info('FriendService', 'Declining friend request: $requestId');
 
       await SupabaseClientManager.client
           .from('friendships')
@@ -145,12 +195,12 @@ class FriendService {
           .eq('friend_id', currentUserId) // Only recipient can decline
           .eq('status', 'pending');
 
-      Logger.info('Friend request declined successfully');
+      Logger.info('FriendService', 'Friend request declined successfully');
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
-      Logger.error('Failed to decline friend request: $e');
+      Logger.error('FriendService', 'Failed to decline friend request', e);
       throw FriendServiceException('Failed to decline friend request: $e');
     }
   }
@@ -165,7 +215,7 @@ class FriendService {
         throw FriendServiceException('User not authenticated');
       }
 
-      Logger.info('Canceling friend request: $requestId');
+      Logger.info('FriendService', 'Canceling friend request: $requestId');
 
       await SupabaseClientManager.client
           .from('friendships')
@@ -174,12 +224,12 @@ class FriendService {
           .eq('user_id', currentUserId) // Only sender can cancel
           .eq('status', 'pending');
 
-      Logger.info('Friend request canceled successfully');
+      Logger.info('FriendService', 'Friend request canceled successfully');
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
-      Logger.error('Failed to cancel friend request: $e');
+      Logger.error('FriendService', 'Failed to cancel friend request', e);
       throw FriendServiceException('Failed to cancel friend request: $e');
     }
   }
@@ -194,7 +244,7 @@ class FriendService {
         throw FriendServiceException('User not authenticated');
       }
 
-      Logger.info('Removing friend: $friendshipId');
+      Logger.info('FriendService', 'Removing friend: $friendshipId');
 
       await SupabaseClientManager.client
           .from('friendships')
@@ -203,12 +253,12 @@ class FriendService {
           .or('user_id.eq.$currentUserId,friend_id.eq.$currentUserId')
           .eq('status', 'accepted');
 
-      Logger.info('Friend removed successfully');
+      Logger.info('FriendService', 'Friend removed successfully');
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
-      Logger.error('Failed to remove friend: $e');
+      Logger.error('FriendService', 'Failed to remove friend', e);
       throw FriendServiceException('Failed to remove friend: $e');
     }
   }
@@ -227,7 +277,7 @@ class FriendService {
         throw FriendServiceException('User not authenticated');
       }
 
-      Logger.info('Blocking user: $userId');
+      Logger.info('FriendService', 'Blocking user: $userId');
 
       // Check for existing friendship
       final existingCheck = await SupabaseClientManager.client
@@ -250,12 +300,12 @@ class FriendService {
         });
       }
 
-      Logger.info('User blocked successfully');
+      Logger.info('FriendService', 'User blocked successfully');
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
-      Logger.error('Failed to block user: $e');
+      Logger.error('FriendService', 'Failed to block user', e);
       throw FriendServiceException('Failed to block user: $e');
     }
   }
@@ -270,7 +320,7 @@ class FriendService {
         throw FriendServiceException('User not authenticated');
       }
 
-      Logger.info('Unblocking user: $friendshipId');
+      Logger.info('FriendService', 'Unblocking user: $friendshipId');
 
       await SupabaseClientManager.client
           .from('friendships')
@@ -279,12 +329,12 @@ class FriendService {
           .eq('user_id', currentUserId) // Only blocker can unblock
           .eq('status', 'blocked');
 
-      Logger.info('User unblocked successfully');
+      Logger.info('FriendService', 'User unblocked successfully');
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
-      Logger.error('Failed to unblock user: $e');
+      Logger.error('FriendService', 'Failed to unblock user', e);
       throw FriendServiceException('Failed to unblock user: $e');
     }
   }
@@ -303,7 +353,7 @@ class FriendService {
         throw FriendServiceException('User not authenticated');
       }
 
-      Logger.info('Fetching friends list');
+      Logger.info('FriendService', 'Fetching friends list');
 
       final response = await SupabaseClientManager.client
           .rpc('get_friends', params: {'user_uuid': currentUserId});
@@ -312,13 +362,13 @@ class FriendService {
           .map((json) => FriendProfile.fromJson(json as Map<String, dynamic>))
           .toList();
 
-      Logger.info('Fetched ${friends.length} friends');
+      Logger.info('FriendService', 'Fetched ${friends.length} friends');
       return friends;
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
-      Logger.error('Failed to fetch friends: $e');
+      Logger.error('FriendService', 'Failed to fetch friends', e);
       throw FriendServiceException('Failed to fetch friends: $e');
     }
   }
@@ -333,7 +383,7 @@ class FriendService {
         throw FriendServiceException('User not authenticated');
       }
 
-      Logger.info('Fetching pending friend requests');
+      Logger.info('FriendService', 'Fetching pending friend requests');
 
       final response = await SupabaseClientManager.client
           .rpc('get_pending_requests', params: {'user_uuid': currentUserId});
@@ -342,13 +392,13 @@ class FriendService {
           .map((json) => FriendRequest.fromJson(json as Map<String, dynamic>))
           .toList();
 
-      Logger.info('Fetched ${requests.length} pending requests');
+      Logger.info('FriendService', 'Fetched ${requests.length} pending requests');
       return requests;
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
-      Logger.error('Failed to fetch pending requests: $e');
+      Logger.error('FriendService', 'Failed to fetch pending requests', e);
       throw FriendServiceException('Failed to fetch pending requests: $e');
     }
   }
@@ -363,7 +413,7 @@ class FriendService {
         throw FriendServiceException('User not authenticated');
       }
 
-      Logger.info('Fetching sent friend requests');
+      Logger.info('FriendService', 'Fetching sent friend requests');
 
       final response = await SupabaseClientManager.client
           .rpc('get_sent_requests', params: {'user_uuid': currentUserId});
@@ -372,13 +422,13 @@ class FriendService {
           .map((json) => SentRequest.fromJson(json as Map<String, dynamic>))
           .toList();
 
-      Logger.info('Fetched ${requests.length} sent requests');
+      Logger.info('FriendService', 'Fetched ${requests.length} sent requests');
       return requests;
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
-      Logger.error('Failed to fetch sent requests: $e');
+      Logger.error('FriendService', 'Failed to fetch sent requests', e);
       throw FriendServiceException('Failed to fetch sent requests: $e');
     }
   }
@@ -391,7 +441,7 @@ class FriendService {
         throw FriendServiceException('User not authenticated');
       }
 
-      Logger.info('Fetching blocked users');
+      Logger.info('FriendService', 'Fetching blocked users');
 
       final response = await SupabaseClientManager.client
           .from('friendships')
@@ -403,21 +453,32 @@ class FriendService {
           .map((json) => FriendshipModel.fromJson(json as Map<String, dynamic>))
           .toList();
 
-      Logger.info('Fetched ${blocked.length} blocked users');
+      Logger.info('FriendService', 'Fetched ${blocked.length} blocked users');
       return blocked;
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
-      Logger.error('Failed to fetch blocked users: $e');
+      Logger.error('FriendService', 'Failed to fetch blocked users', e);
       throw FriendServiceException('Failed to fetch blocked users: $e');
     }
   }
 
-  /// Search for users by email or name
+  /// Default page size for user search
+  static const int defaultSearchLimit = 20;
+
+  /// Search for users by email or name with pagination support
+  ///
+  /// [query] - Search query (must be at least 2 characters)
+  /// [limit] - Maximum number of results per page (default: 20)
+  /// [offset] - Number of results to skip for pagination (default: 0)
   ///
   /// Returns list of user profiles matching the query
-  Future<List<FriendProfile>> searchUsers(String query) async {
+  Future<List<FriendProfile>> searchUsers(
+    String query, {
+    int limit = defaultSearchLimit,
+    int offset = 0,
+  }) async {
     try {
       final currentUserId = SupabaseClientManager.currentUserId;
       if (currentUserId == null) {
@@ -428,28 +489,68 @@ class FriendService {
         return [];
       }
 
-      Logger.info('Searching users: $query');
+      Logger.info('FriendService', 'Searching users: "$query" (limit: $limit, offset: $offset)');
 
-      // Search by email or name (case-insensitive)
+      // Search by email or name (case-insensitive) with pagination
       final response = await SupabaseClientManager.client
           .from('users')
           .select('id, email, full_name, avatar_url')
           .or('email.ilike.%$query%,full_name.ilike.%$query%')
           .neq('id', currentUserId) // Exclude self
-          .limit(20);
+          .order('full_name', ascending: true) // Consistent ordering for pagination
+          .range(offset, offset + limit - 1);
 
       final users = (response as List)
           .map((json) => FriendProfile.fromUserJson(json as Map<String, dynamic>))
           .toList();
 
-      Logger.info('Found ${users.length} users matching query');
+      Logger.info('FriendService', 'Found ${users.length} users matching query');
       return users;
     } on PostgrestException catch (e) {
       throw _handlePostgrestError(e);
     } catch (e) {
       if (e is FriendServiceException) rethrow;
-      Logger.error('Failed to search users: $e');
+      Logger.error('FriendService', 'Failed to search users', e);
       throw FriendServiceException('Failed to search users: $e');
+    }
+  }
+
+  /// Get availability status for a list of friends
+  ///
+  /// Uses the get_friends_availability database function
+  /// Returns a map of friend_id -> FriendAvailability
+  Future<Map<String, FriendAvailability>> getFriendsAvailability(
+    List<String> friendIds,
+  ) async {
+    try {
+      if (friendIds.isEmpty) {
+        return {};
+      }
+
+      Logger.info('FriendService', 'Fetching availability for ${friendIds.length} friends');
+
+      final response = await SupabaseClientManager.client
+          .rpc('get_friends_availability', params: {'friend_ids': friendIds});
+
+      final availabilityList = (response as List)
+          .map((json) => FriendAvailability.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      // Convert to map for easy lookup
+      final availabilityMap = <String, FriendAvailability>{};
+      for (final availability in availabilityList) {
+        availabilityMap[availability.friendId] = availability;
+      }
+
+      Logger.info('FriendService', 'Fetched availability for ${availabilityMap.length} friends');
+      return availabilityMap;
+    } on PostgrestException catch (e) {
+      Logger.error('FriendService', 'Failed to fetch availability: ${e.message}');
+      // Return empty map on error - availability is non-critical
+      return {};
+    } catch (e) {
+      Logger.error('FriendService', 'Failed to fetch availability', e);
+      return {};
     }
   }
 
@@ -468,7 +569,7 @@ class FriendService {
 
       return response as bool;
     } catch (e) {
-      Logger.error('Failed to check friendship: $e');
+      Logger.error('FriendService', 'Failed to check friendship', e);
       return false;
     }
   }
@@ -492,14 +593,14 @@ class FriendService {
       if (response == null) return null;
       return FriendshipModel.fromJson(response);
     } catch (e) {
-      Logger.error('Failed to get friendship status: $e');
+      Logger.error('FriendService', 'Failed to get friendship status', e);
       return null;
     }
   }
 
   /// Convert PostgrestException to user-friendly FriendServiceException
   FriendServiceException _handlePostgrestError(PostgrestException e) {
-    Logger.error('Supabase error: ${e.code} - ${e.message}');
+    Logger.error('FriendService', 'Supabase error: ${e.code} - ${e.message}');
 
     switch (e.code) {
       case '23505': // unique_violation
@@ -533,5 +634,85 @@ class FriendService {
           code: e.code,
         );
     }
+  }
+
+  // ============================================================================
+  // REAL-TIME SUBSCRIPTIONS
+  // ============================================================================
+
+  /// Subscribe to friend request updates for the current user
+  /// Receives notifications when:
+  /// - Someone sends a friend request to the user (INSERT with friend_id = userId)
+  /// - A friend request status changes (UPDATE)
+  RealtimeChannel subscribeToFriendRequests({
+    required void Function(Map<String, dynamic> payload) onNewRequest,
+    required void Function(Map<String, dynamic> payload) onRequestStatusChange,
+  }) {
+    final userId = SupabaseClientManager.currentUserId;
+    if (userId == null) throw FriendServiceException('User not authenticated');
+
+    Logger.info('FriendService', 'Subscribing to friend requests for user: $userId');
+
+    return SupabaseClientManager.client.channel('friendships:$userId')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'friendships',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'friend_id',
+          value: userId,
+        ),
+        callback: (payload) {
+          Logger.info('FriendService', 'New friend request received');
+          onNewRequest(payload.newRecord);
+        },
+      )
+      .onPostgresChanges(
+        event: PostgresChangeEvent.update,
+        schema: 'public',
+        table: 'friendships',
+        callback: (payload) {
+          // Check if this update involves the current user
+          final record = payload.newRecord;
+          if (record['user_id'] == userId || record['friend_id'] == userId) {
+            Logger.info('FriendService', 'Friend request status changed');
+            onRequestStatusChange(payload.newRecord);
+          }
+        },
+      )
+      .subscribe();
+  }
+
+  /// Subscribe to friendship deletions (unfriend events)
+  RealtimeChannel subscribeToFriendshipChanges({
+    required void Function(Map<String, dynamic> payload) onFriendRemoved,
+  }) {
+    final userId = SupabaseClientManager.currentUserId;
+    if (userId == null) throw FriendServiceException('User not authenticated');
+
+    Logger.info('FriendService', 'Subscribing to friendship changes for user: $userId');
+
+    return SupabaseClientManager.client.channel('friendships_delete:$userId')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.delete,
+        schema: 'public',
+        table: 'friendships',
+        callback: (payload) {
+          // Check if this deletion involves the current user
+          final record = payload.oldRecord;
+          if (record['user_id'] == userId || record['friend_id'] == userId) {
+            Logger.info('FriendService', 'Friend removed');
+            onFriendRemoved(payload.oldRecord);
+          }
+        },
+      )
+      .subscribe();
+  }
+
+  /// Unsubscribe from a channel
+  Future<void> unsubscribe(RealtimeChannel channel) async {
+    await SupabaseClientManager.client.removeChannel(channel);
+    Logger.info('FriendService', 'Unsubscribed from channel');
   }
 }

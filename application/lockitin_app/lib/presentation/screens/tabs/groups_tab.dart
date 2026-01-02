@@ -45,32 +45,32 @@ class _GroupsTabState extends State<GroupsTab> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Emoji picker row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('Emoji:', style: TextStyle(color: colorScheme.onSurface)),
-                      const SizedBox(width: 16),
-                      ...['👥', '🏀', '🎮', '🍕', '🎉', '💼'].map((emoji) {
-                        final isSelected = selectedEmoji == emoji;
-                        return GestureDetector(
-                          onTap: () => setDialogState(() => selectedEmoji = emoji),
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? colorScheme.primaryContainer
-                                  : null,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              emoji,
-                              style: const TextStyle(fontSize: 24),
-                            ),
+                  // Emoji picker
+                  Text('Emoji:', style: TextStyle(color: colorScheme.onSurface)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    alignment: WrapAlignment.center,
+                    children: ['👥', '🏀', '🎮', '🍕', '🎉', '💼'].map((emoji) {
+                      final isSelected = selectedEmoji == emoji;
+                      return GestureDetector(
+                        onTap: () => setDialogState(() => selectedEmoji = emoji),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? colorScheme.primaryContainer
+                                : null,
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                        );
-                      }),
-                    ],
+                          child: Text(
+                            emoji,
+                            style: const TextStyle(fontSize: 24),
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
                   const SizedBox(height: 16),
                   // Name field
@@ -148,18 +148,21 @@ class _GroupsTabState extends State<GroupsTab> {
           ],
         ),
       ),
-      floatingActionButton: Semantics(
-        button: true,
-        label: 'Create new group',
-        child: FloatingActionButton(
-          heroTag: 'groups_fab',
-          onPressed: _showCreateGroupDialog,
-          backgroundColor: colorScheme.primary,
-          foregroundColor: colorScheme.onPrimary,
-          tooltip: 'Create new group',
-          child: const Icon(Icons.add_rounded),
-        ),
-      ),
+      // Only show FAB when groups exist (empty state has its own create button)
+      floatingActionButton: provider.groups.isNotEmpty
+          ? Semantics(
+              button: true,
+              label: 'Create new group',
+              child: FloatingActionButton(
+                heroTag: 'groups_fab',
+                onPressed: _showCreateGroupDialog,
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+                tooltip: 'Create new group',
+                child: const Icon(Icons.add_rounded),
+              ),
+            )
+          : null,
     );
   }
 

@@ -37,7 +37,7 @@ class HolidayService {
       return holidays;
     } catch (e) {
       // If loading fails, return empty list (app continues to work without holidays)
-      Logger.error('Failed to load holidays', e);
+      Logger.error('HolidayService', 'Failed to load holidays', e);
       return [];
     }
   }

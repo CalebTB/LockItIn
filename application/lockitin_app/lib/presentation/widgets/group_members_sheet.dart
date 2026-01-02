@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/group_model.dart';
+import 'add_group_members_sheet.dart';
 import 'group_members_section.dart';
 
 /// Bottom sheet showing all group members
@@ -16,13 +17,26 @@ class GroupMembersSheet extends StatelessWidget {
   final GroupModel group;
   final List<GroupMemberProfile> members;
   final String? currentUserId;
+  final VoidCallback? onMembersChanged;
 
   const GroupMembersSheet({
     super.key,
     required this.group,
     required this.members,
     this.currentUserId,
+    this.onMembersChanged,
   });
+
+  /// Check if current user is owner or co-owner (can add members)
+  bool get _isOwnerOrCoOwner {
+    if (currentUserId == null) return false;
+    final currentMember = members
+        .where((m) => m.userId == currentUserId)
+        .toList();
+    if (currentMember.isEmpty) return false;
+    return currentMember.first.role == GroupMemberRole.owner ||
+        currentMember.first.role == GroupMemberRole.coOwner;
+  }
 
   /// Show this sheet as a modal bottom sheet
   static Future<void> show({
@@ -30,6 +44,7 @@ class GroupMembersSheet extends StatelessWidget {
     required GroupModel group,
     required List<GroupMemberProfile> members,
     String? currentUserId,
+    VoidCallback? onMembersChanged,
   }) {
     HapticFeedback.selectionClick();
     return showModalBottomSheet(
@@ -40,6 +55,7 @@ class GroupMembersSheet extends StatelessWidget {
         group: group,
         members: members,
         currentUserId: currentUserId,
+        onMembersChanged: onMembersChanged,
       ),
     );
   }
@@ -95,7 +111,7 @@ class GroupMembersSheet extends StatelessWidget {
           // Drag handle
           _buildHandle(colorScheme),
           // Header
-          _buildHeader(colorScheme, appColors),
+          _buildHeader(context, colorScheme, appColors),
           // Divider
           Divider(
             height: 1,
@@ -143,7 +159,11 @@ class GroupMembersSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(ColorScheme colorScheme, AppColorsExtension appColors) {
+  Widget _buildHeader(
+    BuildContext context,
+    ColorScheme colorScheme,
+    AppColorsExtension appColors,
+  ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
       child: Row(
@@ -187,9 +207,33 @@ class GroupMembersSheet extends StatelessWidget {
               ],
             ),
           ),
+          // Invite member button (only for owners/co-owners)
+          if (_isOwnerOrCoOwner)
+            IconButton(
+              onPressed: () => _showAddMembersSheet(context),
+              icon: Icon(
+                Icons.person_add_rounded,
+                color: colorScheme.primary,
+              ),
+              tooltip: 'Invite members',
+            ),
         ],
       ),
     );
+  }
+
+  /// Show the add members sheet
+  Future<void> _showAddMembersSheet(BuildContext context) async {
+    final result = await AddGroupMembersSheet.show(
+      context: context,
+      groupId: group.id,
+      existingMembers: members,
+    );
+
+    if (result == true) {
+      // Members were added, notify parent to refresh
+      onMembersChanged?.call();
+    }
   }
 
   Widget _buildMemberTile(

@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -1311,6 +1312,8 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
       );
     }
 
+    // Haptic feedback for successful event creation
+    HapticFeedback.mediumImpact();
     Navigator.of(context).pop(event);
   }
 
