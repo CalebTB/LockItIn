@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/calendar_provider.dart';
+import '../../providers/friend_provider.dart';
+import '../../providers/group_provider.dart';
 import '../main_screen.dart';
 
 /// Sign up screen with full name, email, password, and confirm password
@@ -42,6 +45,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!mounted) return;
 
     if (success) {
+      // Refresh all providers with new user's data
+      // For new signups, this initializes fresh state for the new account
+      if (mounted) {
+        context.read<CalendarProvider>().refreshEvents();
+        context.read<FriendProvider>().loadFriends();
+        context.read<GroupProvider>().loadGroups();
+      }
+
       // Navigate to main screen with bottom tabs
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainScreen()),
