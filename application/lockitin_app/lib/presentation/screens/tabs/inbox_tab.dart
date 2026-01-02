@@ -171,10 +171,10 @@ class _InboxTabState extends State<InboxTab> {
           ...friendRequests.map((request) => FriendRequestTile(
                 request: request,
                 onAccept: () async {
-                  await context.read<FriendProvider>().acceptFriendRequest(request.id);
+                  await context.read<FriendProvider>().acceptFriendRequest(request);
                 },
                 onDecline: () async {
-                  await context.read<FriendProvider>().declineFriendRequest(request.id);
+                  await context.read<FriendProvider>().declineFriendRequest(request);
                 },
               )),
           const SizedBox(height: 16),

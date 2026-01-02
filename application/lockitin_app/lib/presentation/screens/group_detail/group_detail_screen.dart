@@ -178,6 +178,19 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
+  /// Jump to a specific month, keeping PageController and _focusedMonth in sync
+  void _jumpToMonth(DateTime targetMonth) {
+    final now = DateTime.now();
+    final monthDiff = (targetMonth.year - now.year) * 12 + (targetMonth.month - now.month);
+    final targetPage = 12 + monthDiff;
+
+    // Clamp to valid page range [0, 23]
+    if (targetPage >= 0 && targetPage < 24) {
+      _pageController.jumpToPage(targetPage);
+      // _focusedMonth will be updated via onPageChanged callback
+    }
+  }
+
   void _switchToDayView(DateTime date) {
     HapticFeedback.selectionClick();
     setState(() {
@@ -192,17 +205,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     setState(() {
       _viewMode = GroupCalendarViewMode.month;
       if (_selectedDate != null) {
-        _focusedMonth = DateTime(_selectedDate!.year, _selectedDate!.month);
         _selectedDay = _selectedDate!.day;
-
-        final now = DateTime.now();
-        final monthDiff = (_selectedDate!.year - now.year) * 12 +
-                          (_selectedDate!.month - now.month);
-        final targetPage = 12 + monthDiff;
-
+        // Jump PageController to selected date's month (this updates _focusedMonth via onPageChanged)
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_pageController.hasClients) {
-            _pageController.jumpToPage(targetPage);
+            _jumpToMonth(DateTime(_selectedDate!.year, _selectedDate!.month));
           }
         });
       }
@@ -219,15 +226,40 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   void _handleDayViewStyleToggle() {
     HapticFeedback.selectionClick();
+    final wasTimeline = _dayViewStyle == DayViewStyle.timeline;
+    final wasInDayView = _viewMode == GroupCalendarViewMode.day;
+
+    // Determine the target month BEFORE setState
+    // If coming from day view, use selectedDate; otherwise use focusedMonth
+    final DateTime targetMonth;
+    if (wasTimeline && wasInDayView && _selectedDate != null) {
+      targetMonth = DateTime(_selectedDate!.year, _selectedDate!.month);
+    } else {
+      targetMonth = DateTime(_focusedMonth.year, _focusedMonth.month);
+    }
+
     setState(() {
-      _dayViewStyle = _dayViewStyle == DayViewStyle.timeline
-          ? DayViewStyle.classic
-          : DayViewStyle.timeline;
+      _dayViewStyle = wasTimeline ? DayViewStyle.classic : DayViewStyle.timeline;
       _viewMode = GroupCalendarViewMode.month;
-      // Preserve date context when switching styles
-      // Use selectedDate if set, otherwise use first of focused month
-      _selectedDate ??= DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+
+      if (wasTimeline && wasInDayView && _selectedDate != null) {
+        // Coming from timeline day view - use selectedDate as source of truth
+        _selectedDay = _selectedDate!.day;
+      } else {
+        // Coming from month view - sync selectedDate to match focusedMonth
+        final day = _selectedDay ?? 1;
+        _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+      }
     });
+
+    // ALWAYS jump PageController to correct page AFTER new PageView is built
+    // This is critical because PageController may reset to initialPage during widget rebuild
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_pageController.hasClients) {
+        _jumpToMonth(targetMonth);
+      }
+    });
+
     _showSnackBar(
       _dayViewStyle == DayViewStyle.timeline
           ? 'Switched to Timeline day view'
@@ -326,16 +358,27 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 ClassicModeToggleBar(
                   onSwitchToTimeline: () {
                     HapticFeedback.selectionClick();
+
+                    // Capture focusedMonth before setState (PageController may lose position during rebuild)
+                    final targetMonth = DateTime(_focusedMonth.year, _focusedMonth.month);
+
                     setState(() {
                       _dayViewStyle = DayViewStyle.timeline;
                       _viewMode = GroupCalendarViewMode.month;
-                      // Preserve date context - use selected day or first of month
-                      if (_selectedDay != null) {
-                        _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDay!);
-                      } else {
-                        _selectedDate ??= DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+
+                      // Sync selectedDate to match the current focusedMonth
+                      final day = _selectedDay ?? 1;
+                      _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+                    });
+
+                    // Jump PageController to correct page AFTER new PageView is built
+                    // This is needed because PageController may reset to initialPage during widget rebuild
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (_pageController.hasClients) {
+                        _jumpToMonth(targetMonth);
                       }
                     });
+
                     _showSnackBar('Switched to Timeline day view');
                   },
                 ),
@@ -436,8 +479,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       onDateChanged: (date) {
         setState(() {
           _selectedDate = date;
+          // If month changed, jump PageController to keep it in sync
           if (date.month != _focusedMonth.month || date.year != _focusedMonth.year) {
-            _focusedMonth = DateTime(date.year, date.month);
+            _jumpToMonth(DateTime(date.year, date.month));
           }
         });
       },
@@ -474,7 +518,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           onDaySelected: (day) => setState(() {
             _selectedDay = day;
             _selectedDate = DateTime(month.year, month.month, day);
-            _focusedMonth = month;
+            // Note: _focusedMonth is already correct (set by PageView.onPageChanged)
+            // No need to manually sync - PageController is source of truth
           }),
         );
       },
@@ -566,6 +611,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       group: widget.group,
       members: members,
       currentUserId: SupabaseClientManager.currentUserId,
+      onMembersChanged: () {
+        // Refresh member list after members are added
+        provider.loadGroupMembers(widget.group.id);
+      },
     );
   }
 

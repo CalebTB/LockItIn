@@ -114,6 +114,20 @@ class CalendarProvider extends ChangeNotifier {
     _currentPageIndex = todayMonthIndex;
   }
 
+  /// Reset all state (call on logout to prevent data leaks between accounts)
+  void reset() {
+    _eventsByDate.clear();
+    _eventIndicatorsCache.clear();
+    _upcomingEventsCache = null;
+    _upcomingEventsCacheTime = null;
+    _eventLoadError = null;
+    _isLoadingEvents = false;
+    _focusedDate = DateTime.now();
+    _initializeMonths();
+    notifyListeners();
+    Logger.info('CalendarProvider', 'State reset for logout');
+  }
+
   /// Navigate to today's month
   void goToToday() {
     _focusedDate = DateTime.now();
