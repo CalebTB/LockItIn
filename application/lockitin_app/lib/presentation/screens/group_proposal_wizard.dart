@@ -66,7 +66,6 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
   // Smart time suggestion state
   final SmartTimeSuggestionService _suggestionService = SmartTimeSuggestionService();
   Map<String, List<EventModel>> _memberEvents = {};
-  bool _isLoadingMemberEvents = false;
 
   @override
   void initState() {
@@ -118,10 +117,6 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
 
   /// Fetch shadow calendar events for the given member IDs
   Future<void> _fetchMemberEvents(List<String> memberIds) async {
-    setState(() {
-      _isLoadingMemberEvents = true;
-    });
-
     try {
       // Fetch shadow calendar for the next 14 days
       final now = DateTime.now();
@@ -139,16 +134,10 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
       if (mounted) {
         setState(() {
           _memberEvents = events;
-          _isLoadingMemberEvents = false;
         });
       }
     } catch (e) {
       // Silently fail - we'll use fallback suggestions
-      if (mounted) {
-        setState(() {
-          _isLoadingMemberEvents = false;
-        });
-      }
     }
   }
 
