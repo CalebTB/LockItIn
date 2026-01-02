@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/logger.dart';
 import '../../data/models/proposal_model.dart';
@@ -32,6 +31,8 @@ class ProposalService {
           .toList();
 
       // Call RPC function to create proposal with options in a single transaction
+      // Note: Pass timeOptionsJson directly - Supabase client handles JSON serialization
+      // Using jsonEncode() would double-encode it as a string, causing "cannot extract elements from a scalar"
       final result = await _supabase.rpc(
         'create_proposal_with_options',
         params: {
@@ -40,7 +41,7 @@ class ProposalService {
           'p_description': description,
           'p_location': location,
           'p_voting_deadline': votingDeadline.toIso8601String(),
-          'p_time_options': jsonEncode(timeOptionsJson),
+          'p_time_options': timeOptionsJson,
         },
       );
 

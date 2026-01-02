@@ -180,6 +180,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   /// Jump to a specific month, keeping PageController and _focusedMonth in sync
   void _jumpToMonth(DateTime targetMonth) {
+    // If in day view mode, just update _focusedMonth directly
+    // (PageController is only attached in month view)
+    if (_viewMode == GroupCalendarViewMode.day) {
+      setState(() {
+        _focusedMonth = DateTime(targetMonth.year, targetMonth.month);
+      });
+      return;
+    }
+
     final now = DateTime.now();
     final monthDiff = (targetMonth.year - now.year) * 12 + (targetMonth.month - now.month);
     final targetPage = 12 + monthDiff;
@@ -197,28 +206,47 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       _viewMode = GroupCalendarViewMode.day;
       _selectedDate = date;
       _selectedDay = date.day;
+      // Keep focusedMonth in sync with the date being viewed
+      _focusedMonth = DateTime(date.year, date.month);
     });
   }
 
   void _switchToMonthView() {
     HapticFeedback.selectionClick();
+
+    // Determine target month BEFORE setState
+    // Use selectedDate's month if available, otherwise keep current focusedMonth
+    final DateTime targetMonth;
+    if (_selectedDate != null) {
+      targetMonth = DateTime(_selectedDate!.year, _selectedDate!.month);
+    } else {
+      targetMonth = _focusedMonth;
+    }
+
     setState(() {
       _viewMode = GroupCalendarViewMode.month;
+      // Update focusedMonth immediately to match the date we're showing
+      _focusedMonth = targetMonth;
       if (_selectedDate != null) {
         _selectedDay = _selectedDate!.day;
-        // Jump PageController to selected date's month (this updates _focusedMonth via onPageChanged)
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_pageController.hasClients) {
-            _jumpToMonth(DateTime(_selectedDate!.year, _selectedDate!.month));
-          }
-        });
+      }
+    });
+
+    // Jump PageController to correct page AFTER rebuild
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_pageController.hasClients) {
+        _jumpToMonth(targetMonth);
       }
     });
   }
 
   void _handleViewModeChanged(GroupCalendarViewMode mode) {
     if (mode == GroupCalendarViewMode.day) {
-      _switchToDayView(_selectedDate ?? DateTime.now());
+      // Use selectedDate if available, otherwise use a day in the focused month
+      // (not DateTime.now() which would jump to current month)
+      final dateToShow = _selectedDate ??
+          DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDay ?? 1);
+      _switchToDayView(dateToShow);
     } else {
       _switchToMonthView();
     }
@@ -701,7 +729,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   void _showProposeEventFlow(BuildContext context) {
     final groupProvider = context.read<GroupProvider>();
-    final memberCount = groupProvider.selectedGroupMembers.length;
+    final members = groupProvider.selectedGroupMembers;
+    final memberCount = members.length;
+    final memberIds = members.map((m) => m.userId).toList();
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -712,6 +742,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           initialDate: _selectedDay != null
               ? DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDay!)
               : null,
+          memberEvents: _memberEvents,
+          memberIds: memberIds,
         ),
       ),
     );

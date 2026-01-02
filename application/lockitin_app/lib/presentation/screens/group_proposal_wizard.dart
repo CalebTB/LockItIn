@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/services/proposal_service.dart';
+import '../../core/services/event_service.dart';
+import '../../core/services/smart_time_suggestion_service.dart';
+import '../../data/models/event_model.dart';
 import '../../data/models/proposal_time_option.dart';
 
 /// Group Proposal Wizard - 3-step flow for creating event proposals
@@ -15,6 +18,17 @@ class GroupProposalWizard extends StatefulWidget {
   final String groupName;
   final int groupMemberCount;
   final DateTime? initialDate;
+  /// Optional start time for pre-filling the first time option
+  /// (e.g., when user taps a free time slot on the timeline)
+  final DateTime? initialStartTime;
+  /// Optional end time for pre-filling the first time option
+  final DateTime? initialEndTime;
+  /// Optional member events for smart time suggestions
+  /// If not provided, the wizard will fetch them
+  final Map<String, List<EventModel>>? memberEvents;
+  /// Member user IDs for fetching shadow calendar events
+  /// Required if memberEvents is not provided
+  final List<String>? memberIds;
 
   const GroupProposalWizard({
     super.key,
@@ -22,6 +36,10 @@ class GroupProposalWizard extends StatefulWidget {
     required this.groupName,
     required this.groupMemberCount,
     this.initialDate,
+    this.initialStartTime,
+    this.initialEndTime,
+    this.memberEvents,
+    this.memberIds,
   });
 
   @override
@@ -45,17 +63,93 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
   // Loading state
   bool _isSubmitting = false;
 
+  // Smart time suggestion state
+  final SmartTimeSuggestionService _suggestionService = SmartTimeSuggestionService();
+  Map<String, List<EventModel>> _memberEvents = {};
+  bool _isLoadingMemberEvents = false;
+
   @override
   void initState() {
     super.initState();
-    // Start with one time option based on initial date
-    final initialDate = widget.initialDate ?? DateTime.now().add(const Duration(days: 1));
+    // Start with one time option
+    // If initialStartTime/EndTime provided (from tapping a free slot), use those
+    // Otherwise default to 7pm-9pm on the initial date
+    final DateTime startTime;
+    final DateTime endTime;
+
+    if (widget.initialStartTime != null && widget.initialEndTime != null) {
+      // Use the time slot the user tapped
+      startTime = widget.initialStartTime!;
+      endTime = widget.initialEndTime!;
+    } else {
+      // Default to 7pm-9pm on the initial date
+      final initialDate = widget.initialDate ?? DateTime.now().add(const Duration(days: 1));
+      startTime = DateTime(initialDate.year, initialDate.month, initialDate.day, 19, 0);
+      endTime = DateTime(initialDate.year, initialDate.month, initialDate.day, 21, 0);
+    }
+
     _timeOptions = [
       ProposalTimeOption(
-        startTime: DateTime(initialDate.year, initialDate.month, initialDate.day, 19, 0),
-        endTime: DateTime(initialDate.year, initialDate.month, initialDate.day, 21, 0),
+        startTime: startTime,
+        endTime: endTime,
       ),
     ];
+
+    // Initialize member events for smart suggestions
+    _initializeMemberEvents();
+  }
+
+  /// Load member events for smart time suggestions
+  Future<void> _initializeMemberEvents() async {
+    // If member events were passed, use them
+    if (widget.memberEvents != null && widget.memberEvents!.isNotEmpty) {
+      setState(() {
+        _memberEvents = widget.memberEvents!;
+      });
+      return;
+    }
+
+    // If member IDs were passed, fetch their events
+    if (widget.memberIds != null && widget.memberIds!.isNotEmpty) {
+      await _fetchMemberEvents(widget.memberIds!);
+    }
+    // If neither was passed, we'll use fallback suggestions
+  }
+
+  /// Fetch shadow calendar events for the given member IDs
+  Future<void> _fetchMemberEvents(List<String> memberIds) async {
+    setState(() {
+      _isLoadingMemberEvents = true;
+    });
+
+    try {
+      // Fetch shadow calendar for the next 14 days
+      final now = DateTime.now();
+      final startDate = DateTime(now.year, now.month, now.day);
+      final endDate = startDate.add(const Duration(days: 14));
+
+      final shadowEntries = await EventService.instance.fetchGroupShadowCalendar(
+        memberUserIds: memberIds,
+        startDate: startDate,
+        endDate: endDate,
+      );
+
+      final events = EventService.instance.shadowToEventModels(shadowEntries);
+
+      if (mounted) {
+        setState(() {
+          _memberEvents = events;
+          _isLoadingMemberEvents = false;
+        });
+      }
+    } catch (e) {
+      // Silently fail - we'll use fallback suggestions
+      if (mounted) {
+        setState(() {
+          _isLoadingMemberEvents = false;
+        });
+      }
+    }
   }
 
   @override
@@ -978,21 +1072,47 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
     );
   }
 
-  /// Add a new time option
+  /// Add a new time option using smart suggestions
+  ///
+  /// Uses the SmartTimeSuggestionService to find the next best available
+  /// time slot based on group availability. Falls back to "next day same time"
+  /// if no member events are available.
   void _addTimeOption() {
-    final lastOption = _timeOptions.isNotEmpty
-        ? _timeOptions.last
-        : ProposalTimeOption(
-            startTime: DateTime.now(),
-            endTime: DateTime.now().add(const Duration(hours: 2)),
-          );
+    // Calculate preferred duration based on existing options
+    final preferredDuration = _timeOptions.isNotEmpty
+        ? _timeOptions.last.endTime
+            .difference(_timeOptions.last.startTime)
+            .inMinutes
+        : 120;
 
-    setState(() {
-      _timeOptions.add(ProposalTimeOption(
-        startTime: lastOption.startTime.add(const Duration(days: 1)),
-        endTime: lastOption.endTime.add(const Duration(days: 1)),
-      ));
-    });
+    // Use smart suggestion service to find the best next option
+    final suggestion = _suggestionService.suggestNextBestOption(
+      memberEvents: _memberEvents,
+      existingOptions: _timeOptions,
+      preferredDuration: preferredDuration,
+      searchDays: 7,
+    );
+
+    if (suggestion != null) {
+      setState(() {
+        _timeOptions.add(suggestion);
+      });
+    } else {
+      // Fallback: add next day at same time
+      final lastOption = _timeOptions.isNotEmpty
+          ? _timeOptions.last
+          : ProposalTimeOption(
+              startTime: DateTime.now(),
+              endTime: DateTime.now().add(const Duration(hours: 2)),
+            );
+
+      setState(() {
+        _timeOptions.add(ProposalTimeOption(
+          startTime: lastOption.startTime.add(const Duration(days: 1)),
+          endTime: lastOption.endTime.add(const Duration(days: 1)),
+        ));
+      });
+    }
   }
 
   /// Remove a time option

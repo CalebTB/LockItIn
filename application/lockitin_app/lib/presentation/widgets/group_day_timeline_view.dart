@@ -269,28 +269,35 @@ class _GroupDayTimelineViewState extends State<GroupDayTimelineView> {
     final freeSlots = _showBestTimes ? _findFreeSlots(dayEvents) : <_TimeSlot>[];
     final hours = List.generate(_endHour - _startHour + 1, (i) => _startHour + i);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 80), // Space for FAB
-      child: SizedBox(
-        height: (_endHour - _startHour + 1) * _hourHeight,
-        child: Stack(
-          children: [
-            // Hour lines and labels
-            ...hours.map((hour) => _buildHourLine(hour, colorScheme, appColors)),
+    // Use LayoutBuilder to get the actual width constraints and pass them to the Stack
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 80), // Space for FAB
+          child: SizedBox(
+            // Explicit width and height to ensure Stack has proper constraints
+            width: constraints.maxWidth,
+            height: (_endHour - _startHour + 1) * _hourHeight,
+            child: Stack(
+              children: [
+                // Hour lines and labels
+                ...hours.map((hour) => _buildHourLine(hour, colorScheme, appColors)),
 
-            // Free time slots (Best times)
-            if (_showBestTimes)
-              ...freeSlots.map((slot) => _buildFreeSlot(slot, colorScheme, appColors)),
+                // Free time slots (Best times)
+                if (_showBestTimes)
+                  ...freeSlots.map((slot) => _buildFreeSlot(slot, colorScheme, appColors)),
 
-            // Current time indicator
-            if (_isSameDay(widget.selectedDate, DateTime.now()))
-              _buildCurrentTimeIndicator(colorScheme),
+                // Current time indicator
+                if (_isSameDay(widget.selectedDate, DateTime.now()))
+                  _buildCurrentTimeIndicator(colorScheme),
 
-            // Events
-            ...positionedEvents.map((event) => _buildEventBlock(event, colorScheme, appColors)),
-          ],
-        ),
-      ),
+                // Events
+                ...positionedEvents.map((event) => _buildEventBlock(event, colorScheme, appColors)),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1009,9 +1016,11 @@ class _GroupDayTimelineViewState extends State<GroupDayTimelineView> {
                     ),
                   ),
                   const Spacer(),
-                  // Member avatars
+                  // Member avatars (stacked with overlap)
                   SizedBox(
                     height: 24,
+                    // Width: (n-1) * overlap + avatar size, max 5 avatars
+                    width: (members.take(5).length - 1) * 16.0 + 24,
                     child: Stack(
                       children: members.take(5).toList().asMap().entries.map((entry) {
                         final index = entry.key;
@@ -1072,15 +1081,28 @@ class _GroupDayTimelineViewState extends State<GroupDayTimelineView> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    // Navigate to proposal wizard with the selected date
-                    // The wizard creates a time option at 7pm-9pm for that date
+                    // Navigate to proposal wizard with the selected time slot pre-filled
+                    final date = widget.selectedDate;
+                    final startTime = DateTime(
+                      date.year, date.month, date.day,
+                      slot.startHour.toInt(),
+                      ((slot.startHour % 1) * 60).toInt(),
+                    );
+                    final endTime = DateTime(
+                      date.year, date.month, date.day,
+                      slot.endHour.toInt(),
+                      ((slot.endHour % 1) * 60).toInt(),
+                    );
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => GroupProposalWizard(
                           groupId: widget.groupId,
                           groupName: widget.groupName,
                           groupMemberCount: members.length,
-                          initialDate: widget.selectedDate,
+                          initialDate: date,
+                          initialStartTime: startTime,
+                          initialEndTime: endTime,
+                          memberEvents: widget.memberEvents,
                         ),
                       ),
                     );
