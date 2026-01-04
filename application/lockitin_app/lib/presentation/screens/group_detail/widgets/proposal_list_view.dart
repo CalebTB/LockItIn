@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../providers/proposal_provider.dart';
 import '../../../widgets/proposal_card.dart';
 import '../../../widgets/empty_state.dart';
+import '../../proposal_detail/proposal_detail_screen.dart';
 
 /// Filter options for proposal list
 enum ProposalFilter {
@@ -258,13 +259,15 @@ class _ProposalListViewState extends State<ProposalListView> {
     );
   }
 
-  /// Navigate to proposal detail (placeholder for issue #36)
+  /// Navigate to proposal detail screen
   void _navigateToProposalDetail(ProposalModel proposal) {
-    // Placeholder for issue #36 - Proposal Detail & Voting UI
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Proposal detail view coming in issue #36'),
-        duration: Duration(seconds: 2),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProposalDetailScreen(
+          proposalId: proposal.id,
+          groupId: proposal.groupId,
+        ),
       ),
     );
   }

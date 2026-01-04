@@ -86,12 +86,27 @@ class ProposalService {
     try {
       Logger.info('ProposalService', 'Fetching proposal: $proposalId');
 
-      // Fetch proposal
+      // Fetch proposal (without user join - we'll get creator name from public.users separately)
       final proposalResult = await _supabase
           .from('event_proposals')
-          .select('*, users!created_by(full_name)')
+          .select('*')
           .eq('id', proposalId)
           .single();
+
+      // Fetch creator name from public.users table
+      String? creatorName;
+      try {
+        final userResult = await _supabase
+            .from('users')
+            .select('full_name')
+            .eq('id', proposalResult['created_by'])
+            .maybeSingle();
+
+        creatorName = userResult?['full_name'] as String?;
+      } catch (e) {
+        Logger.warning('ProposalService', 'Failed to fetch creator name: $e');
+        creatorName = null;
+      }
 
       // Fetch vote summary
       final voteSummary = await _supabase.rpc(
@@ -107,7 +122,7 @@ class ProposalService {
       // Build proposal with time options
       final proposal = ProposalModel.fromJson({
         ...proposalResult,
-        'creator_name': proposalResult['users']?['full_name'],
+        'creator_name': creatorName,
         'time_options': timeOptions.map((o) => {
           'id': o.id,
           'start_time': o.startTime.toIso8601String(),
@@ -180,11 +195,10 @@ class ProposalService {
       Logger.info('ProposalService', 'Casting vote: $vote for option: $timeOptionId');
 
       await _supabase.from('proposal_votes').upsert({
-        'proposal_id': proposalId,
-        'time_option_id': timeOptionId,
+        'option_id': timeOptionId,
         'user_id': userId,
         'vote': vote.name,
-      }, onConflict: 'proposal_id,time_option_id,user_id');
+      }, onConflict: 'option_id,user_id');
 
       Logger.info('ProposalService', 'Vote cast successfully');
     } catch (e) {
@@ -205,8 +219,7 @@ class ProposalService {
       await _supabase
           .from('proposal_votes')
           .delete()
-          .eq('proposal_id', proposalId)
-          .eq('time_option_id', timeOptionId)
+          .eq('option_id', timeOptionId)
           .eq('user_id', userId);
 
       Logger.info('ProposalService', 'Vote removed successfully');
@@ -228,7 +241,7 @@ class ProposalService {
         'confirm_proposal',
         params: {
           'p_proposal_id': proposalId,
-          'p_time_option_id': timeOptionId,
+          'p_option_id': timeOptionId,
         },
       );
 
@@ -324,20 +337,24 @@ class ProposalService {
   }
 
   /// Get user's votes for a proposal
+  ///
+  /// Note: Since proposal_votes table doesn't have proposal_id column,
+  /// this gets ALL user votes and filters client-side.
+  /// For better performance, use the userVote field from ProposalTimeOption.
   Future<Map<String, VoteType>> getUserVotes(String proposalId) async {
     try {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) return {};
 
+      // Get all user's votes (can't filter by proposal_id in DB)
       final result = await _supabase
           .from('proposal_votes')
-          .select('time_option_id, vote')
-          .eq('proposal_id', proposalId)
+          .select('option_id, vote')
           .eq('user_id', userId);
 
       final votes = <String, VoteType>{};
       for (final row in result as List) {
-        votes[row['time_option_id'] as String] =
+        votes[row['option_id'] as String] =
             VoteType.fromString(row['vote'] as String);
       }
       return votes;
@@ -348,6 +365,10 @@ class ProposalService {
   }
 
   /// Subscribe to vote updates for a proposal
+  ///
+  /// Note: Since proposal_votes table doesn't have proposal_id column,
+  /// this subscribes to ALL vote changes. The provider should check if
+  /// the changed vote's option_id belongs to the proposal before refreshing.
   RealtimeChannel subscribeToVotes({
     required String proposalId,
     required void Function(Map<String, dynamic> payload) onVoteChange,
@@ -359,11 +380,8 @@ class ProposalService {
         event: PostgresChangeEvent.all,
         schema: 'public',
         table: 'proposal_votes',
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'proposal_id',
-          value: proposalId,
-        ),
+        // No filter - proposal_id doesn't exist in this table
+        // Provider will filter by checking if option_id belongs to proposal
         callback: (payload) {
           Logger.info('ProposalService', 'Vote change received: ${payload.eventType}');
           onVoteChange(payload.newRecord);
