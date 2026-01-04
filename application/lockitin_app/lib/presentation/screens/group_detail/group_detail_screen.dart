@@ -319,12 +319,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         _jumpToMonth(targetMonth);
       }
     });
-
-    _showSnackBar(
-      _dayViewStyle == DayViewStyle.timeline
-          ? 'Switched to Timeline day view'
-          : 'Switched to Classic day view',
-    );
   }
 
   void _showSnackBar(String message) {
@@ -498,8 +492,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                         _jumpToMonth(targetMonth);
                       }
                     });
-
-                    _showSnackBar('Switched to Timeline day view');
                   },
                 ),
                 MonthNavigation(
