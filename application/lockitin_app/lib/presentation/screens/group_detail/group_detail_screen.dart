@@ -247,10 +247,25 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
 
   void _handleViewModeChanged(GroupCalendarViewMode mode) {
     if (mode == GroupCalendarViewMode.day) {
-      // Use selectedDate if available, otherwise use a day in the focused month
-      // (not DateTime.now() which would jump to current month)
-      final dateToShow = _selectedDate ??
-          DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDay ?? 1);
+      // Determine which date to show in day view
+      DateTime dateToShow;
+      if (_selectedDate != null) {
+        // Use existing selected date
+        dateToShow = _selectedDate!;
+      } else {
+        // No date selected yet - check if we're in current month
+        final today = DateTime.now();
+        final isFocusedMonthCurrent =
+            _focusedMonth.year == today.year && _focusedMonth.month == today.month;
+
+        if (isFocusedMonthCurrent && _selectedDay == null) {
+          // In current month with no selection - show today
+          dateToShow = today;
+        } else {
+          // In different month or have a selected day - use that
+          dateToShow = DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDay ?? 1);
+        }
+      }
       _switchToDayView(dateToShow);
     } else {
       _switchToMonthView();
@@ -280,8 +295,19 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         _selectedDay = _selectedDate!.day;
       } else {
         // Coming from month view - sync selectedDate to match focusedMonth
-        final day = _selectedDay ?? 1;
-        _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+        if (_selectedDate != null) {
+          // Preserve existing selected date
+          _selectedDay = _selectedDate!.day;
+        } else {
+          // No date selected - default to today if in current month, else day 1
+          final today = DateTime.now();
+          final isFocusedMonthCurrent =
+              _focusedMonth.year == today.year && _focusedMonth.month == today.month;
+
+          final day = _selectedDay ?? (isFocusedMonthCurrent ? today.day : 1);
+          _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+          _selectedDay = day;
+        }
       }
     });
 
@@ -451,8 +477,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                       _viewMode = GroupCalendarViewMode.month;
 
                       // Sync selectedDate to match the current focusedMonth
-                      final day = _selectedDay ?? 1;
-                      _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+                      if (_selectedDate == null) {
+                        // No date selected - default to today if in current month, else day 1
+                        final today = DateTime.now();
+                        final isFocusedMonthCurrent =
+                            _focusedMonth.year == today.year && _focusedMonth.month == today.month;
+
+                        final day = _selectedDay ?? (isFocusedMonthCurrent ? today.day : 1);
+                        _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+                        _selectedDay = day;
+                      }
                     });
 
                     // Jump PageController to correct page AFTER new PageView is built
