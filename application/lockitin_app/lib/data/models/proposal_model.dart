@@ -78,15 +78,15 @@ class ProposalModel {
       title: json['title'] as String,
       description: json['description'] as String?,
       location: json['location'] as String?,
-      votingDeadline: DateTime.parse(json['voting_deadline'] as String),
+      votingDeadline: _parseDateTime(json['voting_deadline']),
       minVotesRequired: json['min_votes_required'] as int? ?? 1,
       autoConfirm: json['auto_confirm'] as bool? ?? true,
       status: ProposalStatus.fromString(json['status'] as String? ?? 'voting'),
       confirmedTimeOptionId: json['confirmed_time_option_id'] as String?,
       confirmedEventId: json['confirmed_event_id'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: _parseDateTime(json['created_at']),
       updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'] as String)
+          ? _parseDateTime(json['updated_at'])
           : null,
       creatorName: json['creator_name'] as String?,
       timeOptions: json['time_options'] != null
@@ -97,6 +97,17 @@ class ProposalModel {
       totalVoters: json['total_votes'] as int?,
       userHasVoted: json['user_has_voted'] as bool?,
     );
+  }
+
+  /// Helper to parse DateTime from JSON (handles both String and DateTime types)
+  static DateTime _parseDateTime(dynamic value) {
+    if (value is DateTime) {
+      return value;
+    } else if (value is String) {
+      return DateTime.parse(value);
+    } else {
+      throw ArgumentError('Invalid datetime value: $value');
+    }
   }
 
   /// Convert to JSON for insert/update
