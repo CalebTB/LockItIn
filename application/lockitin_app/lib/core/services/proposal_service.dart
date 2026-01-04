@@ -64,14 +64,19 @@ class ProposalService {
         params: {'p_group_id': groupId},
       );
 
+      Logger.info('ProposalService', 'Raw RPC result: $result');
+
       final proposals = (result as List)
-          .map((json) => ProposalModel.fromJson(json as Map<String, dynamic>))
+          .map((json) {
+            Logger.info('ProposalService', 'Parsing proposal JSON: $json');
+            return ProposalModel.fromJson(json as Map<String, dynamic>);
+          })
           .toList();
 
       Logger.info('ProposalService', 'Fetched ${proposals.length} proposals');
       return proposals;
-    } catch (e) {
-      Logger.error(_tag, 'Failed to fetch group proposals: $e');
+    } catch (e, stackTrace) {
+      Logger.error(_tag, 'Failed to fetch group proposals: $e', e, stackTrace);
       rethrow;
     }
   }

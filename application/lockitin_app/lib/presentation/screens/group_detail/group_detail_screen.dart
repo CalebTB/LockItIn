@@ -17,6 +17,7 @@ import '../../widgets/group_settings_sheet.dart';
 import '../../widgets/group_day_timeline_view.dart';
 import '../group_proposal_wizard.dart';
 import 'widgets/widgets.dart';
+import 'widgets/proposal_list_view.dart';
 
 /// View modes for the group detail screen calendar
 enum GroupCalendarViewMode { month, day }
@@ -40,7 +41,8 @@ class GroupDetailScreen extends StatefulWidget {
   State<GroupDetailScreen> createState() => _GroupDetailScreenState();
 }
 
-class _GroupDetailScreenState extends State<GroupDetailScreen> {
+class _GroupDetailScreenState extends State<GroupDetailScreen>
+    with SingleTickerProviderStateMixin {
   final _availabilityService = AvailabilityCalculatorService();
 
   GroupCalendarViewMode _viewMode = GroupCalendarViewMode.month;
@@ -50,6 +52,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   DateTime? _selectedDate;
   int? _selectedDay;
   late PageController _pageController;
+  late TabController _tabController;
   Set<TimeFilter> _selectedTimeFilters = {TimeFilter.allDay};
   DateTimeRange? _selectedDateRange;
 
@@ -67,6 +70,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     super.initState();
     _focusedMonth = DateTime.now();
     _pageController = PageController(initialPage: 12);
+    _tabController = TabController(length: 2, vsync: this);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeGroupData();
@@ -161,6 +165,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -340,16 +345,59 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 errorMessage: _memberEventsError,
                 onRetry: _loadMemberEvents,
               ),
-            ViewModeToggle(
-              viewMode: _viewMode,
-              dayViewStyle: _dayViewStyle,
-              onViewModeChanged: _handleViewModeChanged,
-              onDayViewStyleToggle: _handleDayViewStyleToggle,
+            TabBar(
+              controller: _tabController,
+              labelColor: colorScheme.primary,
+              unselectedLabelColor: appColors.textSecondary,
+              indicatorColor: colorScheme.primary,
+              tabs: const [
+                Tab(
+                  text: 'Calendar',
+                  icon: Icon(Icons.calendar_month_rounded),
+                ),
+                Tab(
+                  text: 'Proposals',
+                  icon: Icon(Icons.how_to_vote_rounded),
+                ),
+              ],
             ),
             Expanded(
-              child: _viewMode == GroupCalendarViewMode.month
-                  ? _buildMonthView(colorScheme, appColors)
-                  : _buildDayView(),
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Tab 1: Calendar (existing content with month/day logic)
+                  _viewMode == GroupCalendarViewMode.month
+                      ? Column(
+                          children: [
+                            ViewModeToggle(
+                              viewMode: _viewMode,
+                              dayViewStyle: _dayViewStyle,
+                              onViewModeChanged: _handleViewModeChanged,
+                              onDayViewStyleToggle: _handleDayViewStyleToggle,
+                            ),
+                            Expanded(
+                              child: _buildMonthView(colorScheme, appColors),
+                            ),
+                          ],
+                        )
+                      : Column(
+                          children: [
+                            ViewModeToggle(
+                              viewMode: _viewMode,
+                              dayViewStyle: _dayViewStyle,
+                              onViewModeChanged: _handleViewModeChanged,
+                              onDayViewStyleToggle: _handleDayViewStyleToggle,
+                            ),
+                            Expanded(
+                              child: _buildDayView(),
+                            ),
+                          ],
+                        ),
+
+                  // Tab 2: Proposals (new)
+                  ProposalListView(groupId: widget.group.id),
+                ],
+              ),
             ),
           ],
         ),

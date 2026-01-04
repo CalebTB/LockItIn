@@ -24,6 +24,9 @@ enum EmptyStateType {
 
   /// No notifications in inbox
   inboxEmpty,
+
+  /// No proposals in group
+  noProposals,
 }
 
 /// Contextual empty state widget with icons, messages, and CTAs
@@ -39,6 +42,7 @@ class EmptyState extends StatelessWidget {
   final VoidCallback? onViewInbox;
   final VoidCallback? onCreateGroup;
   final VoidCallback? onAddFriend;
+  final VoidCallback? onCreateProposal;
 
   const EmptyState({
     super.key,
@@ -50,6 +54,7 @@ class EmptyState extends StatelessWidget {
     this.onViewInbox,
     this.onCreateGroup,
     this.onAddFriend,
+    this.onCreateProposal,
   });
 
   @override
@@ -261,6 +266,20 @@ class EmptyState extends StatelessWidget {
           iconColor: appColors.success,
           title: 'All caught up!',
           body: 'No pending requests or invites',
+        );
+
+      case EmptyStateType.noProposals:
+        return _EmptyStateContent(
+          icon: Icons.how_to_vote_outlined,
+          title: 'No proposals yet',
+          body: 'Create a proposal to suggest event times to the group',
+          primaryCTA: onCreateProposal != null
+              ? _CTAButton(
+                  label: 'Create Proposal',
+                  icon: Icons.add_rounded,
+                  onPressed: onCreateProposal!,
+                )
+              : null,
         );
     }
   }

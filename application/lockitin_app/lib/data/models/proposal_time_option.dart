@@ -101,8 +101,8 @@ class ProposalTimeOption {
     return ProposalTimeOption(
       id: json['id'] as String?,
       proposalId: json['proposal_id'] as String?,
-      startTime: DateTime.parse(json['start_time'] as String),
-      endTime: DateTime.parse(json['end_time'] as String),
+      startTime: _parseDateTime(json['start_time']),
+      endTime: _parseDateTime(json['end_time']),
       optionOrder: json['option_order'] as int? ?? 1,
       yesCount: json['yes_count'] as int? ?? 0,
       maybeCount: json['maybe_count'] as int? ?? 0,
@@ -117,12 +117,23 @@ class ProposalTimeOption {
   factory ProposalTimeOption.fromVoteSummary(Map<String, dynamic> json) {
     return ProposalTimeOption(
       id: json['time_option_id'] as String,
-      startTime: DateTime.parse(json['start_time'] as String),
-      endTime: DateTime.parse(json['end_time'] as String),
+      startTime: _parseDateTime(json['start_time']),
+      endTime: _parseDateTime(json['end_time']),
       yesCount: json['yes_count'] as int? ?? 0,
       maybeCount: json['maybe_count'] as int? ?? 0,
       noCount: json['no_count'] as int? ?? 0,
     );
+  }
+
+  /// Helper to parse DateTime from JSON (handles both String and DateTime types)
+  static DateTime _parseDateTime(dynamic value) {
+    if (value is DateTime) {
+      return value;
+    } else if (value is String) {
+      return DateTime.parse(value);
+    } else {
+      throw ArgumentError('Invalid datetime value: $value');
+    }
   }
 
   @override
