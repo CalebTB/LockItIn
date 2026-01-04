@@ -324,10 +324,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      floatingActionButton: ProposeFAB(
-        groupName: widget.group.name,
-        onPressed: () => _showProposeEventFlow(context),
-      ),
+      floatingActionButton: _selectedDay == null
+          ? ProposeFAB(
+              groupName: widget.group.name,
+              onPressed: () => _showProposeEventFlow(context),
+            )
+          : null,
       body: SafeArea(
         child: Column(
           children: [
@@ -412,10 +414,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   Widget _buildClassicLayout(ColorScheme colorScheme, AppColorsExtension appColors) {
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      floatingActionButton: ProposeFAB(
-        groupName: widget.group.name,
-        onPressed: () => _showProposeEventFlow(context),
-      ),
+      floatingActionButton: _selectedDay == null
+          ? ProposeFAB(
+              groupName: widget.group.name,
+              onPressed: () => _showProposeEventFlow(context),
+            )
+          : null,
       body: SafeArea(
         child: Stack(
           children: [
@@ -499,6 +503,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                 customStartTime: _customStartTime,
                 customEndTime: _customEndTime,
                 availabilityService: _availabilityService,
+                groupId: widget.group.id,
+                groupName: widget.group.name,
+                groupMemberCount: widget.group.memberCount,
               ),
             ],
           ],
