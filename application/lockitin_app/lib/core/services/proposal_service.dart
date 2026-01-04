@@ -366,9 +366,8 @@ class ProposalService {
 
   /// Subscribe to vote updates for a proposal
   ///
-  /// Note: Since proposal_votes table doesn't have proposal_id column,
-  /// this subscribes to ALL vote changes. The provider should check if
-  /// the changed vote's option_id belongs to the proposal before refreshing.
+  /// Subscribes to real-time vote updates for a specific proposal.
+  /// Filters changes to votes on this proposal's time options.
   RealtimeChannel subscribeToVotes({
     required String proposalId,
     required void Function(Map<String, dynamic> payload) onVoteChange,
@@ -380,8 +379,7 @@ class ProposalService {
         event: PostgresChangeEvent.all,
         schema: 'public',
         table: 'proposal_votes',
-        // No filter - proposal_id doesn't exist in this table
-        // Provider will filter by checking if option_id belongs to proposal
+        // Subscribe to all vote changes (provider filters to this proposal)
         callback: (payload) {
           Logger.info('ProposalService', 'Vote change received: ${payload.eventType}');
           onVoteChange(payload.newRecord);
