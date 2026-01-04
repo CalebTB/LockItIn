@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/proposal_model.dart';
+import '../../data/models/proposal_time_option.dart';
+import '../../data/models/vote_model.dart';
 import '../../core/services/proposal_service.dart';
 import '../../core/utils/logger.dart';
 
@@ -31,6 +33,10 @@ class ProposalProvider extends ChangeNotifier {
   /// Map of vote subscriptions per proposal (for real-time vote updates)
   final Map<String, RealtimeChannel> _voteSubscriptions = {};
 
+  /// Track real-time connection state
+  bool _isRealtimeConnected = true;
+  String? _connectionError;
+
   // ============================================================================
   // Getters
   // ============================================================================
@@ -57,6 +63,12 @@ class ProposalProvider extends ChangeNotifier {
 
   /// Get currently selected group ID
   String? get selectedGroupId => _selectedGroupId;
+
+  /// Check if real-time connection is active
+  bool get isRealtimeConnected => _isRealtimeConnected;
+
+  /// Get connection error message if any
+  String? get connectionError => _connectionError;
 
   // ============================================================================
   // Initialization & Loading
@@ -166,6 +178,7 @@ class ProposalProvider extends ChangeNotifier {
   void subscribeToProposalVotes(String proposalId) {
     // Don't subscribe if already subscribed
     if (_voteSubscriptions.containsKey(proposalId)) {
+      Logger.info('ProposalProvider', 'Already subscribed to proposal: $proposalId');
       return;
     }
 
@@ -175,21 +188,59 @@ class ProposalProvider extends ChangeNotifier {
       final subscription = _proposalService.subscribeToVotes(
         proposalId: proposalId,
         onVoteChange: (payload) {
+          // Check if this vote belongs to our proposal
+          final optionId = payload['option_id'] as String?;
+          if (optionId == null) {
+            Logger.warning('ProposalProvider', 'Received vote change without option_id');
+            return;
+          }
+
+          // Get the proposal to check if this option belongs to it
+          final proposal = getProposalById(proposalId);
+          if (proposal?.timeOptions == null) return;
+
+          // Only refresh if the vote is for one of this proposal's time options
+          final belongsToProposal = proposal!.timeOptions!.any((option) => option.id == optionId);
+          if (!belongsToProposal) {
+            Logger.info('ProposalProvider', 'Vote change for different proposal, ignoring');
+            return;
+          }
+
           Logger.info('ProposalProvider', 'Vote changed for proposal: $proposalId');
+
+          // Mark connection as active
+          if (!_isRealtimeConnected) {
+            _isRealtimeConnected = true;
+            _connectionError = null;
+            Logger.info('ProposalProvider', 'Real-time connection restored');
+            notifyListeners();
+          }
+
           // Refresh the specific proposal's data
           _refreshProposal(proposalId);
         },
       );
 
       _voteSubscriptions[proposalId] = subscription;
+
+      // Mark connection as active
+      _isRealtimeConnected = true;
+      _connectionError = null;
+
+      Logger.info('ProposalProvider', 'Successfully subscribed to votes for proposal: $proposalId');
     } catch (e) {
       Logger.error('ProposalProvider', 'Failed to subscribe to votes: $e');
+      _isRealtimeConnected = false;
+      _connectionError = e.toString();
+      notifyListeners();
     }
   }
 
   /// Refresh a single proposal's data (for real-time updates)
   Future<void> _refreshProposal(String proposalId) async {
     try {
+      Logger.info('ProposalProvider', 'Refreshing proposal data: $proposalId');
+
       final updatedProposal = await _proposalService.getProposal(proposalId);
 
       // Find and update the proposal in the list
@@ -197,9 +248,41 @@ class ProposalProvider extends ChangeNotifier {
       if (index != -1) {
         _proposals[index] = updatedProposal;
         notifyListeners();
+        Logger.info('ProposalProvider', 'Proposal refreshed successfully');
+      } else {
+        Logger.warning('ProposalProvider', 'Proposal not found in local state: $proposalId');
       }
     } catch (e) {
       Logger.error('ProposalProvider', 'Failed to refresh proposal: $e');
+
+      // Mark connection as potentially lost
+      _isRealtimeConnected = false;
+      _connectionError = 'Failed to sync latest data';
+      notifyListeners();
+
+      // Attempt to reconnect after a delay
+      Future.delayed(const Duration(seconds: 5), () {
+        if (!_isRealtimeConnected) {
+          Logger.info('ProposalProvider', 'Attempting to reconnect...');
+          _attemptReconnect(proposalId);
+        }
+      });
+    }
+  }
+
+  /// Attempt to reconnect real-time subscription
+  Future<void> _attemptReconnect(String proposalId) async {
+    try {
+      Logger.info('ProposalProvider', 'Reconnecting to proposal: $proposalId');
+
+      // Unsubscribe old channel
+      final oldSubscription = _voteSubscriptions.remove(proposalId);
+      await oldSubscription?.unsubscribe();
+
+      // Resubscribe
+      subscribeToProposalVotes(proposalId);
+    } catch (e) {
+      Logger.error('ProposalProvider', 'Failed to reconnect: $e');
     }
   }
 
@@ -216,6 +299,195 @@ class ProposalProvider extends ChangeNotifier {
       subscription.unsubscribe();
     }
     _voteSubscriptions.clear();
+  }
+
+  // ============================================================================
+  // Voting & Proposal Management
+  // ============================================================================
+
+  /// Load a single proposal by ID (for detail view)
+  Future<void> loadProposal(String proposalId) async {
+    try {
+      Logger.info('ProposalProvider', 'Loading proposal: $proposalId');
+
+      final proposal = await _proposalService.getProposal(proposalId);
+
+      // Update in proposals list if exists, otherwise add
+      final index = _proposals.indexWhere((p) => p.id == proposalId);
+      if (index != -1) {
+        _proposals[index] = proposal;
+      } else {
+        _proposals.add(proposal);
+      }
+
+      notifyListeners();
+      Logger.info('ProposalProvider', 'Proposal loaded successfully');
+    } catch (e) {
+      Logger.error('ProposalProvider', 'Failed to load proposal: $e');
+      rethrow;
+    }
+  }
+
+  /// Get proposal by ID from cached list
+  ProposalModel? getProposalById(String proposalId) {
+    try {
+      return _proposals.firstWhere((p) => p.id == proposalId);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Cast vote with optimistic UI update
+  Future<void> castVote(
+    String proposalId,
+    String timeOptionId,
+    VoteType voteType,
+  ) async {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    if (currentUserId == null) {
+      throw Exception('User not authenticated');
+    }
+
+    // Find proposal and option
+    final proposalIndex = _proposals.indexWhere((p) => p.id == proposalId);
+    if (proposalIndex == -1) {
+      throw Exception('Proposal not found in local state');
+    }
+
+    final proposal = _proposals[proposalIndex];
+    if (proposal.timeOptions == null) {
+      throw Exception('No time options available');
+    }
+
+    final optionIndex = proposal.timeOptions!.indexWhere((o) => o.id == timeOptionId);
+    if (optionIndex == -1) {
+      throw Exception('Time option not found');
+    }
+
+    // Store old state for rollback
+    final oldProposal = proposal;
+
+    try {
+      Logger.info('ProposalProvider', 'Casting vote: $voteType on option: $timeOptionId');
+
+      // Optimistic update
+      final updatedOption = _updateOptionVote(
+        proposal.timeOptions![optionIndex],
+        currentUserId,
+        voteType,
+      );
+
+      final updatedOptions = List<ProposalTimeOption>.from(proposal.timeOptions!);
+      updatedOptions[optionIndex] = updatedOption;
+
+      final updatedProposal = proposal.copyWith(timeOptions: updatedOptions);
+      _proposals[proposalIndex] = updatedProposal;
+      notifyListeners();
+
+      // Perform actual vote
+      await _proposalService.castVote(
+        proposalId: proposalId,
+        timeOptionId: timeOptionId,
+        vote: voteType,
+      );
+
+      Logger.info('ProposalProvider', 'Vote cast successfully');
+    } catch (e) {
+      // Rollback on error
+      Logger.error('ProposalProvider', 'Failed to cast vote, rolling back: $e');
+      _proposals[proposalIndex] = oldProposal;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Helper to update vote optimistically
+  ProposalTimeOption _updateOptionVote(
+    ProposalTimeOption option,
+    String userId,
+    VoteType voteType,
+  ) {
+    // Calculate new vote counts
+    int yesCount = option.yesCount;
+    int maybeCount = option.maybeCount;
+    int noCount = option.noCount;
+
+    // Remove old vote if user already voted
+    if (option.userVote != null) {
+      switch (option.userVote!) {
+        case VoteType.yes:
+          yesCount = (yesCount - 1).clamp(0, double.infinity).toInt();
+          break;
+        case VoteType.maybe:
+          maybeCount = (maybeCount - 1).clamp(0, double.infinity).toInt();
+          break;
+        case VoteType.no:
+          noCount = (noCount - 1).clamp(0, double.infinity).toInt();
+          break;
+      }
+    }
+
+    // Add new vote
+    switch (voteType) {
+      case VoteType.yes:
+        yesCount++;
+        break;
+      case VoteType.maybe:
+        maybeCount++;
+        break;
+      case VoteType.no:
+        noCount++;
+        break;
+    }
+
+    return option.copyWith(
+      yesCount: yesCount,
+      maybeCount: maybeCount,
+      noCount: noCount,
+      userVote: voteType,
+    );
+  }
+
+  /// Confirm a proposal with a specific time option (creator only)
+  /// Creates a calendar event and updates proposal status to confirmed
+  Future<String> confirmProposal(String proposalId, String timeOptionId) async {
+    try {
+      Logger.info('ProposalProvider', 'Confirming proposal: $proposalId with option: $timeOptionId');
+
+      // Call service to confirm and create event
+      final eventId = await _proposalService.confirmProposal(
+        proposalId: proposalId,
+        timeOptionId: timeOptionId,
+      );
+
+      // Refresh the proposal to get updated status
+      await loadProposal(proposalId);
+
+      Logger.info('ProposalProvider', 'Proposal confirmed, event created: $eventId');
+      return eventId;
+    } catch (e) {
+      Logger.error('ProposalProvider', 'Failed to confirm proposal: $e');
+      rethrow;
+    }
+  }
+
+  /// Cancel a proposal (creator only)
+  /// Updates proposal status to cancelled
+  Future<void> cancelProposal(String proposalId) async {
+    try {
+      Logger.info('ProposalProvider', 'Cancelling proposal: $proposalId');
+
+      // Call service to cancel
+      await _proposalService.cancelProposal(proposalId);
+
+      // Refresh the proposal to get updated status
+      await loadProposal(proposalId);
+
+      Logger.info('ProposalProvider', 'Proposal cancelled successfully');
+    } catch (e) {
+      Logger.error('ProposalProvider', 'Failed to cancel proposal: $e');
+      rethrow;
+    }
   }
 
   @override
