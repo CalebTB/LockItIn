@@ -9,6 +9,7 @@ import '../../../../data/models/event_model.dart';
 import '../../../../data/models/group_model.dart';
 import '../../../providers/group_provider.dart';
 import '../../../widgets/suggested_time_slots_card.dart';
+import '../../group_proposal_wizard.dart';
 
 /// Bottom sheet showing detailed availability for a selected day
 /// Uses Minimal theme color system (grayscale + emerald for availability)
@@ -29,6 +30,9 @@ class DayDetailSheet extends StatelessWidget {
   final TimeOfDay customStartTime;
   final TimeOfDay customEndTime;
   final AvailabilityCalculatorService availabilityService;
+  final String groupId;
+  final String groupName;
+  final int groupMemberCount;
 
   const DayDetailSheet({
     super.key,
@@ -41,6 +45,9 @@ class DayDetailSheet extends StatelessWidget {
     required this.customStartTime,
     required this.customEndTime,
     required this.availabilityService,
+    required this.groupId,
+    required this.groupName,
+    required this.groupMemberCount,
   });
 
   /// Calculate how many group members are available on this date
@@ -408,12 +415,18 @@ class DayDetailSheet extends StatelessWidget {
       members: members,
       onSlotSelected: (slot) {
         HapticFeedback.selectionClick();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Selected ${slot.formattedTimeRange} - Event proposals coming in Sprint 3!',
+
+        // Navigate to proposal wizard with pre-filled time from suggested slot
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => GroupProposalWizard(
+              groupId: groupId,
+              groupName: groupName,
+              groupMemberCount: groupMemberCount,
+              initialDate: date,
+              initialStartTime: slot.startTime,
+              initialEndTime: slot.endTime,
             ),
-            backgroundColor: colorScheme.primary,
           ),
         );
       },
@@ -439,10 +452,16 @@ class DayDetailSheet extends StatelessWidget {
         child: ElevatedButton.icon(
           onPressed: () {
             HapticFeedback.mediumImpact();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Event proposals coming in Sprint 3!'),
-                backgroundColor: colorScheme.primary,
+
+            // Navigate to proposal wizard with selected date
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => GroupProposalWizard(
+                  groupId: groupId,
+                  groupName: groupName,
+                  groupMemberCount: groupMemberCount,
+                  initialDate: date,
+                ),
               ),
             );
           },
