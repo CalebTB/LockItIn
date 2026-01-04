@@ -345,7 +345,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      floatingActionButton: _selectedDay == null
+      floatingActionButton: _viewMode == GroupCalendarViewMode.month
           ? ProposeFAB(
               groupName: widget.group.name,
               onPressed: () => _showProposeEventFlow(context),
