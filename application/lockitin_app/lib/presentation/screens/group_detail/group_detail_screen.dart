@@ -247,10 +247,25 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
 
   void _handleViewModeChanged(GroupCalendarViewMode mode) {
     if (mode == GroupCalendarViewMode.day) {
-      // Use selectedDate if available, otherwise use a day in the focused month
-      // (not DateTime.now() which would jump to current month)
-      final dateToShow = _selectedDate ??
-          DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDay ?? 1);
+      // Determine which date to show in day view
+      DateTime dateToShow;
+      if (_selectedDate != null) {
+        // Use existing selected date
+        dateToShow = _selectedDate!;
+      } else {
+        // No date selected yet - check if we're in current month
+        final today = DateTime.now();
+        final isFocusedMonthCurrent =
+            _focusedMonth.year == today.year && _focusedMonth.month == today.month;
+
+        if (isFocusedMonthCurrent && _selectedDay == null) {
+          // In current month with no selection - show today
+          dateToShow = today;
+        } else {
+          // In different month or have a selected day - use that
+          dateToShow = DateTime(_focusedMonth.year, _focusedMonth.month, _selectedDay ?? 1);
+        }
+      }
       _switchToDayView(dateToShow);
     } else {
       _switchToMonthView();
@@ -275,13 +290,25 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       _dayViewStyle = wasTimeline ? DayViewStyle.classic : DayViewStyle.timeline;
       _viewMode = GroupCalendarViewMode.month;
 
+      // When switching to month view, preserve _selectedDate but clear _selectedDay
+      // This prevents the day detail sheet from auto-opening in classic view
       if (wasTimeline && wasInDayView && _selectedDate != null) {
-        // Coming from timeline day view - use selectedDate as source of truth
-        _selectedDay = _selectedDate!.day;
+        // Coming from timeline day view - preserve selectedDate, clear selectedDay
+        // (selectedDate will be used if user switches back to day view)
+        _selectedDay = null;
       } else {
-        // Coming from month view - sync selectedDate to match focusedMonth
-        final day = _selectedDay ?? 1;
-        _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+        // Coming from month view - ensure we have a selectedDate for later
+        if (_selectedDate == null) {
+          // No date selected - set selectedDate to today if in current month, else day 1
+          final today = DateTime.now();
+          final isFocusedMonthCurrent =
+              _focusedMonth.year == today.year && _focusedMonth.month == today.month;
+
+          final day = _selectedDay ?? (isFocusedMonthCurrent ? today.day : 1);
+          _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+        }
+        // Clear selectedDay to prevent day detail sheet from auto-opening
+        _selectedDay = null;
       }
     });
 
@@ -292,12 +319,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         _jumpToMonth(targetMonth);
       }
     });
-
-    _showSnackBar(
-      _dayViewStyle == DayViewStyle.timeline
-          ? 'Switched to Timeline day view'
-          : 'Switched to Classic day view',
-    );
   }
 
   void _showSnackBar(String message) {
@@ -324,7 +345,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      floatingActionButton: _selectedDay == null
+      floatingActionButton: _viewMode == GroupCalendarViewMode.month
           ? ProposeFAB(
               groupName: widget.group.name,
               onPressed: () => _showProposeEventFlow(context),
@@ -451,8 +472,17 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                       _viewMode = GroupCalendarViewMode.month;
 
                       // Sync selectedDate to match the current focusedMonth
-                      final day = _selectedDay ?? 1;
-                      _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+                      if (_selectedDate == null) {
+                        // No date selected - default to today if in current month, else day 1
+                        final today = DateTime.now();
+                        final isFocusedMonthCurrent =
+                            _focusedMonth.year == today.year && _focusedMonth.month == today.month;
+
+                        final day = _selectedDay ?? (isFocusedMonthCurrent ? today.day : 1);
+                        _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+                      }
+                      // Clear selectedDay to prevent day detail sheet from auto-opening in classic view
+                      _selectedDay = null;
                     });
 
                     // Jump PageController to correct page AFTER new PageView is built
@@ -462,8 +492,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                         _jumpToMonth(targetMonth);
                       }
                     });
-
-                    _showSnackBar('Switched to Timeline day view');
                   },
                 ),
                 MonthNavigation(
