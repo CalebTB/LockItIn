@@ -395,7 +395,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                         ),
 
                   // Tab 2: Proposals (new)
-                  ProposalListView(groupId: widget.group.id),
+                  ProposalListView(
+                    groupId: widget.group.id,
+                    groupName: widget.group.name,
+                    groupMemberCount: widget.group.memberCount,
+                  ),
                 ],
               ),
             ),

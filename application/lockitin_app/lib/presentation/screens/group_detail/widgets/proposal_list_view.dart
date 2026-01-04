@@ -6,6 +6,7 @@ import '../../../providers/proposal_provider.dart';
 import '../../../widgets/proposal_card.dart';
 import '../../../widgets/empty_state.dart';
 import '../../proposal_detail/proposal_detail_screen.dart';
+import '../../group_proposal_wizard.dart';
 
 /// Filter options for proposal list
 enum ProposalFilter {
@@ -18,10 +19,14 @@ enum ProposalFilter {
 /// Shows all proposals for a group with ability to filter by active/closed status
 class ProposalListView extends StatefulWidget {
   final String groupId;
+  final String groupName;
+  final int groupMemberCount;
 
   const ProposalListView({
     super.key,
     required this.groupId,
+    required this.groupName,
+    required this.groupMemberCount,
   });
 
   @override
@@ -274,12 +279,13 @@ class _ProposalListViewState extends State<ProposalListView> {
 
   /// Trigger proposal creation wizard
   void _onCreateProposal() {
-    // This will be connected to the group detail screen's proposal wizard
-    // For now, show a placeholder message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Proposal creation wizard coming soon'),
-        duration: Duration(seconds: 2),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => GroupProposalWizard(
+          groupId: widget.groupId,
+          groupName: widget.groupName,
+          groupMemberCount: widget.groupMemberCount,
+        ),
       ),
     );
   }
