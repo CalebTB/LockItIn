@@ -290,24 +290,25 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       _dayViewStyle = wasTimeline ? DayViewStyle.classic : DayViewStyle.timeline;
       _viewMode = GroupCalendarViewMode.month;
 
+      // When switching to month view, preserve _selectedDate but clear _selectedDay
+      // This prevents the day detail sheet from auto-opening in classic view
       if (wasTimeline && wasInDayView && _selectedDate != null) {
-        // Coming from timeline day view - use selectedDate as source of truth
-        _selectedDay = _selectedDate!.day;
+        // Coming from timeline day view - preserve selectedDate, clear selectedDay
+        // (selectedDate will be used if user switches back to day view)
+        _selectedDay = null;
       } else {
-        // Coming from month view - sync selectedDate to match focusedMonth
-        if (_selectedDate != null) {
-          // Preserve existing selected date
-          _selectedDay = _selectedDate!.day;
-        } else {
-          // No date selected - default to today if in current month, else day 1
+        // Coming from month view - ensure we have a selectedDate for later
+        if (_selectedDate == null) {
+          // No date selected - set selectedDate to today if in current month, else day 1
           final today = DateTime.now();
           final isFocusedMonthCurrent =
               _focusedMonth.year == today.year && _focusedMonth.month == today.month;
 
           final day = _selectedDay ?? (isFocusedMonthCurrent ? today.day : 1);
           _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, day);
-          _selectedDay = day;
         }
+        // Clear selectedDay to prevent day detail sheet from auto-opening
+        _selectedDay = null;
       }
     });
 
@@ -485,8 +486,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
 
                         final day = _selectedDay ?? (isFocusedMonthCurrent ? today.day : 1);
                         _selectedDate = DateTime(_focusedMonth.year, _focusedMonth.month, day);
-                        _selectedDay = day;
                       }
+                      // Clear selectedDay to prevent day detail sheet from auto-opening in classic view
+                      _selectedDay = null;
                     });
 
                     // Jump PageController to correct page AFTER new PageView is built
