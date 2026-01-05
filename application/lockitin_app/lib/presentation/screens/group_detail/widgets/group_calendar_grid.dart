@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../providers/calendar_provider.dart';
-import '../../../providers/group_provider.dart';
 import '../group_detail_screen.dart';
 
 /// Helper class to hold cell colors for the heatmap calendar
@@ -30,6 +27,7 @@ class GroupCalendarGrid extends StatelessWidget {
   final int Function(DateTime date) getAvailabilityForDay;
   final void Function(DateTime date) onDayTapped;
   final void Function(int day) onDaySelected;
+  final int totalMembers; // NEW: Pass this in to avoid Consumer2
 
   const GroupCalendarGrid({
     super.key,
@@ -41,11 +39,15 @@ class GroupCalendarGrid extends StatelessWidget {
     required this.getAvailabilityForDay,
     required this.onDayTapped,
     required this.onDaySelected,
+    required this.totalMembers, // NEW
   });
 
   @override
   Widget build(BuildContext context) {
     final days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
+    final brightness = Theme.of(context).brightness;
 
     final firstDayOfMonth = DateTime(month.year, month.month, 1);
     final lastDayOfMonth = DateTime(month.year, month.month + 1, 0);
@@ -55,46 +57,37 @@ class GroupCalendarGrid extends StatelessWidget {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    return Consumer2<CalendarProvider, GroupProvider>(
-      builder: (context, calendarProvider, groupProvider, _) {
-        final colorScheme = Theme.of(context).colorScheme;
-        final appColors = context.appColors;
-        final brightness = Theme.of(context).brightness;
-        final totalMembers = groupProvider.selectedGroupMembers.isNotEmpty
-            ? groupProvider.selectedGroupMembers.length
-            : (groupProvider.selectedGroup?.memberCount ?? 1);
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Column(
-            children: [
-              // Day headers
-              Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 8),
-                child: Row(
-                  children: days.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final day = entry.value;
-                    final isWeekend = index == 0 || index == 6;
-                    return Expanded(
-                      child: Center(
-                        child: Text(
-                          day,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: isWeekend
-                                ? appColors.textMuted
-                                : colorScheme.onSurfaceVariant,
-                          ),
-                        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Column(
+        children: [
+          // Day headers
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 8),
+            child: Row(
+              children: days.asMap().entries.map((entry) {
+                final index = entry.key;
+                final day = entry.value;
+                final isWeekend = index == 0 || index == 6;
+                return Expanded(
+                  child: Center(
+                    child: Text(
+                      day,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isWeekend
+                            ? appColors.textMuted
+                            : colorScheme.onSurfaceVariant,
                       ),
-                    );
-                  }).toList(),
-                ),
-              ),
-              Expanded(
-                child: GridView.builder(
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          Expanded(
+            child: GridView.builder(
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 7,
@@ -150,25 +143,27 @@ class GroupCalendarGrid extends StatelessWidget {
                       totalMembers: totalMembers,
                     );
 
-                    return Semantics(
-                      button: !isPast,
-                      label: semanticLabel,
-                      selected: isSelected,
-                      child: GestureDetector(
-                        onTap: isPast
-                            ? null
-                            : () {
-                                if (dayViewStyle == DayViewStyle.classic) {
-                                  HapticFeedback.selectionClick();
-                                  onDaySelected(dayNumber);
-                                } else {
-                                  onDayTapped(date);
-                                }
-                              },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          curve: Curves.easeOut,
-                          decoration: BoxDecoration(
+                    // RepaintBoundary prevents this cell from causing other cells to repaint
+                    return RepaintBoundary(
+                      child: Semantics(
+                        button: !isPast,
+                        label: semanticLabel,
+                        selected: isSelected,
+                        child: GestureDetector(
+                          onTap: isPast
+                              ? null
+                              : () {
+                                  if (dayViewStyle == DayViewStyle.classic) {
+                                    HapticFeedback.selectionClick();
+                                    onDaySelected(dayNumber);
+                                  } else {
+                                    onDayTapped(date);
+                                  }
+                                },
+                          // Changed from AnimatedContainer to Container to reduce overhead
+                          // Animation wasn't adding value and was causing rebuilds
+                          child: Container(
+                            decoration: BoxDecoration(
                             color: cellColors.background,
                             borderRadius: BorderRadius.circular(10),
                             border: _getCellBorder(
@@ -253,6 +248,7 @@ class GroupCalendarGrid extends StatelessWidget {
                           ),
                         ),
                       ),
+                    ),
                     );
                   },
                 ),
@@ -260,8 +256,6 @@ class GroupCalendarGrid extends StatelessWidget {
             ],
           ),
         );
-      },
-    );
   }
 
   Border? _getCellBorder({

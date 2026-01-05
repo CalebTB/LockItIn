@@ -653,6 +653,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           isLoadingMemberEvents: _isLoadingMemberEvents,
           getAvailabilityForDay: _getAvailabilityForDay,
           onDayTapped: _switchToDayView,
+          totalMembers: _getTotalMemberCount(), // Pass totalMembers to avoid Consumer2
           onDaySelected: (day) => setState(() {
             _selectedDay = day;
             _selectedDate = DateTime(month.year, month.month, day);
