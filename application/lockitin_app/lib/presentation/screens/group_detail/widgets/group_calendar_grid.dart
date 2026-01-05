@@ -18,7 +18,7 @@ class CellColors {
 }
 
 /// Availability heatmap calendar grid for GroupDetailScreen
-class GroupCalendarGrid extends StatelessWidget {
+class GroupCalendarGrid extends StatefulWidget {
   final DateTime month;
   final DateTime? selectedDate;
   final DateTimeRange? selectedDateRange;
@@ -27,7 +27,7 @@ class GroupCalendarGrid extends StatelessWidget {
   final int Function(DateTime date) getAvailabilityForDay;
   final void Function(DateTime date) onDayTapped;
   final void Function(int day) onDaySelected;
-  final int totalMembers; // NEW: Pass this in to avoid Consumer2
+  final int totalMembers;
 
   const GroupCalendarGrid({
     super.key,
@@ -39,18 +39,28 @@ class GroupCalendarGrid extends StatelessWidget {
     required this.getAvailabilityForDay,
     required this.onDayTapped,
     required this.onDaySelected,
-    required this.totalMembers, // NEW
+    required this.totalMembers,
   });
 
   @override
+  State<GroupCalendarGrid> createState() => _GroupCalendarGridState();
+}
+
+class _GroupCalendarGridState extends State<GroupCalendarGrid>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true; // Keep pages alive in PageView
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context); // CRITICAL: Must call super for AutomaticKeepAliveClientMixin
     final days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     final colorScheme = Theme.of(context).colorScheme;
     final appColors = context.appColors;
     final brightness = Theme.of(context).brightness;
 
-    final firstDayOfMonth = DateTime(month.year, month.month, 1);
-    final lastDayOfMonth = DateTime(month.year, month.month + 1, 0);
+    final firstDayOfMonth = DateTime(widget.month.year, widget.month.month, 1);
+    final lastDayOfMonth = DateTime(widget.month.year, widget.month.month + 1, 0);
     final startWeekday = firstDayOfMonth.weekday % 7;
     final daysInMonth = lastDayOfMonth.day;
 
@@ -103,32 +113,32 @@ class GroupCalendarGrid extends StatelessWidget {
                       return const SizedBox.shrink();
                     }
 
-                    final date = DateTime(month.year, month.month, dayNumber);
+                    final date = DateTime(widget.month.year, widget.month.month, dayNumber);
                     final isToday = date.isAtSameMomentAs(today);
                     final isPast = date.isBefore(today);
                     // Only show selection if this exact date matches selectedDate
-                    final isSelected = selectedDate != null &&
-                        selectedDate!.day == dayNumber &&
-                        selectedDate!.month == month.month &&
-                        selectedDate!.year == month.year;
+                    final isSelected = widget.selectedDate != null &&
+                        widget.selectedDate!.day == dayNumber &&
+                        widget.selectedDate!.month == widget.month.month &&
+                        widget.selectedDate!.year == widget.month.year;
 
-                    final isInRange = selectedDateRange == null ||
-                        (!date.isBefore(selectedDateRange!.start) &&
-                         !date.isAfter(selectedDateRange!.end));
+                    final isInRange = widget.selectedDateRange == null ||
+                        (!date.isBefore(widget.selectedDateRange!.start) &&
+                         !date.isAfter(widget.selectedDateRange!.end));
 
                     final available = (isInRange && !isPast)
-                        ? getAvailabilityForDay(date)
+                        ? widget.getAvailabilityForDay(date)
                         : 0;
 
                     final isFullyAvailable = isInRange && !isPast &&
-                        available == totalMembers && totalMembers > 0;
+                        available == widget.totalMembers && widget.totalMembers > 0;
 
                     final cellColors = _getCellColors(
                       isPast: isPast,
                       isInRange: isInRange,
                       isFullyAvailable: isFullyAvailable,
                       available: available,
-                      totalMembers: totalMembers,
+                      totalMembers: widget.totalMembers,
                       brightness: brightness,
                       colorScheme: colorScheme,
                       appColors: appColors,
@@ -140,7 +150,7 @@ class GroupCalendarGrid extends StatelessWidget {
                       isPast: isPast,
                       isInRange: isInRange,
                       available: available,
-                      totalMembers: totalMembers,
+                      totalMembers: widget.totalMembers,
                     );
 
                     // RepaintBoundary prevents this cell from causing other cells to repaint
@@ -153,11 +163,11 @@ class GroupCalendarGrid extends StatelessWidget {
                           onTap: isPast
                               ? null
                               : () {
-                                  if (dayViewStyle == DayViewStyle.classic) {
+                                  if (widget.dayViewStyle == DayViewStyle.classic) {
                                     HapticFeedback.selectionClick();
-                                    onDaySelected(dayNumber);
+                                    widget.onDaySelected(dayNumber);
                                   } else {
-                                    onDayTapped(date);
+                                    widget.onDayTapped(date);
                                   }
                                 },
                           // Changed from AnimatedContainer to Container to reduce overhead
@@ -211,7 +221,7 @@ class GroupCalendarGrid extends StatelessWidget {
                                     ),
                                   ),
                                   if (!isPast && isInRange)
-                                    isLoadingMemberEvents
+                                    widget.isLoadingMemberEvents
                                         ? Padding(
                                             padding: const EdgeInsets.only(top: 3),
                                             child: SizedBox(
@@ -229,16 +239,9 @@ class GroupCalendarGrid extends StatelessWidget {
                                               width: 8,
                                               height: 8,
                                               decoration: BoxDecoration(
-                                                color: _getHeatmapDotColor(available, totalMembers),
+                                                color: _getHeatmapDotColor(available, widget.totalMembers),
                                                 shape: BoxShape.circle,
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: _getHeatmapDotColor(available, totalMembers)
-                                                        .withValues(alpha: 0.4),
-                                                    blurRadius: 3,
-                                                    spreadRadius: 0,
-                                                  ),
-                                                ],
+                                                // Removed boxShadow for better performance during swipes (42 cells × shadow = GPU overhead)
                                               ),
                                             ),
                                           ),

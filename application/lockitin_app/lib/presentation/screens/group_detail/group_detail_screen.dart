@@ -119,8 +119,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           _clearAvailabilityCache();
         });
 
-        // Pre-compute availability for current month to prevent UI jank
-        _precomputeAvailability();
+        // Pre-compute availability for previous, current, and next months to prevent UI jank during swipes
+        final previousMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1, 1);
+        final nextMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 1);
+
+        _precomputeAvailability(previousMonth);
+        _precomputeAvailability(_focusedMonth);
+        _precomputeAvailability(nextMonth);
       }
     } catch (e) {
       if (mounted) {
@@ -133,14 +138,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     }
   }
 
-  /// Pre-compute availability for the currently visible month
+  /// Pre-compute availability for a specific month
   /// This populates the cache to prevent expensive calculations during rendering
-  void _precomputeAvailability() {
-    final endOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
+  void _precomputeAvailability(DateTime month) {
+    final endOfMonth = DateTime(month.year, month.month + 1, 0);
 
     // Calculate availability for each day in the month
     for (int day = 1; day <= endOfMonth.day; day++) {
-      final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+      final date = DateTime(month.year, month.month, day);
       _getAvailabilityForDay(date); // Populates cache as a side effect
     }
   }
