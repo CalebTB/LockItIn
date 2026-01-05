@@ -135,94 +135,103 @@ class MonthGridView extends StatelessWidget {
     final prevMonth = DateTime(focusedMonth.year, focusedMonth.month, 0);
     final prevMonthDays = prevMonth.day;
 
-    // Calculate total cells (6 weeks max)
-    const totalCells = 42; // 6 weeks × 7 days
-
-    return GridView.builder(
+    // Replaced GridView.builder with Table for better performance on fixed grids
+    // Table provides O(1) layout per frame with no virtualization overhead
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 7,
-        mainAxisSpacing: 2,
-        crossAxisSpacing: 2,
-        childAspectRatio: 0.85, // Slightly taller for event dots
+      child: RepaintBoundary(
+        // SINGLE RepaintBoundary for entire grid (not per-cell)
+        // Research shows 42 boundaries = counterproductive (~420KB overhead)
+        child: Table(
+          children: List.generate(6, (weekIndex) {
+            return TableRow(
+              children: List.generate(7, (dayIndex) {
+                final index = weekIndex * 7 + dayIndex;
+                DateTime date;
+                bool isCurrentMonth = true;
+
+                if (index < startingWeekday) {
+                  // Previous month
+                  final day = prevMonthDays - (startingWeekday - index - 1);
+                  date = DateTime(prevMonth.year, prevMonth.month, day);
+                  isCurrentMonth = false;
+                } else if (index >= startingWeekday + daysInMonth) {
+                  // Next month
+                  final day = index - startingWeekday - daysInMonth + 1;
+                  date = DateTime(focusedMonth.year, focusedMonth.month + 1, day);
+                  isCurrentMonth = false;
+                } else {
+                  // Current month
+                  final day = index - startingWeekday + 1;
+                  date = DateTime(focusedMonth.year, focusedMonth.month, day);
+                }
+
+                final isToday = _isSameDay(date, today);
+                final isSelected = selectedDate != null && _isSameDay(date, selectedDate!);
+                final dayEvents = _getEventsForDay(date);
+                final hasEvents = dayEvents.isNotEmpty;
+
+                // Padding wrapper provides spacing between cells (replaces GridView spacing)
+                return Padding(
+                  padding: const EdgeInsets.all(1), // Provides 2px total spacing (1+1)
+                  child: AspectRatio(
+                    aspectRatio: 0.85, // Slightly taller cells for event dots
+                    child: GestureDetector(
+                      onTap: () => onDateSelected?.call(date),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? colorScheme.primary
+                              : isToday
+                                  ? colorScheme.primary.withValues(alpha: 0.1)
+                                  : null,
+                          borderRadius: BorderRadius.circular(8),
+                          border: isToday && !isSelected
+                              ? Border.all(
+                                  color: colorScheme.primary,
+                                  width: 1.5,
+                                )
+                              : null,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Date number
+                            Text(
+                              '${date.day}',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: isToday || isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                                color: isSelected
+                                    ? colorScheme.onPrimary
+                                    : isCurrentMonth
+                                        ? colorScheme.onSurface
+                                        : appColors.textDisabled,
+                              ),
+                            ),
+
+                            // Event dots
+                            if (hasEvents) ...[
+                              const SizedBox(height: 4),
+                              _buildEventDots(
+                                dayEvents,
+                                colorScheme,
+                                isSelected,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            );
+          }),
+        ),
       ),
-      itemCount: totalCells,
-      itemBuilder: (context, index) {
-        DateTime date;
-        bool isCurrentMonth = true;
-
-        if (index < startingWeekday) {
-          // Previous month
-          final day = prevMonthDays - (startingWeekday - index - 1);
-          date = DateTime(prevMonth.year, prevMonth.month, day);
-          isCurrentMonth = false;
-        } else if (index >= startingWeekday + daysInMonth) {
-          // Next month
-          final day = index - startingWeekday - daysInMonth + 1;
-          date = DateTime(focusedMonth.year, focusedMonth.month + 1, day);
-          isCurrentMonth = false;
-        } else {
-          // Current month
-          final day = index - startingWeekday + 1;
-          date = DateTime(focusedMonth.year, focusedMonth.month, day);
-        }
-
-        final isToday = _isSameDay(date, today);
-        final isSelected = selectedDate != null && _isSameDay(date, selectedDate!);
-        final dayEvents = _getEventsForDay(date);
-        final hasEvents = dayEvents.isNotEmpty;
-
-        return GestureDetector(
-          onTap: () => onDateSelected?.call(date),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? colorScheme.primary
-                  : isToday
-                      ? colorScheme.primary.withValues(alpha: 0.1)
-                      : null,
-              borderRadius: BorderRadius.circular(8),
-              border: isToday && !isSelected
-                  ? Border.all(
-                      color: colorScheme.primary,
-                      width: 1.5,
-                    )
-                  : null,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Date number
-                Text(
-                  '${date.day}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: isToday || isSelected
-                        ? FontWeight.w600
-                        : FontWeight.w500,
-                    color: isSelected
-                        ? colorScheme.onPrimary
-                        : isCurrentMonth
-                            ? colorScheme.onSurface
-                            : appColors.textDisabled,
-                  ),
-                ),
-
-                // Event dots
-                if (hasEvents) ...[
-                  const SizedBox(height: 4),
-                  _buildEventDots(
-                    dayEvents,
-                    colorScheme,
-                    isSelected,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
