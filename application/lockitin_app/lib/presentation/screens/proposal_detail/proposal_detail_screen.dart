@@ -414,15 +414,6 @@ class _ProposalDetailScreenState extends State<ProposalDetailScreen> {
       // Haptic feedback on successful vote
       if (mounted) {
         HapticFeedback.selectionClick();
-
-        // Optional: Show brief confirmation
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Voted ${voteType.name.toUpperCase()}'),
-            duration: const Duration(seconds: 1),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
       }
     } catch (e) {
       if (mounted) {
