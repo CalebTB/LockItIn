@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/proposal_model.dart';
@@ -37,19 +38,23 @@ class ProposalProvider extends ChangeNotifier {
   bool _isRealtimeConnected = true;
   String? _connectionError;
 
+  /// Debounce timer for rapid vote updates
+  Timer? _refreshDebouncer;
+
   // ============================================================================
   // Getters
   // ============================================================================
 
   List<ProposalModel> get proposals => _proposals;
 
-  /// Get only active proposals (status == voting)
+  /// Get only active proposals (voting is still open)
+  /// Checks both status AND deadline to handle expired proposals
   List<ProposalModel> get activeProposals =>
-      _proposals.where((p) => p.status == ProposalStatus.voting).toList();
+      _proposals.where((p) => p.isVotingOpen).toList();
 
-  /// Get closed proposals (status != voting)
+  /// Get closed proposals (voting closed, confirmed, cancelled, or expired)
   List<ProposalModel> get closedProposals =>
-      _proposals.where((p) => p.status != ProposalStatus.voting).toList();
+      _proposals.where((p) => !p.isVotingOpen).toList();
 
   bool get isLoadingProposals => _isLoadingProposals;
   String? get proposalsError => _proposalsError;
@@ -216,8 +221,12 @@ class ProposalProvider extends ChangeNotifier {
             notifyListeners();
           }
 
-          // Refresh the specific proposal's data
-          _refreshProposal(proposalId);
+          // Debounce rapid vote updates to prevent API spam
+          // If 10 people vote simultaneously, only refresh once after 500ms
+          _refreshDebouncer?.cancel();
+          _refreshDebouncer = Timer(const Duration(milliseconds: 500), () {
+            _refreshProposal(proposalId);
+          });
         },
       );
 
@@ -283,6 +292,17 @@ class ProposalProvider extends ChangeNotifier {
       subscribeToProposalVotes(proposalId);
     } catch (e) {
       Logger.error('ProposalProvider', 'Failed to reconnect: $e');
+    }
+  }
+
+  /// Unsubscribe from a specific proposal's vote updates
+  ///
+  /// Call this when navigating away from a proposal detail screen
+  void unsubscribeFromProposal(String proposalId) {
+    final subscription = _voteSubscriptions.remove(proposalId);
+    if (subscription != null) {
+      subscription.unsubscribe();
+      Logger.info('ProposalProvider', 'Unsubscribed from proposal: $proposalId');
     }
   }
 
@@ -492,6 +512,7 @@ class ProposalProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _refreshDebouncer?.cancel();
     unsubscribeAll();
     super.dispose();
   }
