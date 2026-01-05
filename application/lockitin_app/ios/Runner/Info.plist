@@ -49,5 +49,11 @@
 	<string>LockItIn needs access to your calendar to sync events and show your availability to groups.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>LockItIn needs full calendar access to create, edit, and sync events with your device calendar.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
 </dict>
 </plist>
