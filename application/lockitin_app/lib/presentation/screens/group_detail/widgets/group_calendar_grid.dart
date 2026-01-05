@@ -96,166 +96,171 @@ class _GroupCalendarGridState extends State<GroupCalendarGrid>
               }).toList(),
             ),
           ),
+          // Replaced GridView.builder with Table for better performance on fixed grids
+          // Table provides O(1) layout per frame with no virtualization overhead
           Expanded(
-            child: GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 7,
-                    childAspectRatio: 1.0,
-                    crossAxisSpacing: 4,
-                    mainAxisSpacing: 4,
-                  ),
-                  itemCount: 42,
-                  itemBuilder: (context, index) {
-                    final dayNumber = index - startWeekday + 1;
+            child: RepaintBoundary(
+              // SINGLE RepaintBoundary for entire grid (not per-cell)
+              // Research shows 42 boundaries = counterproductive (~420KB overhead)
+              child: Table(
+                children: List.generate(6, (weekIndex) {
+                  return TableRow(
+                    children: List.generate(7, (dayIndex) {
+                      final index = weekIndex * 7 + dayIndex;
+                      final dayNumber = index - startWeekday + 1;
 
-                    if (dayNumber < 1 || dayNumber > daysInMonth) {
-                      return const SizedBox.shrink();
-                    }
+                      if (dayNumber < 1 || dayNumber > daysInMonth) {
+                        return const SizedBox.shrink();
+                      }
 
-                    final date = DateTime(widget.month.year, widget.month.month, dayNumber);
-                    final isToday = date.isAtSameMomentAs(today);
-                    final isPast = date.isBefore(today);
-                    // Only show selection if this exact date matches selectedDate
-                    final isSelected = widget.selectedDate != null &&
-                        widget.selectedDate!.day == dayNumber &&
-                        widget.selectedDate!.month == widget.month.month &&
-                        widget.selectedDate!.year == widget.month.year;
+                      final date = DateTime(widget.month.year, widget.month.month, dayNumber);
+                      final isToday = date.isAtSameMomentAs(today);
+                      final isPast = date.isBefore(today);
+                      // Only show selection if this exact date matches selectedDate
+                      final isSelected = widget.selectedDate != null &&
+                          widget.selectedDate!.day == dayNumber &&
+                          widget.selectedDate!.month == widget.month.month &&
+                          widget.selectedDate!.year == widget.month.year;
 
-                    final isInRange = widget.selectedDateRange == null ||
-                        (!date.isBefore(widget.selectedDateRange!.start) &&
-                         !date.isAfter(widget.selectedDateRange!.end));
+                      final isInRange = widget.selectedDateRange == null ||
+                          (!date.isBefore(widget.selectedDateRange!.start) &&
+                           !date.isAfter(widget.selectedDateRange!.end));
 
-                    final available = (isInRange && !isPast)
-                        ? widget.getAvailabilityForDay(date)
-                        : 0;
+                      final available = (isInRange && !isPast)
+                          ? widget.getAvailabilityForDay(date)
+                          : 0;
 
-                    final isFullyAvailable = isInRange && !isPast &&
-                        available == widget.totalMembers && widget.totalMembers > 0;
+                      final isFullyAvailable = isInRange && !isPast &&
+                          available == widget.totalMembers && widget.totalMembers > 0;
 
-                    final cellColors = _getCellColors(
-                      isPast: isPast,
-                      isInRange: isInRange,
-                      isFullyAvailable: isFullyAvailable,
-                      available: available,
-                      totalMembers: widget.totalMembers,
-                      brightness: brightness,
-                      colorScheme: colorScheme,
-                      appColors: appColors,
-                    );
+                      final cellColors = _getCellColors(
+                        isPast: isPast,
+                        isInRange: isInRange,
+                        isFullyAvailable: isFullyAvailable,
+                        available: available,
+                        totalMembers: widget.totalMembers,
+                        brightness: brightness,
+                        colorScheme: colorScheme,
+                        appColors: appColors,
+                      );
 
-                    final semanticLabel = _getSemanticLabelForCell(
-                      date: date,
-                      isToday: isToday,
-                      isPast: isPast,
-                      isInRange: isInRange,
-                      available: available,
-                      totalMembers: widget.totalMembers,
-                    );
+                      final semanticLabel = _getSemanticLabelForCell(
+                        date: date,
+                        isToday: isToday,
+                        isPast: isPast,
+                        isInRange: isInRange,
+                        available: available,
+                        totalMembers: widget.totalMembers,
+                      );
 
-                    // RepaintBoundary prevents this cell from causing other cells to repaint
-                    return RepaintBoundary(
-                      child: Semantics(
-                        button: !isPast,
-                        label: semanticLabel,
-                        selected: isSelected,
-                        child: GestureDetector(
-                          onTap: isPast
-                              ? null
-                              : () {
-                                  if (widget.dayViewStyle == DayViewStyle.classic) {
-                                    HapticFeedback.selectionClick();
-                                    widget.onDaySelected(dayNumber);
-                                  } else {
-                                    widget.onDayTapped(date);
-                                  }
-                                },
-                          // Changed from AnimatedContainer to Container to reduce overhead
-                          // Animation wasn't adding value and was causing rebuilds
-                          child: Container(
-                            decoration: BoxDecoration(
-                            color: cellColors.background,
-                            borderRadius: BorderRadius.circular(10),
-                            border: _getCellBorder(
-                              isToday: isToday,
-                              isSelected: isSelected,
-                              colorScheme: colorScheme,
-                            ),
-                            boxShadow: isSelected
-                                ? [
-                                    BoxShadow(
-                                      color: colorScheme.primary.withValues(alpha: 0.25),
-                                      blurRadius: 8,
-                                      spreadRadius: 0,
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              if (isToday && !isSelected)
-                                Positioned(
-                                  top: 4,
-                                  right: 4,
-                                  child: Container(
-                                    width: 6,
-                                    height: 6,
-                                    decoration: BoxDecoration(
-                                      color: colorScheme.primary,
-                                      shape: BoxShape.circle,
-                                    ),
+                      // Padding wrapper provides spacing between cells (replaces GridView spacing)
+                      return Padding(
+                        padding: const EdgeInsets.all(2), // Provides 4px total spacing (2+2)
+                        child: AspectRatio(
+                          aspectRatio: 1.0, // Square cells
+                          child: Semantics(
+                            button: !isPast,
+                            label: semanticLabel,
+                            selected: isSelected,
+                            child: GestureDetector(
+                              onTap: isPast
+                                  ? null
+                                  : () {
+                                      if (widget.dayViewStyle == DayViewStyle.classic) {
+                                        HapticFeedback.selectionClick();
+                                        widget.onDaySelected(dayNumber);
+                                      } else {
+                                        widget.onDayTapped(date);
+                                      }
+                                    },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: cellColors.background,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: _getCellBorder(
+                                    isToday: isToday,
+                                    isSelected: isSelected,
+                                    colorScheme: colorScheme,
                                   ),
-                                ),
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    '$dayNumber',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: isToday || isSelected
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
-                                      color: cellColors.text,
-                                    ),
-                                  ),
-                                  if (!isPast && isInRange)
-                                    widget.isLoadingMemberEvents
-                                        ? Padding(
-                                            padding: const EdgeInsets.only(top: 3),
-                                            child: SizedBox(
-                                              width: 8,
-                                              height: 8,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 1.5,
-                                                color: cellColors.text.withValues(alpha: 0.5),
-                                              ),
-                                            ),
-                                          )
-                                        : Padding(
-                                            padding: const EdgeInsets.only(top: 3),
-                                            child: Container(
-                                              width: 8,
-                                              height: 8,
-                                              decoration: BoxDecoration(
-                                                color: _getHeatmapDotColor(available, widget.totalMembers),
-                                                shape: BoxShape.circle,
-                                                // Removed boxShadow for better performance during swipes (42 cells × shadow = GPU overhead)
-                                              ),
-                                            ),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: colorScheme.primary.withValues(alpha: 0.25),
+                                            blurRadius: 8,
+                                            spreadRadius: 0,
                                           ),
-                                ],
+                                        ]
+                                      : null,
+                                ),
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    if (isToday && !isSelected)
+                                      Positioned(
+                                        top: 4,
+                                        right: 4,
+                                        child: Container(
+                                          width: 6,
+                                          height: 6,
+                                          decoration: BoxDecoration(
+                                            color: colorScheme.primary,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                      ),
+                                    Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          '$dayNumber',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: isToday || isSelected
+                                                ? FontWeight.w700
+                                                : FontWeight.w500,
+                                            color: cellColors.text,
+                                          ),
+                                        ),
+                                        if (!isPast && isInRange)
+                                          widget.isLoadingMemberEvents
+                                              ? Padding(
+                                                  padding: const EdgeInsets.only(top: 3),
+                                                  child: SizedBox(
+                                                    width: 8,
+                                                    height: 8,
+                                                    child: CircularProgressIndicator(
+                                                      strokeWidth: 1.5,
+                                                      color: cellColors.text.withValues(alpha: 0.5),
+                                                    ),
+                                                  ),
+                                                )
+                                              : Padding(
+                                                  padding: const EdgeInsets.only(top: 3),
+                                                  child: Container(
+                                                    width: 8,
+                                                    height: 8,
+                                                    decoration: BoxDecoration(
+                                                      color: _getHeatmapDotColor(available, widget.totalMembers),
+                                                      shape: BoxShape.circle,
+                                                      // Removed boxShadow for better performance during swipes (42 cells × shadow = GPU overhead)
+                                                    ),
+                                                  ),
+                                                ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    );
-                  },
-                ),
+                      );
+                    }),
+                  );
+                }),
               ),
+            ),
+          ),
             ],
           ),
         );
