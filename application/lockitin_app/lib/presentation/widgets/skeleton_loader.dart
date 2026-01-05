@@ -154,6 +154,62 @@ class ProposalCardSkeleton extends StatelessWidget {
   }
 }
 
+/// Skeleton placeholder for group calendar grid
+class GroupCalendarSkeleton extends StatelessWidget {
+  const GroupCalendarSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Column(
+        children: [
+          // Day headers skeleton
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 8),
+            child: Row(
+              children: List.generate(
+                7,
+                (index) => Expanded(
+                  child: Center(
+                    child: SkeletonLoader(
+                      width: 20,
+                      height: 12,
+                      borderRadius: 4,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Calendar grid skeleton (7×6 grid)
+          Expanded(
+            child: GridView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 7,
+                childAspectRatio: 1.0,
+                crossAxisSpacing: 4,
+                mainAxisSpacing: 4,
+              ),
+              itemCount: 42,
+              itemBuilder: (context, index) {
+                return Container(
+                  margin: const EdgeInsets.all(2),
+                  child: SkeletonLoader(
+                    borderRadius: 10,
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Skeleton placeholder for proposal detail screen
 class ProposalDetailSkeleton extends StatelessWidget {
   const ProposalDetailSkeleton({super.key});

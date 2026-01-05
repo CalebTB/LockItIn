@@ -15,6 +15,7 @@ import '../../widgets/group_filters_sheet.dart';
 import '../../widgets/group_best_days_section.dart';
 import '../../widgets/group_settings_sheet.dart';
 import '../../widgets/group_day_timeline_view.dart';
+import '../../widgets/skeleton_loader.dart';
 import '../group_proposal_wizard.dart';
 import 'widgets/widgets.dart';
 import 'widgets/proposal_list_view.dart';
@@ -97,8 +98,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     try {
       final memberIds = members.map((m) => m.userId).toList();
       final now = DateTime.now();
-      final startDate = DateTime(now.year, now.month - 2, 1);
-      final endDate = DateTime(now.year, now.month + 3, 0);
+      // Optimized: Load only 2 months (current + next) instead of 5 months
+      // Reduces data fetching by 60% for faster initial load
+      final startDate = DateTime(now.year, now.month, 1);
+      final endDate = DateTime(now.year, now.month + 2, 0);
 
       final shadowEntries = await EventService.instance.fetchGroupShadowCalendar(
         memberUserIds: memberIds,
@@ -115,6 +118,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           _memberEventsError = null;
           _clearAvailabilityCache();
         });
+
+        // Pre-compute availability for current month to prevent UI jank
+        _precomputeAvailability();
       }
     } catch (e) {
       if (mounted) {
@@ -124,6 +130,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         });
         _showErrorSnackBar('Could not load group availability');
       }
+    }
+  }
+
+  /// Pre-compute availability for the currently visible month
+  /// This populates the cache to prevent expensive calculations during rendering
+  void _precomputeAvailability() {
+    final endOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
+
+    // Calculate availability for each day in the month
+    for (int day = 1; day <= endOfMonth.day; day++) {
+      final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+      _getAvailabilityForDay(date); // Populates cache as a side effect
     }
   }
 
@@ -171,14 +189,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
 
   void _previousMonth() {
     _pageController.previousPage(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
     );
   }
 
   void _nextMonth() {
     _pageController.nextPage(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
     );
   }
@@ -604,6 +622,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   }
 
   Widget _buildCalendarPageView() {
+    // Show skeleton loader during initial load (no events cached yet)
+    if (_isLoadingMemberEvents && _memberEvents.isEmpty) {
+      return const GroupCalendarSkeleton();
+    }
+
     return PageView.builder(
       controller: _pageController,
       onPageChanged: (index) {
