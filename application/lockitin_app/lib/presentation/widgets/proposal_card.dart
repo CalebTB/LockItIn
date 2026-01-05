@@ -109,31 +109,40 @@ class ProposalCard extends StatelessWidget {
     Color textColor;
     String label;
 
-    switch (proposal.status) {
-      case ProposalStatus.voting:
-        backgroundColor = colorScheme.primary.withValues(alpha: 0.1);
-        textColor = colorScheme.primary;
-        label = 'Active';
-        break;
-      case ProposalStatus.confirmed:
-        backgroundColor = appColors.successBackground;
-        textColor = appColors.success;
-        label = 'Confirmed';
-        break;
-      case ProposalStatus.cancelled:
-        backgroundColor = appColors.textMuted.withValues(alpha: 0.1);
-        textColor = appColors.textMuted;
-        label = 'Cancelled';
-        break;
-      case ProposalStatus.expired:
-        backgroundColor = appColors.textMuted.withValues(alpha: 0.1);
-        textColor = appColors.textMuted;
-        label = 'Expired';
-        break;
+    // Check if voting is actually open (handles expired proposals)
+    if (proposal.isVotingOpen) {
+      backgroundColor = colorScheme.primary.withValues(alpha: 0.1);
+      textColor = colorScheme.primary;
+      label = 'Active';
+    } else {
+      // Voting is closed - check why
+      switch (proposal.status) {
+        case ProposalStatus.voting:
+          // Status is voting but deadline passed = expired
+          backgroundColor = appColors.textMuted.withValues(alpha: 0.1);
+          textColor = appColors.textMuted;
+          label = 'Expired';
+          break;
+        case ProposalStatus.confirmed:
+          backgroundColor = appColors.successBackground;
+          textColor = appColors.success;
+          label = 'Confirmed';
+          break;
+        case ProposalStatus.cancelled:
+          backgroundColor = appColors.textMuted.withValues(alpha: 0.1);
+          textColor = appColors.textMuted;
+          label = 'Cancelled';
+          break;
+        case ProposalStatus.expired:
+          backgroundColor = appColors.textMuted.withValues(alpha: 0.1);
+          textColor = appColors.textMuted;
+          label = 'Expired';
+          break;
+      }
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(8),
