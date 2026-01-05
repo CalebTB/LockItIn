@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/services/proposal_service.dart';
 import '../../core/services/event_service.dart';
 import '../../core/services/smart_time_suggestion_service.dart';
+import '../../core/utils/platform_dialog.dart';
 import '../../data/models/event_model.dart';
 import '../../data/models/proposal_time_option.dart';
 
@@ -47,6 +48,10 @@ class GroupProposalWizard extends StatefulWidget {
 }
 
 class _GroupProposalWizardState extends State<GroupProposalWizard> {
+  // Constants for time options
+  static const int _minTimeOptions = 2;
+  static const int _maxTimeOptions = 5;
+
   final PageController _pageController = PageController();
   int _currentStep = 0;
 
@@ -376,7 +381,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
           }),
 
           // Add option button (max 5 options)
-          if (_timeOptions.length < 5) ...[
+          if (_timeOptions.length < _maxTimeOptions) ...[
             OutlinedButton.icon(
               onPressed: _addTimeOption,
               icon: const Icon(Icons.add, size: 20),
@@ -389,7 +394,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
           ],
 
           // Warning if < 2 options
-          if (_timeOptions.length < 2) ...[
+          if (_timeOptions.length < _minTimeOptions) ...[
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
@@ -674,7 +679,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
   ) {
     final dateLabel = DateFormat('EEEE, MMMM d').format(option.startTime);
     final timeLabel = '${DateFormat('h:mm a').format(option.startTime)} to ${DateFormat('h:mm a').format(option.endTime)}';
-    final deleteHint = _timeOptions.length > 1 ? 'Use delete button or swipe left to remove.' : '';
+    final deleteHint = _timeOptions.length > _minTimeOptions ? 'Use delete button or swipe left to remove.' : '';
     final semanticLabel = 'Option ${index + 1}: $dateLabel, $timeLabel. $deleteHint';
 
     return Semantics(
@@ -683,7 +688,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
       excludeSemantics: true,
       child: Dismissible(
         key: Key('time_option_$index'),
-        direction: _timeOptions.length > 1
+        direction: _timeOptions.length > _minTimeOptions
             ? DismissDirection.endToStart
             : DismissDirection.none,
         background: Container(
@@ -768,11 +773,11 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
                     ),
                     onPressed: () => _editTimeOption(index, option),
                     tooltip: 'Edit time option',
-                    padding: const EdgeInsets.all(8),
-                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(12),
+                    constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
                   ),
-                  // Delete button (only show if more than 1 option)
-                  if (_timeOptions.length > 1) ...[
+                  // Delete button (only show if more than minimum required)
+                  if (_timeOptions.length > _minTimeOptions) ...[
                     const SizedBox(width: 4),
                     IconButton(
                       icon: Icon(
@@ -782,8 +787,8 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
                       ),
                       onPressed: () => _confirmDeleteTimeOption(index),
                       tooltip: 'Delete time option',
-                      padding: const EdgeInsets.all(8),
-                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(12),
+                      constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
                     ),
                   ],
                 ],
@@ -1013,7 +1018,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
       case 0:
         return _titleController.text.trim().isNotEmpty;
       case 1:
-        return _timeOptions.length >= 2;
+        return _timeOptions.length >= _minTimeOptions;
       case 2:
         return !_isSubmitting;
       default:
@@ -1106,7 +1111,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
 
   /// Remove a time option
   void _removeTimeOption(int index) {
-    if (_timeOptions.length > 1) {
+    if (_timeOptions.length > _minTimeOptions) {
       setState(() {
         _timeOptions.removeAt(index);
       });
@@ -1114,34 +1119,23 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
   }
 
   /// Show confirmation dialog before deleting a time option
-  void _confirmDeleteTimeOption(int index) {
+  Future<void> _confirmDeleteTimeOption(int index) async {
     final option = _timeOptions[index];
     final dateLabel = DateFormat('EEE, MMM d').format(option.startTime);
     final timeLabel = '${DateFormat('h:mm a').format(option.startTime)} - ${DateFormat('h:mm a').format(option.endTime)}';
 
-    showDialog(
+    final confirmed = await showPlatformConfirmationDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Time Option?'),
-        content: Text('Remove "$dateLabel, $timeLabel" from the proposal?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _removeTimeOption(index);
-            },
-            child: Text(
-              'Delete',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ),
-        ],
-      ),
+      title: 'Delete Time Option?',
+      message: 'Remove "$dateLabel, $timeLabel" from the proposal?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      isDestructive: true,
     );
+
+    if (confirmed) {
+      _removeTimeOption(index);
+    }
   }
 
   /// Edit a time option
@@ -1206,36 +1200,25 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
   }
 
   /// Show exit confirmation dialog
-  void _showExitConfirmation() {
+  Future<void> _showExitConfirmation() async {
     final hasData = _titleController.text.isNotEmpty ||
         _locationController.text.isNotEmpty ||
         _descriptionController.text.isNotEmpty ||
         _timeOptions.length > 1;
 
     if (hasData) {
-      showDialog(
+      final confirmed = await showPlatformConfirmationDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Discard Proposal?'),
-          content: const Text('You have unsaved changes. Are you sure you want to discard this proposal?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                'Discard',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ),
-          ],
-        ),
+        title: 'Discard Proposal?',
+        message: 'You have unsaved changes. Are you sure you want to discard this proposal?',
+        confirmText: 'Discard',
+        cancelText: 'Cancel',
+        isDestructive: true,
       );
+
+      if (confirmed && mounted) {
+        Navigator.of(context).pop();
+      }
     } else {
       Navigator.of(context).pop();
     }

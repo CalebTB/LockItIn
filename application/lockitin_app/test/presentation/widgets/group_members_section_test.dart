@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lockitin_app/presentation/widgets/group_members_section.dart';
 import 'package:lockitin_app/core/theme/app_colors.dart';
