@@ -517,8 +517,8 @@ class _ProposalDetailScreenState extends State<ProposalDetailScreen> {
           ),
         );
 
-        // Navigate back to group detail
-        Navigator.pop(context);
+        // Navigate back to group detail with success result
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {

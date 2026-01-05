@@ -22,12 +22,14 @@ class ProposalListView extends StatefulWidget {
   final String groupId;
   final String groupName;
   final int groupMemberCount;
+  final VoidCallback? onProposalConfirmed;
 
   const ProposalListView({
     super.key,
     required this.groupId,
     required this.groupName,
     required this.groupMemberCount,
+    this.onProposalConfirmed,
   });
 
   @override
@@ -263,8 +265,8 @@ class _ProposalListViewState extends State<ProposalListView> {
   }
 
   /// Navigate to proposal detail screen
-  void _navigateToProposalDetail(ProposalModel proposal) {
-    Navigator.push(
+  Future<void> _navigateToProposalDetail(ProposalModel proposal) async {
+    final confirmed = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => ProposalDetailScreen(
@@ -273,6 +275,11 @@ class _ProposalListViewState extends State<ProposalListView> {
         ),
       ),
     );
+
+    // If proposal was confirmed, trigger callback to refresh group calendar
+    if (confirmed == true && widget.onProposalConfirmed != null) {
+      widget.onProposalConfirmed!();
+    }
   }
 
   /// Trigger proposal creation wizard
