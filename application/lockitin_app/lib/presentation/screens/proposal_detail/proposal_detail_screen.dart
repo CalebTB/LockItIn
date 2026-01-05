@@ -6,6 +6,7 @@ import '../../../data/models/proposal_time_option.dart';
 import '../../../data/models/vote_model.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../providers/proposal_provider.dart';
+import '../../widgets/skeleton_loader.dart';
 import 'widgets/proposal_header.dart';
 import 'widgets/proposal_info_section.dart';
 import 'widgets/time_option_card.dart';
@@ -69,7 +70,7 @@ class _ProposalDetailScreenState extends State<ProposalDetailScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = _getUserFriendlyError(e);
           _isLoading = false;
         });
       }
@@ -87,8 +88,9 @@ class _ProposalDetailScreenState extends State<ProposalDetailScreen> {
 
   @override
   void dispose() {
-    // Clean up subscriptions
-    _provider?.unsubscribeAll();
+    // Clean up this proposal's vote subscription
+    // Don't call unsubscribeAll() as it would kill subscriptions for other screens
+    _provider?.unsubscribeFromProposal(widget.proposalId);
     super.dispose();
   }
 
@@ -97,7 +99,7 @@ class _ProposalDetailScreenState extends State<ProposalDetailScreen> {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Proposal')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const ProposalDetailSkeleton(),
       );
     }
 
@@ -425,7 +427,7 @@ class _ProposalDetailScreenState extends State<ProposalDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to cast vote: ${e.toString()}'),
+            content: Text(_getUserFriendlyError(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
             action: SnackBarAction(
               label: 'Retry',
@@ -515,7 +517,7 @@ class _ProposalDetailScreenState extends State<ProposalDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to confirm proposal: ${e.toString()}'),
+            content: Text(_getUserFriendlyError(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
             action: SnackBarAction(
               label: 'Retry',
@@ -552,7 +554,7 @@ class _ProposalDetailScreenState extends State<ProposalDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to cancel proposal: ${e.toString()}'),
+            content: Text(_getUserFriendlyError(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
             action: SnackBarAction(
               label: 'Retry',
@@ -566,5 +568,43 @@ class _ProposalDetailScreenState extends State<ProposalDetailScreen> {
 
   void _showMoreOptions(BuildContext context, ProposalModel proposal) {
     // Future: Share, report, etc.
+  }
+
+  /// Convert technical error messages to user-friendly text
+  String _getUserFriendlyError(dynamic error) {
+    final errorStr = error.toString().toLowerCase();
+
+    // Network errors
+    if (errorStr.contains('network') || errorStr.contains('socket') || errorStr.contains('connection')) {
+      return 'Check your connection and try again';
+    }
+
+    // Proposal expired
+    if (errorStr.contains('expired') || errorStr.contains('deadline')) {
+      return 'This proposal has expired';
+    }
+
+    // Permission errors
+    if (errorStr.contains('permission') || errorStr.contains('policy') || errorStr.contains('unauthorized')) {
+      return 'You don\'t have permission to do that';
+    }
+
+    // Voting deadline passed
+    if (errorStr.contains('voting') && errorStr.contains('closed')) {
+      return 'Voting has closed for this proposal';
+    }
+
+    // Already voted
+    if (errorStr.contains('already voted') || errorStr.contains('duplicate')) {
+      return 'You\'ve already voted on this option';
+    }
+
+    // Not found
+    if (errorStr.contains('not found') || errorStr.contains('404')) {
+      return 'Proposal not found';
+    }
+
+    // Default fallback
+    return 'Something went wrong. Please try again';
   }
 }

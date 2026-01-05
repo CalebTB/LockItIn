@@ -138,7 +138,7 @@ class ProposalHeader extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: badgeColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
@@ -167,10 +167,17 @@ class ProposalHeader extends StatelessWidget {
     }
 
     final hoursLeft = proposal.votingDeadline.difference(DateTime.now()).inHours;
-    if (hoursLeft < 24) {
-      return context.appColors.warning;
+
+    // CRITICAL: Less than 1 hour remaining
+    if (hoursLeft < 1) {
+      return Theme.of(context).colorScheme.error;  // Red
     }
-    return Theme.of(context).colorScheme.primary;
+    // WARNING: Less than 24 hours remaining
+    else if (hoursLeft < 24) {
+      return context.appColors.warning;  // Orange
+    }
+    // NORMAL: More than 24 hours remaining
+    return Theme.of(context).colorScheme.primary;  // Primary color
   }
 
   /// Format deadline text

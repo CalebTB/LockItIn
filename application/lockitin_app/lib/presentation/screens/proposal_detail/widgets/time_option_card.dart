@@ -326,6 +326,8 @@ class TimeOptionCard extends StatelessWidget {
     Color color,
     bool isSelected,
   ) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Semantics(
       button: true,
       label: 'Vote $label${isSelected ? ', currently selected' : ''}',
@@ -347,13 +349,13 @@ class TimeOptionCard extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color: isSelected ? Colors.white : color,
+                color: isSelected ? colorScheme.onPrimary : color,
               ),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: isSelected ? Colors.white : color,
+                      color: isSelected ? colorScheme.onPrimary : color,
                       fontWeight: FontWeight.w600,
                     ),
               ),

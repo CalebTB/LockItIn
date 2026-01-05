@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../providers/calendar_provider.dart';
-import '../../../providers/group_provider.dart';
 import '../group_detail_screen.dart';
 
 /// Helper class to hold cell colors for the heatmap calendar
@@ -21,7 +18,7 @@ class CellColors {
 }
 
 /// Availability heatmap calendar grid for GroupDetailScreen
-class GroupCalendarGrid extends StatelessWidget {
+class GroupCalendarGrid extends StatefulWidget {
   final DateTime month;
   final DateTime? selectedDate;
   final DateTimeRange? selectedDateRange;
@@ -30,6 +27,7 @@ class GroupCalendarGrid extends StatelessWidget {
   final int Function(DateTime date) getAvailabilityForDay;
   final void Function(DateTime date) onDayTapped;
   final void Function(int day) onDaySelected;
+  final int totalMembers;
 
   const GroupCalendarGrid({
     super.key,
@@ -41,60 +39,65 @@ class GroupCalendarGrid extends StatelessWidget {
     required this.getAvailabilityForDay,
     required this.onDayTapped,
     required this.onDaySelected,
+    required this.totalMembers,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  State<GroupCalendarGrid> createState() => _GroupCalendarGridState();
+}
 
-    final firstDayOfMonth = DateTime(month.year, month.month, 1);
-    final lastDayOfMonth = DateTime(month.year, month.month + 1, 0);
+class _GroupCalendarGridState extends State<GroupCalendarGrid>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true; // Keep pages alive in PageView
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context); // CRITICAL: Must call super for AutomaticKeepAliveClientMixin
+    final days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
+    final brightness = Theme.of(context).brightness;
+
+    final firstDayOfMonth = DateTime(widget.month.year, widget.month.month, 1);
+    final lastDayOfMonth = DateTime(widget.month.year, widget.month.month + 1, 0);
     final startWeekday = firstDayOfMonth.weekday % 7;
     final daysInMonth = lastDayOfMonth.day;
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    return Consumer2<CalendarProvider, GroupProvider>(
-      builder: (context, calendarProvider, groupProvider, _) {
-        final colorScheme = Theme.of(context).colorScheme;
-        final appColors = context.appColors;
-        final brightness = Theme.of(context).brightness;
-        final totalMembers = groupProvider.selectedGroupMembers.isNotEmpty
-            ? groupProvider.selectedGroupMembers.length
-            : (groupProvider.selectedGroup?.memberCount ?? 1);
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Column(
-            children: [
-              // Day headers
-              Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 8),
-                child: Row(
-                  children: days.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final day = entry.value;
-                    final isWeekend = index == 0 || index == 6;
-                    return Expanded(
-                      child: Center(
-                        child: Text(
-                          day,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: isWeekend
-                                ? appColors.textMuted
-                                : colorScheme.onSurfaceVariant,
-                          ),
-                        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Column(
+        children: [
+          // Day headers
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 8),
+            child: Row(
+              children: days.asMap().entries.map((entry) {
+                final index = entry.key;
+                final day = entry.value;
+                final isWeekend = index == 0 || index == 6;
+                return Expanded(
+                  child: Center(
+                    child: Text(
+                      day,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isWeekend
+                            ? appColors.textMuted
+                            : colorScheme.onSurfaceVariant,
                       ),
-                    );
-                  }).toList(),
-                ),
-              ),
-              Expanded(
-                child: GridView.builder(
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          Expanded(
+            child: GridView.builder(
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 7,
@@ -110,32 +113,32 @@ class GroupCalendarGrid extends StatelessWidget {
                       return const SizedBox.shrink();
                     }
 
-                    final date = DateTime(month.year, month.month, dayNumber);
+                    final date = DateTime(widget.month.year, widget.month.month, dayNumber);
                     final isToday = date.isAtSameMomentAs(today);
                     final isPast = date.isBefore(today);
                     // Only show selection if this exact date matches selectedDate
-                    final isSelected = selectedDate != null &&
-                        selectedDate!.day == dayNumber &&
-                        selectedDate!.month == month.month &&
-                        selectedDate!.year == month.year;
+                    final isSelected = widget.selectedDate != null &&
+                        widget.selectedDate!.day == dayNumber &&
+                        widget.selectedDate!.month == widget.month.month &&
+                        widget.selectedDate!.year == widget.month.year;
 
-                    final isInRange = selectedDateRange == null ||
-                        (!date.isBefore(selectedDateRange!.start) &&
-                         !date.isAfter(selectedDateRange!.end));
+                    final isInRange = widget.selectedDateRange == null ||
+                        (!date.isBefore(widget.selectedDateRange!.start) &&
+                         !date.isAfter(widget.selectedDateRange!.end));
 
                     final available = (isInRange && !isPast)
-                        ? getAvailabilityForDay(date)
+                        ? widget.getAvailabilityForDay(date)
                         : 0;
 
                     final isFullyAvailable = isInRange && !isPast &&
-                        available == totalMembers && totalMembers > 0;
+                        available == widget.totalMembers && widget.totalMembers > 0;
 
                     final cellColors = _getCellColors(
                       isPast: isPast,
                       isInRange: isInRange,
                       isFullyAvailable: isFullyAvailable,
                       available: available,
-                      totalMembers: totalMembers,
+                      totalMembers: widget.totalMembers,
                       brightness: brightness,
                       colorScheme: colorScheme,
                       appColors: appColors,
@@ -147,28 +150,30 @@ class GroupCalendarGrid extends StatelessWidget {
                       isPast: isPast,
                       isInRange: isInRange,
                       available: available,
-                      totalMembers: totalMembers,
+                      totalMembers: widget.totalMembers,
                     );
 
-                    return Semantics(
-                      button: !isPast,
-                      label: semanticLabel,
-                      selected: isSelected,
-                      child: GestureDetector(
-                        onTap: isPast
-                            ? null
-                            : () {
-                                if (dayViewStyle == DayViewStyle.classic) {
-                                  HapticFeedback.selectionClick();
-                                  onDaySelected(dayNumber);
-                                } else {
-                                  onDayTapped(date);
-                                }
-                              },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          curve: Curves.easeOut,
-                          decoration: BoxDecoration(
+                    // RepaintBoundary prevents this cell from causing other cells to repaint
+                    return RepaintBoundary(
+                      child: Semantics(
+                        button: !isPast,
+                        label: semanticLabel,
+                        selected: isSelected,
+                        child: GestureDetector(
+                          onTap: isPast
+                              ? null
+                              : () {
+                                  if (widget.dayViewStyle == DayViewStyle.classic) {
+                                    HapticFeedback.selectionClick();
+                                    widget.onDaySelected(dayNumber);
+                                  } else {
+                                    widget.onDayTapped(date);
+                                  }
+                                },
+                          // Changed from AnimatedContainer to Container to reduce overhead
+                          // Animation wasn't adding value and was causing rebuilds
+                          child: Container(
+                            decoration: BoxDecoration(
                             color: cellColors.background,
                             borderRadius: BorderRadius.circular(10),
                             border: _getCellBorder(
@@ -216,7 +221,7 @@ class GroupCalendarGrid extends StatelessWidget {
                                     ),
                                   ),
                                   if (!isPast && isInRange)
-                                    isLoadingMemberEvents
+                                    widget.isLoadingMemberEvents
                                         ? Padding(
                                             padding: const EdgeInsets.only(top: 3),
                                             child: SizedBox(
@@ -234,16 +239,9 @@ class GroupCalendarGrid extends StatelessWidget {
                                               width: 8,
                                               height: 8,
                                               decoration: BoxDecoration(
-                                                color: _getHeatmapDotColor(available, totalMembers),
+                                                color: _getHeatmapDotColor(available, widget.totalMembers),
                                                 shape: BoxShape.circle,
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: _getHeatmapDotColor(available, totalMembers)
-                                                        .withValues(alpha: 0.4),
-                                                    blurRadius: 3,
-                                                    spreadRadius: 0,
-                                                  ),
-                                                ],
+                                                // Removed boxShadow for better performance during swipes (42 cells × shadow = GPU overhead)
                                               ),
                                             ),
                                           ),
@@ -253,6 +251,7 @@ class GroupCalendarGrid extends StatelessWidget {
                           ),
                         ),
                       ),
+                    ),
                     );
                   },
                 ),
@@ -260,8 +259,6 @@ class GroupCalendarGrid extends StatelessWidget {
             ],
           ),
         );
-      },
-    );
   }
 
   Border? _getCellBorder({

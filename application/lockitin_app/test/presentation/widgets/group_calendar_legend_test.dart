@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lockitin_app/presentation/widgets/group_calendar_legend.dart';
 import 'package:lockitin_app/core/theme/app_theme.dart';
-import 'package:lockitin_app/core/theme/app_colors.dart';
 
 void main() {
   group('GroupCalendarLegend Widget', () {

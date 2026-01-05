@@ -136,10 +136,6 @@ void main() {
           (WidgetTester tester) async {
         await navigateToStep2(tester);
 
-        // Check if "Review Proposal" button is present
-        // (wizard may require minimum 2 options, so button may be disabled)
-        final nextButton = find.text('Review Proposal', skipOffstage: false);
-
         // Wizard requires minimum 2 options, so this test just verifies step 2 loaded
         expect(find.text('Add Another Option', skipOffstage: false), findsOneWidget);
       });
