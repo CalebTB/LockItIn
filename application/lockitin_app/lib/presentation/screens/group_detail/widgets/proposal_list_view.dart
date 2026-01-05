@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../providers/proposal_provider.dart';
 import '../../../widgets/proposal_card.dart';
 import '../../../widgets/empty_state.dart';
+import '../../../widgets/skeleton_loader.dart';
 import '../../proposal_detail/proposal_detail_screen.dart';
 import '../../group_proposal_wizard.dart';
 
@@ -51,9 +52,9 @@ class _ProposalListViewState extends State<ProposalListView> {
 
   @override
   void dispose() {
-    // Clean up subscriptions when widget is disposed
-    // Use saved reference instead of context.read() since widget is being torn down
-    _provider?.unsubscribeAll();
+    // Don't call unsubscribeAll() - provider manages subscriptions globally
+    // Individual proposal detail screens handle their own subscription cleanup
+    // Only call unsubscribeAll() on logout or app-level cleanup
     super.dispose();
   }
 
@@ -71,12 +72,12 @@ class _ProposalListViewState extends State<ProposalListView> {
     final colorScheme = Theme.of(context).colorScheme;
     final appColors = context.appColors;
 
-    // Loading state (first load only)
+    // Loading state (first load only) - Show skeleton loaders
     if (provider.isLoadingProposals && !provider.isInitialized) {
-      return Center(
-        child: CircularProgressIndicator(
-          color: colorScheme.primary,
-        ),
+      return ListView.builder(
+        padding: const EdgeInsets.only(top: 16, bottom: 16),
+        itemCount: 3, // Show 3 skeleton cards
+        itemBuilder: (context, index) => const ProposalCardSkeleton(),
       );
     }
 
@@ -90,34 +91,31 @@ class _ProposalListViewState extends State<ProposalListView> {
         ? provider.activeProposals
         : provider.closedProposals;
 
-    // Empty state
-    if (proposals.isEmpty) {
-      return _buildEmptyState(appColors);
-    }
-
-    // Content state: Filter + List
+    // Always show filter toggle + content below
     return Column(
       children: [
-        // Filter Toggle
+        // Filter Toggle (always visible)
         _buildFilterToggle(colorScheme, appColors),
         const SizedBox(height: 8),
 
-        // Proposal List
+        // Content: List or Empty State
         Expanded(
-          child: RefreshIndicator(
-            onRefresh: () => provider.refresh(),
-            child: ListView.builder(
-              padding: const EdgeInsets.only(bottom: 16),
-              itemCount: proposals.length,
-              itemBuilder: (context, index) {
-                final proposal = proposals[index];
-                return ProposalCard(
-                  proposal: proposal,
-                  onTap: () => _navigateToProposalDetail(proposal),
-                );
-              },
-            ),
-          ),
+          child: proposals.isEmpty
+              ? _buildEmptyState(appColors)
+              : RefreshIndicator(
+                  onRefresh: () => provider.refresh(),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    itemCount: proposals.length,
+                    itemBuilder: (context, index) {
+                      final proposal = proposals[index];
+                      return ProposalCard(
+                        proposal: proposal,
+                        onTap: () => _navigateToProposalDetail(proposal),
+                      );
+                    },
+                  ),
+                ),
         ),
       ],
     );
