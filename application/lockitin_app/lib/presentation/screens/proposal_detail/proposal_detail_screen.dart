@@ -6,6 +6,7 @@ import '../../../data/models/proposal_time_option.dart';
 import '../../../data/models/vote_model.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../providers/proposal_provider.dart';
+import '../../providers/calendar_provider.dart';
 import '../../widgets/skeleton_loader.dart';
 import 'widgets/proposal_header.dart';
 import 'widgets/proposal_info_section.dart';
@@ -413,15 +414,6 @@ class _ProposalDetailScreenState extends State<ProposalDetailScreen> {
       // Haptic feedback on successful vote
       if (mounted) {
         HapticFeedback.selectionClick();
-
-        // Optional: Show brief confirmation
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Voted ${voteType.name.toUpperCase()}'),
-            duration: const Duration(seconds: 1),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
       }
     } catch (e) {
       if (mounted) {
@@ -494,6 +486,12 @@ class _ProposalDetailScreenState extends State<ProposalDetailScreen> {
         winningOption.id!,
       );
 
+      // Refresh calendar to show newly created event in real-time
+      if (mounted) {
+        final calendarProvider = Provider.of<CalendarProvider>(context, listen: false);
+        await calendarProvider.refreshEvents();
+      }
+
       if (mounted) {
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
@@ -510,8 +508,8 @@ class _ProposalDetailScreenState extends State<ProposalDetailScreen> {
           ),
         );
 
-        // Navigate back to group detail
-        Navigator.pop(context);
+        // Navigate back to group detail with success result
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {

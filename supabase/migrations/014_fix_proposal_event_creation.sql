@@ -68,7 +68,7 @@ BEGIN
     'sharedWithName',
     now()
   FROM proposal_votes pv
-  WHERE pv.time_option_id = p_option_id
+  WHERE pv.option_id = p_option_id
     AND pv.vote = 'yes'; -- Only YES voters get event
 
   GET DIAGNOSTICS v_event_count = ROW_COUNT;
@@ -87,8 +87,8 @@ BEGIN
   UPDATE event_proposals
   SET
     status = 'confirmed',
-    confirmed_time_option_id = p_option_id,
-    confirmed_event_id = v_creator_event_id,
+    confirmed_option_id = p_option_id,
+    created_event_id = v_creator_event_id,
     updated_at = now()
   WHERE id = p_proposal_id;
 
@@ -97,8 +97,8 @@ BEGIN
     user_id,
     type,
     title,
-    message,
-    related_proposal_id,
+    body,
+    data,
     created_at
   )
   SELECT
@@ -107,7 +107,7 @@ BEGIN
     'Event Confirmed: ' || v_proposal.title,
     'The event "' || v_proposal.title || '" has been scheduled for ' ||
       to_char(v_time_option.start_time AT TIME ZONE 'UTC', 'Mon DD at HH12:MI AM'),
-    v_proposal.id,
+    jsonb_build_object('proposal_id', v_proposal.id),
     now()
   FROM group_members gm
   WHERE gm.group_id = v_proposal.group_id;
@@ -133,14 +133,15 @@ BEGIN
   FROM proposal_time_options pto
   LEFT JOIN (
     SELECT
-      pv.time_option_id,
+      pv.option_id,
       COUNT(*) FILTER (WHERE pv.vote = 'yes') as yes_count,
       COUNT(*) FILTER (WHERE pv.vote = 'maybe') as maybe_count,
       COUNT(*) FILTER (WHERE pv.vote = 'no') as no_count
     FROM proposal_votes pv
-    WHERE pv.proposal_id = p_proposal_id
-    GROUP BY pv.time_option_id
-  ) vote_summary ON pto.id = vote_summary.time_option_id
+    JOIN proposal_time_options pto2 ON pto2.id = pv.option_id
+    WHERE pto2.proposal_id = p_proposal_id
+    GROUP BY pv.option_id
+  ) vote_summary ON pto.id = vote_summary.option_id
   WHERE pto.proposal_id = p_proposal_id
   ORDER BY
     COALESCE(vote_summary.yes_count, 0) * 2 + COALESCE(vote_summary.maybe_count, 0) DESC,  -- Score

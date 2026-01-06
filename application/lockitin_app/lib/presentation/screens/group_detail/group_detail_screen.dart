@@ -445,6 +445,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                     groupId: widget.group.id,
                     groupName: widget.group.name,
                     groupMemberCount: widget.group.memberCount,
+                    onProposalConfirmed: _loadMemberEvents,
                   ),
                 ],
               ),
