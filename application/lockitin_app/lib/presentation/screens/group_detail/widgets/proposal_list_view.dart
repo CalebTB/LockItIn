@@ -283,8 +283,8 @@ class _ProposalListViewState extends State<ProposalListView> {
   }
 
   /// Trigger proposal creation wizard
-  void _onCreateProposal() {
-    Navigator.of(context).push(
+  Future<void> _onCreateProposal() async {
+    final created = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (context) => GroupProposalWizard(
           groupId: widget.groupId,
@@ -293,5 +293,10 @@ class _ProposalListViewState extends State<ProposalListView> {
         ),
       ),
     );
+
+    // If proposal was created, refresh the proposals list
+    if (created == true && mounted) {
+      _provider?.loadProposals(widget.groupId);
+    }
   }
 }
