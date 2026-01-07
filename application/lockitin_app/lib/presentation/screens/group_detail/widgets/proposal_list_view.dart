@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../data/models/proposal_model.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/route_transitions.dart';
 import '../../../providers/proposal_provider.dart';
 import '../../../widgets/proposal_card.dart';
 import '../../../widgets/empty_state.dart';
@@ -268,8 +269,8 @@ class _ProposalListViewState extends State<ProposalListView> {
   Future<void> _navigateToProposalDetail(ProposalModel proposal) async {
     final confirmed = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (context) => ProposalDetailScreen(
+      SlideRoute(
+        page: ProposalDetailScreen(
           proposalId: proposal.id,
           groupId: proposal.groupId,
         ),
@@ -285,8 +286,8 @@ class _ProposalListViewState extends State<ProposalListView> {
   /// Trigger proposal creation wizard
   Future<void> _onCreateProposal() async {
     final created = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (context) => GroupProposalWizard(
+      SlideRoute(
+        page: GroupProposalWizard(
           groupId: widget.groupId,
           groupName: widget.groupName,
           groupMemberCount: widget.groupMemberCount,

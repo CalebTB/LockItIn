@@ -9,6 +9,8 @@ import '../providers/group_provider.dart';
 import '../widgets/friend_search_delegate.dart';
 import '../widgets/friend_list_tile.dart';
 import '../widgets/friend_request_tile.dart';
+import '../widgets/skeleton_loader.dart';
+import '../widgets/animated_friend_request_list.dart';
 
 /// Main screen for managing friends and friend requests
 class FriendsScreen extends StatefulWidget {
@@ -135,7 +137,7 @@ class _FriendsListTab extends StatelessWidget {
     return Consumer<FriendProvider>(
       builder: (context, provider, _) {
         if (provider.isLoadingFriends) {
-          return const Center(child: CircularProgressIndicator());
+          return const FriendListSkeleton();
         }
 
         if (provider.friendsError != null) {
@@ -259,32 +261,51 @@ class _RequestsTab extends StatelessWidget {
 
         return RefreshIndicator(
           onRefresh: () => provider.loadPendingRequests(),
-          child: ListView(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            children: [
+          child: CustomScrollView(
+            slivers: [
               if (hasIncoming) ...[
-                _SectionHeader(
-                  title: 'Incoming Requests',
-                  count: provider.pendingRequests.length,
+                SliverToBoxAdapter(
+                  child: _SectionHeader(
+                    title: 'Incoming Requests',
+                    count: provider.pendingRequests.length,
+                  ),
                 ),
-                ...provider.pendingRequests.map(
-                  (request) => FriendRequestTile(
-                    request: request,
-                    onAccept: () => _acceptRequest(context, request, provider),
-                    onDecline: () => _declineRequest(context, request, provider),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: provider.pendingRequests.length * 80.0,
+                    child: AnimatedFriendRequestList(
+                      requests: provider.pendingRequests,
+                      padding: EdgeInsets.zero,
+                      itemBuilder: (context, request, animation) {
+                        return FriendRequestTile(
+                          request: request,
+                          onAccept: () => _acceptRequest(context, request, provider),
+                          onDecline: () => _declineRequest(context, request, provider),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],
               if (hasOutgoing) ...[
-                if (hasIncoming) const SizedBox(height: 16),
-                _SectionHeader(
-                  title: 'Sent Requests',
-                  count: provider.sentRequests.length,
+                if (hasIncoming)
+                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                SliverToBoxAdapter(
+                  child: _SectionHeader(
+                    title: 'Sent Requests',
+                    count: provider.sentRequests.length,
+                  ),
                 ),
-                ...provider.sentRequests.map(
-                  (request) => _SentRequestTile(
-                    request: request,
-                    onCancel: () => _cancelRequest(context, request, provider),
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final request = provider.sentRequests[index];
+                      return _SentRequestTile(
+                        request: request,
+                        onCancel: () => _cancelRequest(context, request, provider),
+                      );
+                    },
+                    childCount: provider.sentRequests.length,
                   ),
                 ),
               ],

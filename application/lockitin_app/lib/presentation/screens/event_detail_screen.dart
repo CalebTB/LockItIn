@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/event_model.dart';
 import '../../core/services/event_service.dart';
+import '../../core/utils/route_transitions.dart';
 import '../../utils/calendar_utils.dart';
 import '../../utils/privacy_colors.dart';
 import '../providers/calendar_provider.dart';
@@ -391,8 +392,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final calendarProvider = context.read<CalendarProvider>();
 
     final updatedEvent = await Navigator.of(context).push<EventModel>(
-      MaterialPageRoute(
-        builder: (context) => EventCreationScreen(
+      SlideRoute(
+        page: EventCreationScreen(
           mode: EventCreationMode.editPersonalEvent,
           eventToEdit: _currentEvent,
         ),

@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../providers/proposal_provider.dart';
 import '../../providers/calendar_provider.dart';
 import '../../widgets/skeleton_loader.dart';
+import '../../widgets/confetti_overlay.dart';
 import 'widgets/proposal_header.dart';
 import 'widgets/proposal_info_section.dart';
 import 'widgets/time_option_card.dart';
@@ -488,16 +489,32 @@ class _ProposalDetailScreenState extends State<ProposalDetailScreen> {
 
       // Refresh calendar to show newly created event in real-time
       if (mounted) {
+        // Haptic feedback for successful confirmation
+        HapticFeedback.mediumImpact();
+
         final calendarProvider = Provider.of<CalendarProvider>(context, listen: false);
         await calendarProvider.refreshEvents();
       }
 
       if (mounted) {
+        // Celebrate with confetti animation
+        final overlay = Overlay.of(context);
+        final appColors = context.appColors;
+        late OverlayEntry overlayEntry;
+        overlayEntry = OverlayEntry(
+          builder: (context) => Positioned.fill(
+            child: ConfettiOverlay(
+              onComplete: () => overlayEntry.remove(),
+            ),
+          ),
+        );
+        overlay.insert(overlayEntry);
+
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Event created successfully!'),
-            backgroundColor: context.appColors.success,
+            backgroundColor: appColors.success,
             action: SnackBarAction(
               label: 'View',
               textColor: Colors.white,
@@ -507,8 +524,13 @@ class _ProposalDetailScreenState extends State<ProposalDetailScreen> {
             ),
           ),
         );
+      }
 
-        // Navigate back to group detail with success result
+      // Delay navigation to let confetti animation play
+      await Future.delayed(const Duration(milliseconds: 1500));
+
+      // Navigate back to group detail with success result
+      if (mounted) {
         Navigator.pop(context, true);
       }
     } catch (e) {

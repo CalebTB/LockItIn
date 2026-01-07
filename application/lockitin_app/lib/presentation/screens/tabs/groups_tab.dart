@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/group_model.dart';
+import '../../../core/utils/route_transitions.dart';
 import '../../providers/group_provider.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/skeleton_loader.dart';
 import '../group_detail/group_detail_screen.dart';
 
 /// Groups tab showing full screen list of user's groups
@@ -107,8 +109,8 @@ class _GroupsTabState extends State<GroupsTab> {
                     if (group != null && context.mounted) {
                       // Navigate to the new group
                       Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => GroupDetailScreen(group: group),
+                        SlideRoute(
+                          page: GroupDetailScreen(group: group),
                         ),
                       );
                     }
@@ -140,7 +142,7 @@ class _GroupsTabState extends State<GroupsTab> {
             // Content
             Expanded(
               child: provider.isLoadingGroups && provider.groups.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const GroupListSkeleton()
                   : provider.groups.isEmpty
                       ? _buildEmptyState(context, colorScheme, appColors)
                       : _buildGroupsList(context, colorScheme, appColors, provider),
@@ -256,8 +258,8 @@ class _GroupsTabState extends State<GroupsTab> {
     return ListTile(
       onTap: () {
         Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => GroupDetailScreen(group: group),
+          SlideRoute(
+            page: GroupDetailScreen(group: group),
           ),
         );
       },
