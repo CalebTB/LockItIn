@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../data/models/proposal_model.dart';
 import '../../core/theme/app_colors.dart';
+import 'animated_pressable.dart';
 
 /// Card widget for displaying a proposal in a list
 ///
@@ -20,16 +21,17 @@ class ProposalCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final appColors = context.appColors;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: appColors.cardBorder),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+    return AnimatedPressable(
+      onTap: onTap,
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: appColors.cardBorder),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -100,6 +102,7 @@ class ProposalCard extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 

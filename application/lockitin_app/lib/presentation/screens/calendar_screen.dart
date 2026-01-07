@@ -6,6 +6,7 @@ import '../../domain/models/calendar_month.dart';
 import '../../data/models/event_model.dart';
 import '../../utils/calendar_utils.dart';
 import '../../core/services/event_service.dart';
+import '../../core/utils/route_transitions.dart';
 import 'day_detail_screen.dart';
 import 'card_calendar_screen.dart';
 import 'event_creation_screen.dart';
@@ -57,8 +58,8 @@ class _CalendarViewState extends State<_CalendarView> {
   ) async {
     // Navigate to event creation screen
     final result = await Navigator.of(context).push<EventModel>(
-      MaterialPageRoute(
-        builder: (context) => const EventCreationScreen(
+      SlideRoute(
+        page: const EventCreationScreen(
           mode: EventCreationMode.personalEvent,
         ),
       ),
@@ -227,8 +228,8 @@ class _CalendarViewState extends State<_CalendarView> {
                           icon: Icon(Icons.view_agenda_rounded, color: colorScheme.primary),
                           onPressed: () {
                             Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => ChangeNotifierProvider.value(
+                              SlideRoute(
+                                page: ChangeNotifierProvider.value(
                                   value: provider,
                                   child: const CardCalendarScreen(),
                                 ),
@@ -436,8 +437,8 @@ class _CalendarViewState extends State<_CalendarView> {
                     provider.selectDate(date);
                     // Navigate to day detail screen (reads events from CalendarProvider)
                     Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => DayDetailScreen(
+                      SlideRoute(
+                        page: DayDetailScreen(
                           selectedDate: date,
                         ),
                       ),

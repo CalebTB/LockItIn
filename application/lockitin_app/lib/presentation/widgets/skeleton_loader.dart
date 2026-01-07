@@ -210,6 +210,99 @@ class GroupCalendarSkeleton extends StatelessWidget {
   }
 }
 
+/// Skeleton placeholder for friend list
+class FriendListSkeleton extends StatelessWidget {
+  const FriendListSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final appColors = context.appColors;
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: 5,
+      itemBuilder: (context, index) => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: appColors.cardBackground,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: appColors.cardBorder),
+        ),
+        child: Row(
+          children: [
+            // Avatar circle
+            SkeletonLoader(
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+            ),
+            const SizedBox(width: 12),
+            // Text lines
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SkeletonLoader(
+                    width: 140,
+                    height: 16,
+                    borderRadius: 4,
+                  ),
+                  const SizedBox(height: 6),
+                  SkeletonLoader(
+                    width: 100,
+                    height: 14,
+                    borderRadius: 4,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Skeleton placeholder for groups list
+class GroupListSkeleton extends StatelessWidget {
+  const GroupListSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: 5,
+      itemBuilder: (context, index) => ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: SkeletonLoader(
+          width: 48,
+          height: 48,
+          borderRadius: 12,
+        ),
+        title: SkeletonLoader(
+          width: 140,
+          height: 16,
+          borderRadius: 4,
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: SkeletonLoader(
+            width: 80,
+            height: 13,
+            borderRadius: 4,
+          ),
+        ),
+        trailing: SkeletonLoader(
+          width: 24,
+          height: 24,
+          borderRadius: 12,
+        ),
+      ),
+    );
+  }
+}
+
 /// Skeleton placeholder for proposal detail screen
 class ProposalDetailSkeleton extends StatelessWidget {
   const ProposalDetailSkeleton({super.key});

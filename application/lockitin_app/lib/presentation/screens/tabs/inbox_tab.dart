@@ -6,6 +6,7 @@ import '../../providers/friend_provider.dart';
 import '../../providers/group_provider.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/friend_request_tile.dart';
+import '../../widgets/animated_friend_request_list.dart';
 
 /// Inbox tab showing notifications, friend requests, and group invites
 /// Features:
@@ -155,60 +156,86 @@ class _InboxTabState extends State<InboxTab> {
     List<dynamic> friendRequests,
     List<GroupInvite> groupInvites,
   ) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      children: [
+    return CustomScrollView(
+      slivers: [
         // Friend Requests Section
         if (friendRequests.isNotEmpty) ...[
-          _buildSectionHeader(
-            context,
-            colorScheme,
-            appColors,
-            'Friend Requests',
-            friendRequests.length,
-            Icons.person_add_outlined,
+          SliverPadding(
+            padding: const EdgeInsets.only(top: 8),
+            sliver: SliverToBoxAdapter(
+              child: _buildSectionHeader(
+                context,
+                colorScheme,
+                appColors,
+                'Friend Requests',
+                friendRequests.length,
+                Icons.person_add_outlined,
+              ),
+            ),
           ),
-          ...friendRequests.map((request) => FriendRequestTile(
-                request: request,
-                onAccept: () async {
-                  await context.read<FriendProvider>().acceptFriendRequest(request);
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: friendRequests.length * 80.0,
+              child: AnimatedFriendRequestList(
+                requests: friendRequests.cast(),
+                padding: EdgeInsets.zero,
+                itemBuilder: (context, request, animation) {
+                  return FriendRequestTile(
+                    request: request,
+                    onAccept: () async {
+                      await context.read<FriendProvider>().acceptFriendRequest(request);
+                    },
+                    onDecline: () async {
+                      await context.read<FriendProvider>().declineFriendRequest(request);
+                    },
+                  );
                 },
-                onDecline: () async {
-                  await context.read<FriendProvider>().declineFriendRequest(request);
-                },
-              )),
-          const SizedBox(height: 16),
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
         ],
 
         // Group Invites Section
         if (groupInvites.isNotEmpty) ...[
-          _buildSectionHeader(
-            context,
-            colorScheme,
-            appColors,
-            'Group Invites',
-            groupInvites.length,
-            Icons.group_add_outlined,
+          SliverToBoxAdapter(
+            child: _buildSectionHeader(
+              context,
+              colorScheme,
+              appColors,
+              'Group Invites',
+              groupInvites.length,
+              Icons.group_add_outlined,
+            ),
           ),
-          ...groupInvites.map((invite) => _buildGroupInviteTile(
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => _buildGroupInviteTile(
                 context,
                 colorScheme,
                 appColors,
-                invite,
-              )),
-          const SizedBox(height: 16),
+                groupInvites[index],
+              ),
+              childCount: groupInvites.length,
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
         ],
 
         // Activity Section (placeholder for future)
-        _buildSectionHeader(
-          context,
-          colorScheme,
-          appColors,
-          'Recent Activity',
-          0,
-          Icons.history_rounded,
+        SliverToBoxAdapter(
+          child: _buildSectionHeader(
+            context,
+            colorScheme,
+            appColors,
+            'Recent Activity',
+            0,
+            Icons.history_rounded,
+          ),
         ),
-        _buildActivityPlaceholder(context, colorScheme, appColors),
+        SliverToBoxAdapter(
+          child: _buildActivityPlaceholder(context, colorScheme, appColors),
+        ),
       ],
     );
   }

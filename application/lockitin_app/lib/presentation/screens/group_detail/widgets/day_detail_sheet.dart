@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/services/availability_calculator_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/route_transitions.dart';
 import '../../../../core/utils/time_filter_utils.dart';
 import '../../../../data/models/event_model.dart';
 import '../../../../data/models/group_model.dart';
@@ -418,8 +419,8 @@ class DayDetailSheet extends StatelessWidget {
 
         // Navigate to proposal wizard with pre-filled time from suggested slot
         Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => GroupProposalWizard(
+          SlideRoute(
+            page: GroupProposalWizard(
               groupId: groupId,
               groupName: groupName,
               groupMemberCount: groupMemberCount,
@@ -455,8 +456,8 @@ class DayDetailSheet extends StatelessWidget {
 
             // Navigate to proposal wizard with selected date
             Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => GroupProposalWizard(
+              SlideRoute(
+                page: GroupProposalWizard(
                   groupId: groupId,
                   groupName: groupName,
                   groupMemberCount: groupMemberCount,

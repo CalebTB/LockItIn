@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/route_transitions.dart';
 import '../providers/auth_provider.dart';
 import '../providers/calendar_provider.dart';
 import '../providers/device_calendar_provider.dart';
@@ -540,8 +541,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const FriendsScreen(),
+                    SlideRoute(
+                      page: const FriendsScreen(),
                     ),
                   );
                 },
@@ -572,8 +573,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const FriendsScreen(),
+                      SlideRoute(
+                        page: const FriendsScreen(),
                       ),
                     );
                   },
