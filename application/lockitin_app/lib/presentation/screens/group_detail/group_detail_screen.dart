@@ -14,6 +14,7 @@ import '../../widgets/group_members_sheet.dart';
 import '../../widgets/group_filters_sheet.dart';
 import '../../widgets/group_best_days_section.dart';
 import '../../widgets/group_settings_sheet.dart';
+import '../../widgets/privacy_settings_sheet.dart';
 import '../../widgets/group_day_timeline_view.dart';
 import '../../widgets/skeleton_loader.dart';
 import '../group_proposal_wizard.dart';
@@ -769,7 +770,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       group: widget.group,
       onRename: () => _showSnackBar('Rename group coming soon!'),
       onNotifications: () => _showSnackBar('Notification settings coming soon!'),
-      onPrivacy: () => _showSnackBar('Privacy settings coming soon!'),
+      onPrivacy: () => PrivacySettingsSheet.show(context: context, group: widget.group),
       onShare: () => _showSnackBar('Share group coming soon!'),
       onLeave: () => _showLeaveGroupConfirmation(context),
     );

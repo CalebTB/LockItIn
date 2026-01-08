@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/event_model.dart';
@@ -85,10 +86,12 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
   bool _isAllDay = false;
   bool _showMoreOptions = false;
   EventTemplate? _selectedTemplate;
+  bool _showPrivacyTooltip = false;
 
   @override
   void initState() {
     super.initState();
+    _checkFirstTimePrivacyPicker();
 
     if (widget.eventToEdit != null) {
       // Edit mode: pre-fill form with existing event data
@@ -115,7 +118,47 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
       _endDate = _startDate;
       _startTime = TimeOfDay.now();
       _endTime = TimeOfDay(hour: (_startTime.hour + 1) % 24, minute: _startTime.minute);
+
+      // Load per-group privacy default if creating event for a group
+      if (widget.groupId != null) {
+        _loadGroupPrivacyDefault();
+      }
     }
+  }
+
+  /// Load and apply the saved privacy default for the current group
+  Future<void> _loadGroupPrivacyDefault() async {
+    if (widget.groupId == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'privacy_default_${widget.groupId}';
+    final savedValue = prefs.getString(key);
+
+    if (savedValue != null && mounted) {
+      setState(() {
+        _visibility = EventVisibility.values.firstWhere(
+          (e) => e.toString() == savedValue,
+          orElse: () => EventVisibility.sharedWithName,
+        );
+      });
+    }
+  }
+
+  /// Check if this is the first time user sees privacy picker
+  Future<void> _checkFirstTimePrivacyPicker() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenPrivacyPicker = prefs.getBool('has_seen_privacy_picker') ?? false;
+
+    if (!hasSeenPrivacyPicker && mounted) {
+      setState(() => _showPrivacyTooltip = true);
+      // Mark as seen
+      await prefs.setBool('has_seen_privacy_picker', true);
+    }
+  }
+
+  /// Dismiss the first-time privacy tooltip
+  void _dismissPrivacyTooltip() {
+    setState(() => _showPrivacyTooltip = false);
   }
 
   @override
@@ -128,6 +171,8 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
 
   /// Apply a template to pre-fill fields
   void _applyTemplate(EventTemplate template) {
+    final previousVisibility = _visibility;
+
     setState(() {
       _selectedTemplate = template;
 
@@ -179,6 +224,56 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           break;
       }
     });
+
+    // Show warning if template changed privacy setting
+    if (previousVisibility != _visibility) {
+      final colorScheme = Theme.of(context).colorScheme;
+      String warningMessage;
+
+      if (template == EventTemplate.surpriseParty) {
+        warningMessage = '🎁 Privacy set to "Shared as Busy" to keep the surprise secret!';
+      } else {
+        warningMessage = 'Template changed privacy to "${_getPrivacyLabel(_visibility)}"';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                color: colorScheme.onPrimaryContainer,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  warningMessage,
+                  style: TextStyle(color: colorScheme.onPrimaryContainer),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: colorScheme.primaryContainer,
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      HapticFeedback.mediumImpact();
+    }
+  }
+
+  /// Get human-readable label for privacy setting
+  String _getPrivacyLabel(EventVisibility visibility) {
+    switch (visibility) {
+      case EventVisibility.private:
+        return 'Private';
+      case EventVisibility.busyOnly:
+        return 'Shared as Busy';
+      case EventVisibility.sharedWithName:
+        return 'Shared with Details';
+    }
   }
 
   @override
@@ -264,6 +359,298 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Handle privacy change with confirmation for Shared → Private transitions
+  Future<void> _handlePrivacyChange(EventVisibility newVisibility) async {
+    // If changing from Shared (sharedWithName or busyOnly) to Private
+    final wasShared = _visibility == EventVisibility.sharedWithName ||
+                      _visibility == EventVisibility.busyOnly;
+    final goingPrivate = newVisibility == EventVisibility.private;
+
+    if (wasShared && goingPrivate) {
+      // Show confirmation dialog
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          final colorScheme = Theme.of(context).colorScheme;
+          return AlertDialog(
+            backgroundColor: colorScheme.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            icon: Icon(
+              Icons.lock_outline,
+              size: 48,
+              color: colorScheme.primary,
+            ),
+            title: Text(
+              'Make Event Private?',
+              style: TextStyle(color: colorScheme.onSurface),
+            ),
+            content: Text(
+              'This event will be hidden from all groups. They won\'t see you\'re busy during this time.',
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
+                height: 1.5,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text('Cancel', style: TextStyle(color: colorScheme.primary)),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Make Private'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirmed == true) {
+        setState(() => _visibility = newVisibility);
+        HapticFeedback.mediumImpact();
+      }
+    } else {
+      // No confirmation needed for other transitions
+      setState(() => _visibility = newVisibility);
+      HapticFeedback.selectionClick();
+    }
+  }
+
+  /// Show privacy help sheet explaining Shadow Calendar system
+  void _showPrivacyHelpSheet(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colorScheme.outline.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.lock_outline,
+                    size: 32,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Privacy Settings',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        Text(
+                          'How Shadow Calendar works',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: appColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, color: colorScheme.outline.withValues(alpha: 0.15)),
+            // Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Introduction
+                    Text(
+                      'Your Shadow Calendar automatically shares your availability with groups while respecting your privacy.',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: colorScheme.onSurface,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Privacy options explanation
+                    _buildHelpOption(
+                      colorScheme: colorScheme,
+                      appColors: appColors,
+                      icon: Icons.people,
+                      iconColor: const Color(0xFF10B981),
+                      title: 'Shared with Details',
+                      description: 'Groups see your event name and time. Best for coordinating with friends.',
+                      example: 'They see: "Holiday Dinner at 7:00 PM"',
+                    ),
+                    const SizedBox(height: 16),
+
+                    _buildHelpOption(
+                      colorScheme: colorScheme,
+                      appColors: appColors,
+                      icon: Icons.remove_red_eye_outlined,
+                      iconColor: const Color(0xFFF59E0B),
+                      title: 'Shared as Busy',
+                      description: 'Groups see you\'re busy but not why. Use for private appointments.',
+                      example: 'They see: "Busy 2:00 PM - 3:00 PM"',
+                    ),
+                    const SizedBox(height: 16),
+
+                    _buildHelpOption(
+                      colorScheme: colorScheme,
+                      appColors: appColors,
+                      icon: Icons.lock,
+                      iconColor: const Color(0xFFEF4444),
+                      title: 'Private',
+                      description: 'Completely hidden from groups. They don\'t know you\'re busy.',
+                      example: 'They see: Nothing (you appear free)',
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Tip box
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: colorScheme.primary.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.lightbulb_outline,
+                            size: 20,
+                            color: colorScheme.primary,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Pro Tip',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'You can set different privacy defaults for each group in group settings.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: appColors.textSecondary,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build a help option explanation
+  Widget _buildHelpOption({
+    required ColorScheme colorScheme,
+    required AppColorsExtension appColors,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String description,
+    required String example,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 18, color: iconColor),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: appColors.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                example,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: appColors.textMuted,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -463,6 +850,16 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
             ),
             const SizedBox(width: 4),
             Text('*', style: TextStyle(color: colorScheme.error)),
+            const SizedBox(width: 4),
+            // Info icon to open help sheet
+            GestureDetector(
+              onTap: () => _showPrivacyHelpSheet(context),
+              child: Icon(
+                Icons.info_outline,
+                size: 18,
+                color: colorScheme.primary.withValues(alpha: 0.7),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 4),
@@ -474,6 +871,64 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           ),
         ),
         const SizedBox(height: 12),
+
+        // First-time user tooltip
+        if (_showPrivacyTooltip) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: colorScheme.primary.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 20,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Your Shadow Calendar',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Control what groups see about your events. Tap the ℹ️ icon above to learn more.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: appColors.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _dismissPrivacyTooltip,
+                  child: Icon(
+                    Icons.close,
+                    size: 18,
+                    color: appColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
 
         // Shared with Details (Recommended)
         _buildPrivacyOption(
@@ -529,13 +984,13 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     final selectedHint = isSelected ? 'Currently selected.' : 'Double tap to select.';
 
     return Semantics(
-      label: '$title: $description.$recommendedHint',
+      label: '$title: $description. Example: $example.$recommendedHint',
       hint: selectedHint,
       button: true,
       selected: isSelected,
       excludeSemantics: true,
       child: GestureDetector(
-        onTap: () => setState(() => _visibility = value),
+        onTap: () => _handlePrivacyChange(value),
         child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
