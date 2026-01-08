@@ -86,10 +86,12 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
   bool _isAllDay = false;
   bool _showMoreOptions = false;
   EventTemplate? _selectedTemplate;
+  bool _showPrivacyTooltip = false;
 
   @override
   void initState() {
     super.initState();
+    _checkFirstTimePrivacyPicker();
 
     if (widget.eventToEdit != null) {
       // Edit mode: pre-fill form with existing event data
@@ -140,6 +142,23 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
         );
       });
     }
+  }
+
+  /// Check if this is the first time user sees privacy picker
+  Future<void> _checkFirstTimePrivacyPicker() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenPrivacyPicker = prefs.getBool('has_seen_privacy_picker') ?? false;
+
+    if (!hasSeenPrivacyPicker && mounted) {
+      setState(() => _showPrivacyTooltip = true);
+      // Mark as seen
+      await prefs.setBool('has_seen_privacy_picker', true);
+    }
+  }
+
+  /// Dismiss the first-time privacy tooltip
+  void _dismissPrivacyTooltip() {
+    setState(() => _showPrivacyTooltip = false);
   }
 
   @override
@@ -400,6 +419,241 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     }
   }
 
+  /// Show privacy help sheet explaining Shadow Calendar system
+  void _showPrivacyHelpSheet(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colorScheme.outline.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.lock_outline,
+                    size: 32,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Privacy Settings',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        Text(
+                          'How Shadow Calendar works',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: appColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, color: colorScheme.outline.withValues(alpha: 0.15)),
+            // Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Introduction
+                    Text(
+                      'Your Shadow Calendar automatically shares your availability with groups while respecting your privacy.',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: colorScheme.onSurface,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Privacy options explanation
+                    _buildHelpOption(
+                      colorScheme: colorScheme,
+                      appColors: appColors,
+                      icon: Icons.people,
+                      iconColor: const Color(0xFF10B981),
+                      title: 'Shared with Details',
+                      description: 'Groups see your event name and time. Best for coordinating with friends.',
+                      example: 'They see: "Holiday Dinner at 7:00 PM"',
+                    ),
+                    const SizedBox(height: 16),
+
+                    _buildHelpOption(
+                      colorScheme: colorScheme,
+                      appColors: appColors,
+                      icon: Icons.remove_red_eye_outlined,
+                      iconColor: const Color(0xFFF59E0B),
+                      title: 'Shared as Busy',
+                      description: 'Groups see you\'re busy but not why. Use for private appointments.',
+                      example: 'They see: "Busy 2:00 PM - 3:00 PM"',
+                    ),
+                    const SizedBox(height: 16),
+
+                    _buildHelpOption(
+                      colorScheme: colorScheme,
+                      appColors: appColors,
+                      icon: Icons.lock,
+                      iconColor: const Color(0xFFEF4444),
+                      title: 'Private',
+                      description: 'Completely hidden from groups. They don\'t know you\'re busy.',
+                      example: 'They see: Nothing (you appear free)',
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Tip box
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: colorScheme.primary.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.lightbulb_outline,
+                            size: 20,
+                            color: colorScheme.primary,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Pro Tip',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'You can set different privacy defaults for each group in group settings.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: appColors.textSecondary,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build a help option explanation
+  Widget _buildHelpOption({
+    required ColorScheme colorScheme,
+    required AppColorsExtension appColors,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String description,
+    required String example,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 18, color: iconColor),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: appColors.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                example,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: appColors.textMuted,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   /// Handle close with unsaved changes confirmation
   void _handleClose(BuildContext context) {
     // Check if form has any data
@@ -596,6 +850,16 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
             ),
             const SizedBox(width: 4),
             Text('*', style: TextStyle(color: colorScheme.error)),
+            const SizedBox(width: 4),
+            // Info icon to open help sheet
+            GestureDetector(
+              onTap: () => _showPrivacyHelpSheet(context),
+              child: Icon(
+                Icons.info_outline,
+                size: 18,
+                color: colorScheme.primary.withValues(alpha: 0.7),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 4),
@@ -607,6 +871,64 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           ),
         ),
         const SizedBox(height: 12),
+
+        // First-time user tooltip
+        if (_showPrivacyTooltip) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: colorScheme.primary.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 20,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Your Shadow Calendar',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Control what groups see about your events. Tap the ℹ️ icon above to learn more.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: appColors.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _dismissPrivacyTooltip,
+                  child: Icon(
+                    Icons.close,
+                    size: 18,
+                    color: appColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
 
         // Shared with Details (Recommended)
         _buildPrivacyOption(
