@@ -152,6 +152,8 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
 
   /// Apply a template to pre-fill fields
   void _applyTemplate(EventTemplate template) {
+    final previousVisibility = _visibility;
+
     setState(() {
       _selectedTemplate = template;
 
@@ -203,6 +205,56 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           break;
       }
     });
+
+    // Show warning if template changed privacy setting
+    if (previousVisibility != _visibility) {
+      final colorScheme = Theme.of(context).colorScheme;
+      String warningMessage;
+
+      if (template == EventTemplate.surpriseParty) {
+        warningMessage = '🎁 Privacy set to "Shared as Busy" to keep the surprise secret!';
+      } else {
+        warningMessage = 'Template changed privacy to "${_getPrivacyLabel(_visibility)}"';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                color: colorScheme.onPrimaryContainer,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  warningMessage,
+                  style: TextStyle(color: colorScheme.onPrimaryContainer),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: colorScheme.primaryContainer,
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      HapticFeedback.mediumImpact();
+    }
+  }
+
+  /// Get human-readable label for privacy setting
+  String _getPrivacyLabel(EventVisibility visibility) {
+    switch (visibility) {
+      case EventVisibility.private:
+        return 'Private';
+      case EventVisibility.busyOnly:
+        return 'Shared as Busy';
+      case EventVisibility.sharedWithName:
+        return 'Shared with Details';
+    }
   }
 
   @override
@@ -289,6 +341,63 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
         ],
       ),
     );
+  }
+
+  /// Handle privacy change with confirmation for Shared → Private transitions
+  Future<void> _handlePrivacyChange(EventVisibility newVisibility) async {
+    // If changing from Shared (sharedWithName or busyOnly) to Private
+    final wasShared = _visibility == EventVisibility.sharedWithName ||
+                      _visibility == EventVisibility.busyOnly;
+    final goingPrivate = newVisibility == EventVisibility.private;
+
+    if (wasShared && goingPrivate) {
+      // Show confirmation dialog
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          final colorScheme = Theme.of(context).colorScheme;
+          return AlertDialog(
+            backgroundColor: colorScheme.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            icon: Icon(
+              Icons.lock_outline,
+              size: 48,
+              color: colorScheme.primary,
+            ),
+            title: Text(
+              'Make Event Private?',
+              style: TextStyle(color: colorScheme.onSurface),
+            ),
+            content: Text(
+              'This event will be hidden from all groups. They won\'t see you\'re busy during this time.',
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
+                height: 1.5,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text('Cancel', style: TextStyle(color: colorScheme.primary)),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Make Private'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirmed == true) {
+        setState(() => _visibility = newVisibility);
+        HapticFeedback.mediumImpact();
+      }
+    } else {
+      // No confirmation needed for other transitions
+      setState(() => _visibility = newVisibility);
+      HapticFeedback.selectionClick();
+    }
   }
 
   /// Handle close with unsaved changes confirmation
@@ -559,7 +668,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
       selected: isSelected,
       excludeSemantics: true,
       child: GestureDetector(
-        onTap: () => setState(() => _visibility = value),
+        onTap: () => _handlePrivacyChange(value),
         child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
