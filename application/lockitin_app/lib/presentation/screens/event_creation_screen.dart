@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/event_model.dart';
@@ -115,6 +116,29 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
       _endDate = _startDate;
       _startTime = TimeOfDay.now();
       _endTime = TimeOfDay(hour: (_startTime.hour + 1) % 24, minute: _startTime.minute);
+
+      // Load per-group privacy default if creating event for a group
+      if (widget.groupId != null) {
+        _loadGroupPrivacyDefault();
+      }
+    }
+  }
+
+  /// Load and apply the saved privacy default for the current group
+  Future<void> _loadGroupPrivacyDefault() async {
+    if (widget.groupId == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'privacy_default_${widget.groupId}';
+    final savedValue = prefs.getString(key);
+
+    if (savedValue != null && mounted) {
+      setState(() {
+        _visibility = EventVisibility.values.firstWhere(
+          (e) => e.toString() == savedValue,
+          orElse: () => EventVisibility.sharedWithName,
+        );
+      });
     }
   }
 
