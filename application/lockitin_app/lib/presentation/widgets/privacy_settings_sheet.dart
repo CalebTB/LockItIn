@@ -331,12 +331,14 @@ class _PrivacySettingsSheetState extends State<PrivacySettingsSheet> {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: colorScheme.onSurface,
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurface,
+                            ),
                           ),
                         ),
                         if (isRecommended) ...[
