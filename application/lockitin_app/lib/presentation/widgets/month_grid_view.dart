@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/event_model.dart';
+import '../../utils/privacy_colors.dart';
 
 /// Full-screen month grid view
 /// Features:
@@ -247,7 +248,7 @@ class MonthGridView extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         ...displayEvents.map((event) {
-          final color = _getCategoryColor(event.category, colorScheme);
+          final color = PrivacyColors.getPrivacyColor(event.visibility);
           return Container(
             width: 6,
             height: 6,
@@ -287,18 +288,5 @@ class MonthGridView extends StatelessWidget {
 
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
-  Color _getCategoryColor(EventCategory category, ColorScheme colorScheme) {
-    switch (category) {
-      case EventCategory.work:
-        return AppColors.categoryWork;
-      case EventCategory.holiday:
-        return AppColors.categoryHoliday;
-      case EventCategory.friend:
-        return AppColors.categoryFriend;
-      case EventCategory.other:
-        return AppColors.categoryOther;
-    }
   }
 }

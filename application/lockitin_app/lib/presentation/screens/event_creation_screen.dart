@@ -529,7 +529,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     final selectedHint = isSelected ? 'Currently selected.' : 'Double tap to select.';
 
     return Semantics(
-      label: '$title: $description.$recommendedHint',
+      label: '$title: $description. Example: $example.$recommendedHint',
       hint: selectedHint,
       button: true,
       selected: isSelected,
