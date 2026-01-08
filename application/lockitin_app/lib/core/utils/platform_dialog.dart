@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -18,7 +17,8 @@ Future<bool> showPlatformConfirmationDialog({
   String cancelText = 'Cancel',
   bool isDestructive = false,
 }) async {
-  if (Platform.isIOS) {
+  final platform = Theme.of(context).platform;
+  if (platform == TargetPlatform.iOS) {
     return await showCupertinoDialog<bool>(
           context: context,
           builder: (context) => CupertinoAlertDialog(
@@ -74,7 +74,8 @@ Future<void> showPlatformAlertDialog({
   required String message,
   String buttonText = 'OK',
 }) async {
-  if (Platform.isIOS) {
+  final platform = Theme.of(context).platform;
+  if (platform == TargetPlatform.iOS) {
     await showCupertinoDialog(
       context: context,
       builder: (context) => CupertinoAlertDialog(
@@ -115,7 +116,8 @@ Future<T?> showPlatformActionSheet<T>({
   required List<PlatformActionSheetAction<T>> actions,
   PlatformActionSheetAction<T>? cancelAction,
 }) async {
-  if (Platform.isIOS) {
+  final platform = Theme.of(context).platform;
+  if (platform == TargetPlatform.iOS) {
     return await showCupertinoModalPopup<T>(
       context: context,
       builder: (context) => CupertinoActionSheet(

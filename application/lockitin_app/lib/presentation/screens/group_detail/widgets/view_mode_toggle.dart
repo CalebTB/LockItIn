@@ -1,4 +1,3 @@
-import 'dart:io' show Platform;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,6 +23,7 @@ class ViewModeToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final appColors = context.appColors;
+    final platform = Theme.of(context).platform;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -38,7 +38,7 @@ class ViewModeToggle extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Platform.isIOS
+            child: platform == TargetPlatform.iOS
                 ? _buildCupertinoSegmentedControl(context, colorScheme)
                 : _buildMaterialSegmentedButton(context, colorScheme, appColors),
           ),

@@ -4,6 +4,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/calendar_provider.dart';
 import '../../providers/friend_provider.dart';
 import '../../providers/group_provider.dart';
+import '../../widgets/adaptive_button.dart';
+import '../../widgets/adaptive_text_field.dart';
 import '../main_screen.dart';
 
 /// Sign up screen with full name, email, password, and confirm password
@@ -147,20 +149,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             const SizedBox(height: 32),
 
                             // Full Name Field
-                            TextFormField(
+                            AdaptiveTextFormField(
                               controller: _nameController,
+                              label: 'Full Name',
+                              placeholder: 'John Doe',
                               textCapitalization: TextCapitalization.words,
                               textInputAction: TextInputAction.next,
-                              decoration: InputDecoration(
-                                labelText: 'Full Name',
-                                hintText: 'John Doe',
-                                prefixIcon: const Icon(Icons.person_outline),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                filled: true,
-                                fillColor: colorScheme.surface,
-                              ),
+                              prefix: const Icon(Icons.person_outline),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return 'Please enter your name';
@@ -174,21 +169,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             const SizedBox(height: 16),
 
                             // Email Field
-                            TextFormField(
+                            AdaptiveTextFormField(
                               controller: _emailController,
+                              label: 'Email',
+                              placeholder: 'your@email.com',
                               keyboardType: TextInputType.emailAddress,
                               autocorrect: false,
                               textInputAction: TextInputAction.next,
-                              decoration: InputDecoration(
-                                labelText: 'Email',
-                                hintText: 'your@email.com',
-                                prefixIcon: const Icon(Icons.email_outlined),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                filled: true,
-                                fillColor: colorScheme.surface,
-                              ),
+                              prefix: const Icon(Icons.email_outlined),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Please enter your email';
@@ -204,66 +192,50 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             const SizedBox(height: 16),
 
                             // Password Field
-                            TextFormField(
+                            AdaptiveTextFormField(
                               controller: _passwordController,
+                              label: 'Password',
+                              placeholder: 'Create a strong password',
                               obscureText: _obscurePassword,
                               textInputAction: TextInputAction.next,
-                              decoration: InputDecoration(
-                                labelText: 'Password',
-                                hintText: 'Create a strong password',
-                                prefixIcon: const Icon(Icons.lock_outline),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
+                              prefix: const Icon(Icons.lock_outline),
+                              suffix: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
                                 ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                filled: true,
-                                fillColor: colorScheme.surface,
-                                helperText: '8+ chars, uppercase, lowercase, number',
-                                helperMaxLines: 2,
-                                helperStyle: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
                               ),
+                              helperText: '8+ chars, uppercase, lowercase, number',
                               validator: _validatePassword,
                             ),
                             const SizedBox(height: 16),
 
                             // Confirm Password Field
-                            TextFormField(
+                            AdaptiveTextFormField(
                               controller: _confirmPasswordController,
+                              label: 'Confirm Password',
+                              placeholder: 'Re-enter your password',
                               obscureText: _obscureConfirmPassword,
                               textInputAction: TextInputAction.done,
-                              onFieldSubmitted: (_) => _handleSignUp(),
-                              decoration: InputDecoration(
-                                labelText: 'Confirm Password',
-                                hintText: 'Re-enter your password',
-                                prefixIcon: const Icon(Icons.lock_outline),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscureConfirmPassword
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscureConfirmPassword = !_obscureConfirmPassword;
-                                    });
-                                  },
+                              onSubmitted: (_) => _handleSignUp(),
+                              prefix: const Icon(Icons.lock_outline),
+                              suffix: IconButton(
+                                icon: Icon(
+                                  _obscureConfirmPassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
                                 ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                filled: true,
-                                fillColor: colorScheme.surface,
+                                onPressed: () {
+                                  setState(() {
+                                    _obscureConfirmPassword = !_obscureConfirmPassword;
+                                  });
+                                },
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -278,14 +250,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             const SizedBox(height: 32),
 
                             // Sign Up Button
-                            ElevatedButton(
+                            AdaptiveButton.primary(
                               onPressed: authProvider.isLoading ? null : _handleSignUp,
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
                               child: authProvider.isLoading
                                   ? const SizedBox(
                                       height: 20,
