@@ -1,4 +1,3 @@
-import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -8,7 +7,9 @@ import 'package:uuid/uuid.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/event_model.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/adaptive_button.dart';
 import '../widgets/adaptive_date_time_picker.dart';
+import '../widgets/adaptive_text_field.dart';
 import 'group_proposal_wizard.dart';
 
 /// Event creation mode enum for dual-context support
@@ -395,11 +396,11 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
               ),
             ),
             actions: [
-              TextButton(
+              AdaptiveButton.text(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: Text('Cancel', style: TextStyle(color: colorScheme.primary)),
+                child: const Text('Cancel'),
               ),
-              FilledButton(
+              AdaptiveButton.primary(
                 onPressed: () => Navigator.of(context).pop(true),
                 child: const Text('Make Private'),
               ),
@@ -668,19 +669,17 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           title: const Text('Discard Changes?'),
           content: const Text('You have unsaved changes. Are you sure you want to discard them?'),
           actions: [
-            TextButton(
+            AdaptiveButton.text(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Cancel'),
             ),
-            TextButton(
+            AdaptiveButton.text(
               onPressed: () {
                 Navigator.of(context).pop();
                 Navigator.of(context).pop();
               },
-              child: Text(
-                'Discard',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+              isDestructive: true,
+              child: const Text('Discard'),
             ),
           ],
         ),
@@ -793,38 +792,15 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        TextFormField(
+        AdaptiveTextFormField(
           controller: _titleController,
+          placeholder: 'Event name',
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
               return 'Title is required';
             }
             return null;
           },
-          decoration: InputDecoration(
-            hintText: 'Event name',
-            filled: true,
-            fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: colorScheme.onSurface.withValues(alpha: 0.1),
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colorScheme.primary, width: 2),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colorScheme.error),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          ),
           onChanged: (_) => setState(() {}), // Trigger rebuild to update CTA state
         ),
       ],
@@ -1258,15 +1234,21 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
                     ),
                   ),
                   const Spacer(),
-                  TextButton.icon(
+                  AdaptiveButton.text(
                     onPressed: () => _showDateTimePickerSheet(context),
-                    icon: Icon(Icons.edit, size: 16, color: colorScheme.primary),
-                    label: Text(
-                      'Change',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: colorScheme.primary,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.edit, size: 16, color: colorScheme.primary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Change',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -1306,32 +1288,13 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        TextFormField(
+        AdaptiveTextFormField(
           controller: _locationController,
-          decoration: InputDecoration(
-            hintText: 'Add location',
-            prefixIcon: Icon(
-              Icons.place_outlined,
-              size: 20,
-              color: colorScheme.onSurface.withValues(alpha: 0.5),
-            ),
-            filled: true,
-            fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: colorScheme.onSurface.withValues(alpha: 0.1),
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colorScheme.primary, width: 2),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          placeholder: 'Add location',
+          prefix: Icon(
+            Icons.place_outlined,
+            size: 20,
+            color: colorScheme.onSurface.withValues(alpha: 0.5),
           ),
         ),
       ],
@@ -1482,29 +1445,10 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        TextFormField(
+        AdaptiveTextFormField(
           controller: _notesController,
+          placeholder: 'Add notes (optional)',
           maxLines: 4,
-          decoration: InputDecoration(
-            hintText: 'Add notes (optional)',
-            filled: true,
-            fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: colorScheme.onSurface.withValues(alpha: 0.1),
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colorScheme.primary, width: 2),
-            ),
-            contentPadding: const EdgeInsets.all(16),
-          ),
         ),
       ],
     );
@@ -1532,27 +1476,15 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
         ],
       ),
       child: SafeArea(
-        child: SizedBox(
-          width: double.infinity,
-          height: Platform.isIOS ? 50 : 56, // iOS 44pt min + padding, Android 56dp
-          child: ElevatedButton(
-            onPressed: isFormValid ? _handleCTAPress : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-              foregroundColor: colorScheme.onPrimary,
-              disabledBackgroundColor: colorScheme.onSurface.withValues(alpha: 0.12),
-              disabledForegroundColor: colorScheme.onSurface.withValues(alpha: 0.38),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 0,
-            ),
-            child: Text(
-              _getCTAButtonText(),
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+        child: AdaptiveButton.primary(
+          onPressed: isFormValid ? _handleCTAPress : null,
+          minWidth: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Text(
+            _getCTAButtonText(),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
