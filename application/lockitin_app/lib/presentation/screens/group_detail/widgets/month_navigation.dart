@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../widgets/adaptive_icon_button.dart';
 
 /// Month navigation controls for GroupDetailScreen calendar
 class MonthNavigation extends StatelessWidget {
@@ -23,12 +24,12 @@ class MonthNavigation extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(
+          AdaptiveIconButton(
             onPressed: onPreviousMonth,
-            icon: const Icon(Icons.chevron_left, size: 24),
+            icon: Icons.chevron_left,
+            iconSize: 24,
             color: colorScheme.onSurfaceVariant,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+            tooltip: 'Previous month',
           ),
           Text(
             DateFormat('MMMM yyyy').format(focusedMonth),
@@ -38,12 +39,12 @@ class MonthNavigation extends StatelessWidget {
               color: colorScheme.onSurface,
             ),
           ),
-          IconButton(
+          AdaptiveIconButton(
             onPressed: onNextMonth,
-            icon: const Icon(Icons.chevron_right, size: 24),
+            icon: Icons.chevron_right,
+            iconSize: 24,
             color: colorScheme.onSurfaceVariant,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+            tooltip: 'Next month',
           ),
         ],
       ),

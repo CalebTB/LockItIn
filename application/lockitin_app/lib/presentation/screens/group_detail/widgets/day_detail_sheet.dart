@@ -9,6 +9,7 @@ import '../../../../core/utils/time_filter_utils.dart';
 import '../../../../data/models/event_model.dart';
 import '../../../../data/models/group_model.dart';
 import '../../../providers/group_provider.dart';
+import '../../../widgets/adaptive_icon_button.dart';
 import '../../../widgets/suggested_time_slots_card.dart';
 import '../../group_proposal_wizard.dart';
 
@@ -342,21 +343,15 @@ class DayDetailSheet extends StatelessWidget {
           ),
 
           // Close button
-          IconButton(
+          AdaptiveIconButton(
             onPressed: () {
               HapticFeedback.lightImpact();
               onClose();
             },
-            icon: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHigh,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.close, size: 18, color: colorScheme.onSurfaceVariant),
-            ),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+            icon: Icons.close,
+            iconSize: 20,
+            color: colorScheme.onSurfaceVariant,
+            tooltip: 'Close',
           ),
         ],
       ),

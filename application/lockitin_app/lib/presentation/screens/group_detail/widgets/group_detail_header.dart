@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/time_filter_utils.dart';
 import '../../../../data/models/group_model.dart';
+import '../../../widgets/adaptive_icon_button.dart';
 import '../../../widgets/group_filters_sheet.dart';
 
 /// Header widget for GroupDetailScreen
@@ -45,15 +47,23 @@ class GroupDetailHeader extends StatelessWidget {
           Semantics(
             button: true,
             label: 'Go back',
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                onBackPressed();
-              },
-              child: Icon(
-                Icons.chevron_left,
-                size: 28,
-                color: colorScheme.onSurface,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: AppSpacing.minTouchTarget,
+                minHeight: AppSpacing.minTouchTarget,
+              ),
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  onBackPressed();
+                },
+                child: Center(
+                  child: Icon(
+                    Icons.chevron_left,
+                    size: 28,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
               ),
             ),
           ),
@@ -112,15 +122,23 @@ class GroupDetailHeader extends StatelessWidget {
           Semantics(
             button: true,
             label: 'View ${group.memberCount} members',
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                onMembersPressed();
-              },
-              child: Icon(
-                Icons.people_rounded,
-                size: 22,
-                color: colorScheme.onSurfaceVariant,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: AppSpacing.minTouchTarget,
+                minHeight: AppSpacing.minTouchTarget,
+              ),
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  onMembersPressed();
+                },
+                child: Center(
+                  child: Icon(
+                    Icons.people_rounded,
+                    size: 22,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ),
             ),
           ),
@@ -129,12 +147,20 @@ class GroupDetailHeader extends StatelessWidget {
           Semantics(
             button: true,
             label: 'Open group settings',
-            child: GestureDetector(
-              onTap: onSettingsPressed,
-              child: Icon(
-                Icons.more_vert_rounded,
-                size: 22,
-                color: colorScheme.onSurfaceVariant,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: AppSpacing.minTouchTarget,
+                minHeight: AppSpacing.minTouchTarget,
+              ),
+              child: GestureDetector(
+                onTap: onSettingsPressed,
+                child: Center(
+                  child: Icon(
+                    Icons.more_vert_rounded,
+                    size: 22,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ),
             ),
           ),
@@ -157,23 +183,22 @@ class GroupDetailHeader extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          IconButton(
+          AdaptiveIconButton(
             onPressed: () {
               HapticFeedback.selectionClick();
               onFilterPressed();
             },
-            icon: const Icon(Icons.tune_rounded, size: 20),
+            icon: Icons.tune_rounded,
+            iconSize: 20,
             color: activeCount > 0
                 ? colorScheme.primary
                 : colorScheme.onSurfaceVariant,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
             tooltip: 'Filters',
           ),
           if (activeCount > 0)
             Positioned(
-              top: -4,
-              right: -4,
+              top: 0,
+              right: 0,
               child: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(

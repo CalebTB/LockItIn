@@ -92,6 +92,21 @@ class AppSpacing {
   static const double fabMargin = md;
 
   // ============================================================================
+  // Touch Target Sizes (Accessibility)
+  // ============================================================================
+
+  /// Minimum touch target for iOS (44pt) - Apple HIG requirement
+  static const double minTouchTargetIOS = 44.0;
+
+  /// Minimum touch target for Android (48dp) - Material Design requirement
+  static const double minTouchTargetAndroid = 48.0;
+
+  /// Cross-platform minimum touch target (48dp)
+  /// Use this for all interactive elements to satisfy both iOS (44pt) and Android (48dp)
+  /// Complies with WCAG 2.1 Level AA (Criterion 2.5.5: 44×44px minimum)
+  static const double minTouchTarget = 48.0;
+
+  // ============================================================================
   // Border Radius (matching spacing scale)
   // ============================================================================
 
