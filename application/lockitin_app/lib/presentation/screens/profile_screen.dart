@@ -8,6 +8,8 @@ import '../providers/device_calendar_provider.dart';
 import '../providers/friend_provider.dart';
 import '../providers/group_provider.dart';
 import '../providers/settings_provider.dart';
+import '../widgets/adaptive_button.dart';
+import '../widgets/adaptive_text_field.dart';
 import 'auth/login_screen.dart';
 import 'friends_screen.dart';
 
@@ -210,19 +212,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   // Full Name
                   if (_isEditing)
-                    TextFormField(
+                    AdaptiveTextFormField(
                       controller: _nameController,
+                      label: 'Full Name',
+                      placeholder: 'Enter your full name',
                       enabled: !_isSaving,
                       textCapitalization: TextCapitalization.words,
-                      decoration: InputDecoration(
-                        labelText: 'Full Name',
-                        hintText: 'Enter your full name',
-                        prefixIcon: const Icon(Icons.person_outline),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                      ),
+                      prefix: const Icon(Icons.person_outline),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
                           return 'Please enter your name';
@@ -272,22 +268,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   // Bio
                   if (_isEditing)
-                    TextFormField(
+                    AdaptiveTextFormField(
                       controller: _bioController,
+                      label: 'Bio',
+                      placeholder: 'Tell us about yourself...',
                       enabled: !_isSaving,
                       maxLines: 4,
                       maxLength: 200,
-                      decoration: InputDecoration(
-                        labelText: 'Bio',
-                        hintText: 'Tell us about yourself...',
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.only(bottom: 60),
-                          child: Icon(Icons.info_outline),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
+                      prefix: const Padding(
+                        padding: EdgeInsets.only(bottom: 60),
+                        child: Icon(Icons.info_outline),
                       ),
                     )
                   else
@@ -364,14 +354,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   // Save Button (when editing)
                   if (_isEditing)
-                    ElevatedButton(
+                    AdaptiveButton.primary(
                       onPressed: _isSaving ? null : _saveProfile,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                       child: _isSaving
                           ? const SizedBox(
                               height: 20,
@@ -442,17 +427,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   // Logout Button (when not editing)
                   if (!_isEditing)
-                    OutlinedButton.icon(
+                    AdaptiveButton.secondary(
                       onPressed: _handleLogout,
-                      icon: const Icon(Icons.logout_rounded),
-                      label: const Text('Logout'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        foregroundColor: colorScheme.error,
-                        side: BorderSide(color: colorScheme.error),
+                      isDestructive: true,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.logout_rounded),
+                          SizedBox(width: 8),
+                          Text('Logout'),
+                        ],
                       ),
                     ),
                 ],
@@ -643,13 +628,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 trailing: deviceCalendarProvider.hasPermission
                     ? null
-                    : FilledButton(
+                    : AdaptiveButton.primary(
                         onPressed: () async {
                           await deviceCalendarProvider.requestPermission();
                           if (deviceCalendarProvider.hasPermission && mounted) {
                             await calendarProvider.refreshEvents();
                           }
                         },
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         child: const Text('Enable'),
                       ),
               ),

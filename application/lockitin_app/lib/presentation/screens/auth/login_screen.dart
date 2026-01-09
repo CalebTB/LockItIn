@@ -4,6 +4,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/calendar_provider.dart';
 import '../../providers/friend_provider.dart';
 import '../../providers/group_provider.dart';
+import '../../widgets/adaptive_button.dart';
+import '../../widgets/adaptive_text_field.dart';
 import 'signup_screen.dart';
 import '../main_screen.dart';
 
@@ -139,21 +141,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 32),
 
                             // Email Field
-                            TextFormField(
+                            AdaptiveTextFormField(
                               controller: _emailController,
+                              label: 'Email',
+                              placeholder: 'your@email.com',
                               keyboardType: TextInputType.emailAddress,
                               autocorrect: false,
                               textInputAction: TextInputAction.next,
-                              decoration: InputDecoration(
-                                labelText: 'Email',
-                                hintText: 'your@email.com',
-                                prefixIcon: const Icon(Icons.email_outlined),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                filled: true,
-                                fillColor: colorScheme.surface,
-                              ),
+                              prefix: const Icon(Icons.email_outlined),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Please enter your email';
@@ -169,32 +164,25 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 16),
 
                             // Password Field
-                            TextFormField(
+                            AdaptiveTextFormField(
                               controller: _passwordController,
+                              label: 'Password',
+                              placeholder: 'Enter your password',
                               obscureText: _obscurePassword,
                               textInputAction: TextInputAction.done,
-                              onFieldSubmitted: (_) => _handleLogin(),
-                              decoration: InputDecoration(
-                                labelText: 'Password',
-                                hintText: 'Enter your password',
-                                prefixIcon: const Icon(Icons.lock_outline),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
+                              onSubmitted: (_) => _handleLogin(),
+                              prefix: const Icon(Icons.lock_outline),
+                              suffix: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
                                 ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                filled: true,
-                                fillColor: colorScheme.surface,
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -211,7 +199,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             // Forgot Password
                             Align(
                               alignment: Alignment.centerRight,
-                              child: TextButton(
+                              child: AdaptiveButton.text(
                                 onPressed: authProvider.isLoading
                                     ? null
                                     : () {
@@ -222,26 +210,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                         );
                                       },
-                                child: Text(
-                                  'Forgot Password?',
-                                  style: TextStyle(
-                                    color: colorScheme.primary,
-                                    fontSize: 13,
-                                  ),
-                                ),
+                                child: const Text('Forgot Password?'),
                               ),
                             ),
                             const SizedBox(height: 8),
 
                             // Login Button
-                            ElevatedButton(
+                            AdaptiveButton.primary(
                               onPressed: authProvider.isLoading ? null : _handleLogin,
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
                               child: authProvider.isLoading
                                   ? const SizedBox(
                                       height: 20,
@@ -272,7 +249,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 24),
 
                             // Sign Up Button
-                            OutlinedButton(
+                            AdaptiveButton.secondary(
                               onPressed: authProvider.isLoading
                                   ? null
                                   : () {
@@ -282,13 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ),
                                       );
                                     },
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                side: BorderSide(color: colorScheme.primary, width: 2),
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
                               child: const Text(
                                 'Create Account',
                                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
