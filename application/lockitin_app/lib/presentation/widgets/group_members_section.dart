@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../data/models/group_model.dart';
 import '../providers/group_provider.dart';
 
@@ -263,38 +264,47 @@ class GroupMembersSection extends StatelessWidget {
     ColorScheme colorScheme,
     AppColorsExtension appColors,
   ) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onInvite();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: colorScheme.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: colorScheme.primary.withValues(alpha: 0.3),
-          ),
+    return Semantics(
+      button: true,
+      label: 'Invite members to group',
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: AppSpacing.minTouchTarget,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.person_add_rounded,
-              size: 16,
-              color: colorScheme.primary,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              'Invite',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: colorScheme.primary,
+        child: GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onInvite();
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: colorScheme.primary.withValues(alpha: 0.3),
               ),
             ),
-          ],
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.person_add_rounded,
+                  size: 16,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Invite',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

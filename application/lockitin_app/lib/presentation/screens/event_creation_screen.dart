@@ -283,7 +283,18 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     final appColors = context.appColors;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return Scaffold(
+    // Check if form has unsaved changes
+    final hasUnsavedChanges = _titleController.text.isNotEmpty ||
+                              _locationController.text.isNotEmpty ||
+                              _notesController.text.isNotEmpty;
+
+    return PopScope<bool?>(
+      canPop: !hasUnsavedChanges || widget.isEditMode,
+      onPopInvokedWithResult: (bool didPop, bool? result) {
+        if (didPop) return;
+        _handleClose(context);
+      },
+      child: Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
         backgroundColor: colorScheme.surface,
@@ -360,7 +371,8 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           ),
         ],
       ),
-    );
+    ), // Close Scaffold
+    ); // Close PopScope
   }
 
   /// Handle privacy change with confirmation for Shared → Private transitions
