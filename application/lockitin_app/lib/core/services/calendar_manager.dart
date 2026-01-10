@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import '../../data/models/event_model.dart';
 import '../utils/logger.dart';
+import '../utils/timezone_utils.dart';
 
 /// Exception thrown when calendar access is denied
 class CalendarAccessException implements Exception {
@@ -68,11 +69,14 @@ class CalendarManager {
 
   /// Fetch events from native calendar within date range
   ///
-  /// [startDate] - Start of date range to fetch events
-  /// [endDate] - End of date range to fetch events
+  /// [startDate] - Start of date range to fetch events (UTC)
+  /// [endDate] - End of date range to fetch events (UTC)
   ///
   /// Returns list of events from device calendar (Apple Calendar on iOS,
   /// Google Calendar/device calendar on Android)
+  ///
+  /// Native calendars work in local time, so we convert UTC → local
+  /// before sending, and convert received timestamps local → UTC
   ///
   /// Throws [CalendarAccessException] if permission denied or fetch fails
   Future<List<EventModel>> fetchEvents({
@@ -80,16 +84,20 @@ class CalendarManager {
     required DateTime endDate,
   }) async {
     try {
+      // Convert UTC timestamps to local for native calendar query
+      final localStart = startDate.toLocal();
+      final localEnd = endDate.toLocal();
+
       Logger.info(
         _tag,
-        'Fetching events from ${startDate.toIso8601String()} to ${endDate.toIso8601String()}',
+        'Fetching events from ${localStart.toIso8601String()} to ${localEnd.toIso8601String()} (local time)',
       );
 
       final List<dynamic> result = await _channel.invokeMethod(
         'fetchEvents',
         {
-          'startDate': startDate.millisecondsSinceEpoch,
-          'endDate': endDate.millisecondsSinceEpoch,
+          'startDate': localStart.millisecondsSinceEpoch,
+          'endDate': localEnd.millisecondsSinceEpoch,
         },
       );
 
@@ -119,24 +127,40 @@ class CalendarManager {
   ///
   /// [event] - EventModel to create in native calendar
   ///
+  /// Native calendars work in local time, so we convert UTC → local
+  /// Text fields are sanitized before sending to platform
+  ///
   /// Returns native calendar event ID for bidirectional sync
   Future<String> createEvent(EventModel event) async {
     try {
-      Logger.info(_tag, 'Creating event in native calendar: ${event.title}');
+      // Sanitize text fields
+      final sanitizedTitle = _sanitizeText(event.title, maxLength: 200) ?? 'Untitled Event';
+      final sanitizedDescription = _sanitizeText(event.description, maxLength: 1000);
+      final sanitizedLocation = _sanitizeText(event.location, maxLength: 200);
+
+      // Convert UTC timestamps to local for native calendar
+      final localStart = event.startTime.toLocal();
+      final localEnd = event.endTime.toLocal();
+
+      Logger.info(_tag, 'Creating event in native calendar: $sanitizedTitle');
 
       final String nativeEventId = await _channel.invokeMethod(
         'createEvent',
         {
-          'title': event.title,
-          'description': event.description,
-          'startTime': event.startTime.millisecondsSinceEpoch,
-          'endTime': event.endTime.millisecondsSinceEpoch,
-          'location': event.location,
+          'title': sanitizedTitle,
+          'description': sanitizedDescription,
+          'startTime': localStart.millisecondsSinceEpoch,
+          'endTime': localEnd.millisecondsSinceEpoch,
+          'location': sanitizedLocation,
         },
       );
 
       Logger.info(_tag, 'Created event with native ID: $nativeEventId');
       return nativeEventId;
+    } on MissingPluginException {
+      Logger.warning(_tag, 'Platform channel not implemented - skipping native calendar sync');
+      // Return a placeholder ID when platform channel isn't available (simulator/emulator)
+      return 'no_native_calendar_${DateTime.now().millisecondsSinceEpoch}';
     } on PlatformException catch (e) {
       Logger.error(_tag, 'Failed to create event: ${e.message}');
       throw CalendarAccessException('Failed to create event: ${e.message}');
@@ -147,6 +171,9 @@ class CalendarManager {
   ///
   /// [event] - EventModel with updated data
   ///
+  /// Native calendars work in local time, so we convert UTC → local
+  /// Text fields are sanitized before sending to platform
+  ///
   /// Requires event.nativeCalendarId to be set
   Future<void> updateEvent(EventModel event) async {
     if (event.nativeCalendarId == null) {
@@ -156,21 +183,33 @@ class CalendarManager {
     }
 
     try {
+      // Sanitize text fields
+      final sanitizedTitle = _sanitizeText(event.title, maxLength: 200) ?? 'Untitled Event';
+      final sanitizedDescription = _sanitizeText(event.description, maxLength: 1000);
+      final sanitizedLocation = _sanitizeText(event.location, maxLength: 200);
+
+      // Convert UTC timestamps to local for native calendar
+      final localStart = event.startTime.toLocal();
+      final localEnd = event.endTime.toLocal();
+
       Logger.info(_tag, 'Updating native event: ${event.nativeCalendarId}');
 
       await _channel.invokeMethod(
         'updateEvent',
         {
           'nativeEventId': event.nativeCalendarId,
-          'title': event.title,
-          'description': event.description,
-          'startTime': event.startTime.millisecondsSinceEpoch,
-          'endTime': event.endTime.millisecondsSinceEpoch,
-          'location': event.location,
+          'title': sanitizedTitle,
+          'description': sanitizedDescription,
+          'startTime': localStart.millisecondsSinceEpoch,
+          'endTime': localEnd.millisecondsSinceEpoch,
+          'location': sanitizedLocation,
         },
       );
 
       Logger.info(_tag, 'Updated native event successfully');
+    } on MissingPluginException {
+      Logger.warning(_tag, 'Platform channel not implemented - skipping native calendar sync');
+      // Silently skip when platform channel isn't available (simulator/emulator)
     } on PlatformException catch (e) {
       Logger.error(_tag, 'Failed to update event: ${e.message}');
       throw CalendarAccessException('Failed to update event: ${e.message}');
@@ -190,6 +229,9 @@ class CalendarManager {
       );
 
       Logger.info(_tag, 'Deleted native event successfully');
+    } on MissingPluginException {
+      Logger.warning(_tag, 'Platform channel not implemented - skipping native calendar sync');
+      // Silently skip when platform channel isn't available (simulator/emulator)
     } on PlatformException catch (e) {
       Logger.error(_tag, 'Failed to delete event: ${e.message}');
       throw CalendarAccessException('Failed to delete event: ${e.message}');
@@ -197,25 +239,46 @@ class CalendarManager {
   }
 
   /// Parse native calendar event data to EventModel
+  ///
+  /// Native calendars provide timestamps in local time, so we convert to UTC
+  /// Text fields are sanitized for consistency
   EventModel _parseNativeEvent(Map<dynamic, dynamic> eventData) {
     // Generate a temporary ID for native events (will be replaced when synced to Supabase)
     final String tempId = 'native_${eventData['nativeEventId']}';
 
+    // Parse timestamps as local time (from native calendar), then convert to UTC for storage
+    final localStart = DateTime.fromMillisecondsSinceEpoch(
+      eventData['startTime'] as int,
+    );
+    final localEnd = DateTime.fromMillisecondsSinceEpoch(
+      eventData['endTime'] as int,
+    );
+
+    // Sanitize text fields from native calendar
+    final sanitizedTitle = _sanitizeText(
+      eventData['title'] as String?,
+      maxLength: 200,
+    ) ?? 'Untitled Event';
+    final sanitizedDescription = _sanitizeText(
+      eventData['description'] as String?,
+      maxLength: 1000,
+    );
+    final sanitizedLocation = _sanitizeText(
+      eventData['location'] as String?,
+      maxLength: 200,
+    );
+
     return EventModel(
       id: tempId,
       userId: 'temp_user', // Will be set to current user when syncing
-      title: eventData['title'] as String? ?? 'Untitled Event',
-      description: eventData['description'] as String?,
-      startTime: DateTime.fromMillisecondsSinceEpoch(
-        eventData['startTime'] as int,
-      ),
-      endTime: DateTime.fromMillisecondsSinceEpoch(
-        eventData['endTime'] as int,
-      ),
-      location: eventData['location'] as String?,
+      title: sanitizedTitle,
+      description: sanitizedDescription,
+      startTime: localStart.toUtc(), // Convert local → UTC for storage
+      endTime: localEnd.toUtc(),     // Convert local → UTC for storage
+      location: sanitizedLocation,
       visibility: EventVisibility.private, // Default to private for native events
       nativeCalendarId: eventData['nativeEventId'] as String,
-      createdAt: DateTime.now(),
+      createdAt: TimezoneUtils.nowUtc(), // Use UTC timestamp
     );
   }
 
@@ -243,5 +306,25 @@ class CalendarManager {
     if (Platform.isIOS) return 'iOS (EventKit)';
     if (Platform.isAndroid) return 'Android (CalendarContract)';
     return 'Unknown';
+  }
+
+  /// Sanitize text input for native calendar
+  ///
+  /// Trims whitespace, validates length, and ensures text is safe for platform APIs
+  /// Returns null if input is null or becomes empty after trimming
+  String? _sanitizeText(String? text, {required int maxLength}) {
+    if (text == null) return null;
+
+    // Trim whitespace
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return null;
+
+    // Truncate to max length
+    if (trimmed.length > maxLength) {
+      Logger.warning(_tag, 'Text truncated from ${trimmed.length} to $maxLength characters');
+      return trimmed.substring(0, maxLength);
+    }
+
+    return trimmed;
   }
 }

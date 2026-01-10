@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/calendar_provider.dart';
 import '../../domain/models/calendar_month.dart';
@@ -10,6 +9,8 @@ import '../../core/utils/route_transitions.dart';
 import 'day_detail_screen.dart';
 import 'card_calendar_screen.dart';
 import 'event_creation_screen.dart';
+import '../../core/utils/timezone_utils.dart';
+import '../../core/utils/logger.dart';
 
 /// Calendar screen showing custom month grid view with horizontal swipe navigation
 /// Uses CalendarProvider for state management and caching
@@ -56,6 +57,8 @@ class _CalendarViewState extends State<_CalendarView> {
     BuildContext context,
     CalendarProvider provider,
   ) async {
+    Logger.info('CalendarScreen', '=== _handleCreateEvent() called ===');
+
     // Navigate to event creation screen
     final result = await Navigator.of(context).push<EventModel>(
       SlideRoute(
@@ -65,8 +68,27 @@ class _CalendarViewState extends State<_CalendarView> {
       ),
     );
 
+    Logger.info('CalendarScreen', 'Returned from EventCreationScreen');
+    Logger.info('CalendarScreen', '  - result != null: ${result != null}');
+    Logger.info('CalendarScreen', '  - context.mounted: ${context.mounted}');
+    if (result != null) {
+      Logger.info('CalendarScreen', '  - Event ID: ${result.id}');
+      Logger.info('CalendarScreen', '  - Event Title: ${result.title}');
+    }
+
     // If user canceled, return early
-    if (result == null || !context.mounted) return;
+    if (result == null || !context.mounted) {
+      Logger.info('CalendarScreen', 'Early return - not saving event');
+      if (result == null) {
+        Logger.info('CalendarScreen', '  - Reason: result is null (user cancelled)');
+      }
+      if (!context.mounted) {
+        Logger.info('CalendarScreen', '  - Reason: context not mounted');
+      }
+      return;
+    }
+
+    Logger.info('CalendarScreen', 'Proceeding to save event');
 
     // Show loading dialog
     if (context.mounted) {
@@ -92,9 +114,11 @@ class _CalendarViewState extends State<_CalendarView> {
     }
 
     try {
+      Logger.info('CalendarScreen', 'Calling EventService.createEvent()...');
       // Create event using EventService (dual-write)
       final eventService = EventService();
       final savedEvent = await eventService.createEvent(result);
+      Logger.info('CalendarScreen', 'EventService.createEvent() completed successfully');
 
       // Close loading dialog
       if (context.mounted) {
@@ -270,7 +294,7 @@ class _CalendarViewState extends State<_CalendarView> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        DateFormat('MMMM yyyy').format(provider.focusedDate),
+                        TimezoneUtils.formatLocal(provider.currentMonth, 'MMMM yyyy'),
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,

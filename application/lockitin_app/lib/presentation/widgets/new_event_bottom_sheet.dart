@@ -4,6 +4,8 @@ import '../screens/event_creation_screen.dart';
 import '../providers/calendar_provider.dart';
 import '../../core/services/event_service.dart';
 import '../../data/models/event_model.dart';
+import '../../core/utils/timezone_utils.dart';
+import '../../core/utils/logger.dart';
 
 /// Bottom sheet for proposing/creating a new event
 /// Features quick templates and group selection
@@ -389,24 +391,41 @@ class _NewEventBottomSheetState extends State<NewEventBottomSheet> {
   }
 
   Future<void> _handleContinue(BuildContext context) async {
-    widget.onClose();
+    Logger.info('NewEventBottomSheet', '=== _handleContinue() called ===');
 
     // Navigate to EventCreationScreen and await the result
+    // NOTE: Do NOT call widget.onClose() here - it unmounts the widget
+    // and makes context.mounted false when we return, preventing event save!
     // TODO: Support groupProposal mode when group is selected
     final result = await Navigator.of(context).push<EventModel>(
       MaterialPageRoute(
         builder: (context) => EventCreationScreen(
           mode: EventCreationMode.personalEvent,
-          initialDate: widget.initialDate ?? DateTime.now(),
+          initialDate: widget.initialDate ?? TimezoneUtils.nowUtc().toLocal(),
         ),
       ),
     );
 
+    Logger.info('NewEventBottomSheet', 'Returned from EventCreationScreen');
+    Logger.info('NewEventBottomSheet', '  - result != null: ${result != null}');
+    Logger.info('NewEventBottomSheet', '  - context.mounted: ${context.mounted}');
+    if (result != null) {
+      Logger.info('NewEventBottomSheet', '  - Event ID: ${result.id}');
+      Logger.info('NewEventBottomSheet', '  - Event Title: ${result.title}');
+    }
+
     // If an event was created, save it
     if (result != null && context.mounted) {
+      Logger.info('NewEventBottomSheet', 'Both checks passed, proceeding to save event');
+
+      // Close the bottom sheet now that we have the result
+      widget.onClose();
+
       try {
+        Logger.info('NewEventBottomSheet', 'Calling EventService.createEvent()...');
         // Save to native calendar and Supabase
         final savedEvent = await EventService.instance.createEvent(result);
+        Logger.info('NewEventBottomSheet', 'EventService.createEvent() completed successfully');
 
         // Add to CalendarProvider for immediate UI update
         if (context.mounted) {
@@ -421,6 +440,7 @@ class _NewEventBottomSheetState extends State<NewEventBottomSheet> {
           );
         }
       } catch (e) {
+        Logger.error('NewEventBottomSheet', 'Failed to save event', e);
         // Show error message
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -431,6 +451,16 @@ class _NewEventBottomSheetState extends State<NewEventBottomSheet> {
           );
         }
       }
+    } else {
+      Logger.info('NewEventBottomSheet', 'Check failed - not saving event');
+      if (result == null) {
+        Logger.info('NewEventBottomSheet', '  - Reason: result is null (user cancelled)');
+      }
+      if (!context.mounted) {
+        Logger.info('NewEventBottomSheet', '  - Reason: context not mounted');
+      }
+      // User cancelled event creation, close bottom sheet
+      widget.onClose();
     }
   }
 }

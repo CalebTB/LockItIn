@@ -1,7 +1,6 @@
 import 'dart:io' show Platform;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/event_model.dart';
@@ -12,6 +11,9 @@ import '../widgets/week_grid_view.dart';
 import 'day_detail_screen.dart';
 import 'event_creation_screen.dart';
 import 'event_detail_screen.dart';
+import '../../core/utils/timezone_utils.dart';
+import '../../core/services/event_service.dart';
+import '../../core/utils/logger.dart';
 
 /// Calendar view modes
 enum CalendarViewMode { agenda, week, month }
@@ -32,6 +34,8 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
   DateTime? _selectedDate;
 
   void _showNewEventSheet() async {
+    Logger.info('CardCalendarScreen', '=== _showNewEventSheet() called ===');
+
     // Navigate directly to EventCreationScreen (skip bottom sheet for personal events)
     final result = await Navigator.of(context).push<EventModel>(
       MaterialPageRoute(
@@ -42,10 +46,93 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
       ),
     );
 
+    Logger.info('CardCalendarScreen', 'Returned from EventCreationScreen');
+    Logger.info('CardCalendarScreen', '  - result != null: ${result != null}');
+    Logger.info('CardCalendarScreen', '  - mounted: $mounted');
+    if (result != null) {
+      Logger.info('CardCalendarScreen', '  - Event ID: ${result.id}');
+      Logger.info('CardCalendarScreen', '  - Event Title: ${result.title}');
+    }
+
     // If event was created, save it
     if (result != null && mounted) {
-      final provider = context.read<CalendarProvider>();
-      provider.addEvent(result);
+      Logger.info('CardCalendarScreen', 'Proceeding to save event');
+
+      // Show loading dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Saving event...'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
+      try {
+        Logger.info('CardCalendarScreen', 'Calling EventService.createEvent()...');
+        // Save to native calendar and Supabase
+        final savedEvent = await EventService.instance.createEvent(result);
+        Logger.info('CardCalendarScreen', 'EventService.createEvent() completed successfully');
+
+        // Close loading dialog
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+
+        // Add to CalendarProvider for immediate UI update
+        if (mounted) {
+          final provider = context.read<CalendarProvider>();
+          provider.addEvent(savedEvent);
+
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Event "${savedEvent.title}" created successfully'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        Logger.error('CardCalendarScreen', 'Failed to save event', e);
+
+        // Close loading dialog
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+
+        // Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to create event: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } else {
+      Logger.info('CardCalendarScreen', 'Not saving event');
+      if (result == null) {
+        Logger.info('CardCalendarScreen', '  - Reason: result is null (user cancelled)');
+      }
+      if (!mounted) {
+        Logger.info('CardCalendarScreen', '  - Reason: widget not mounted');
+      }
     }
   }
 
@@ -156,11 +243,11 @@ class _CardCalendarScreenState extends State<CardCalendarScreen> {
   String _getHeaderTitle() {
     switch (_currentView) {
       case CalendarViewMode.agenda:
-        return DateFormat('MMMM yyyy').format(DateTime.now());
+        return TimezoneUtils.formatLocal(_focusedDate, 'MMMM yyyy');
       case CalendarViewMode.week:
-        return DateFormat('MMMM yyyy').format(_focusedDate);
+        return TimezoneUtils.formatLocal(_focusedDate, 'MMMM yyyy');
       case CalendarViewMode.month:
-        return DateFormat('MMMM yyyy').format(_focusedDate);
+        return TimezoneUtils.formatLocal(_focusedDate, 'MMMM yyyy');
     }
   }
 

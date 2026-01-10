@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../../widgets/adaptive_icon_button.dart';
+import '../../../../core/utils/timezone_utils.dart';
 
 /// Month navigation controls for GroupDetailScreen calendar
 class MonthNavigation extends StatelessWidget {
@@ -32,7 +32,7 @@ class MonthNavigation extends StatelessWidget {
             tooltip: 'Previous month',
           ),
           Text(
-            DateFormat('MMMM yyyy').format(focusedMonth),
+            TimezoneUtils.formatLocal(focusedMonth, 'MMMM yyyy'),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/timezone_utils.dart';
 import '../../data/models/event_model.dart';
 import '../../utils/privacy_colors.dart';
 
@@ -72,7 +72,7 @@ class MonthGridView extends StatelessWidget {
             ),
           ),
           Text(
-            DateFormat('MMMM yyyy').format(focusedMonth),
+            TimezoneUtils.formatLocal(focusedMonth, 'MMMM yyyy'),
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,

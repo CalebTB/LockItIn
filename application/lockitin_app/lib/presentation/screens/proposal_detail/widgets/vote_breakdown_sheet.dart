@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../../../data/models/proposal_time_option.dart';
 import '../../../../data/models/vote_model.dart';
 import '../../../../core/services/proposal_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/timezone_utils.dart';
 
 /// Bottom sheet showing detailed vote breakdown for a time option
 ///
@@ -364,9 +364,7 @@ class _VoteBreakdownSheetState extends State<VoteBreakdownSheet> {
 
   /// Format time range (e.g., "2:00 PM - 4:00 PM")
   String _formatTimeRange(DateTime start, DateTime end) {
-    final dateFormat = DateFormat('EEE, MMM d');
-    final timeFormat = DateFormat.jm();
-    return '${dateFormat.format(start)} • ${timeFormat.format(start)} - ${timeFormat.format(end)}';
+    return '${TimezoneUtils.formatLocal(start, 'EEE, MMM d')} • ${TimezoneUtils.formatLocal(start, 'h:mm a')} - ${TimezoneUtils.formatLocal(end, 'h:mm a')}';
   }
 
   /// Format vote timestamp relative to now
@@ -385,7 +383,7 @@ class _VoteBreakdownSheetState extends State<VoteBreakdownSheet> {
     } else if (difference.inDays < 7) {
       return '${difference.inDays}d ago';
     } else {
-      return DateFormat('MMM d').format(voteTime);
+      return TimezoneUtils.formatLocal(voteTime, 'MMM d, yyyy');
     }
   }
 }

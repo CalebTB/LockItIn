@@ -25,6 +25,7 @@ dependencies:
 
   # Date & Time
   intl: ^0.20.2
+  clock: ^1.1.1  # For testable time mocking
 
   # HTTP & Networking
   http: ^1.2.0

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/timezone_utils.dart';
 
 /// Sticky day header for agenda list view
 /// Shows formatted date with special labels for TODAY, TOMORROW
@@ -111,10 +111,10 @@ class DayHeader extends StatelessWidget {
   String _getDateLabel(DateTime date, bool isToday, bool isTomorrow) {
     if (isToday) return 'TODAY';
     if (isTomorrow) return 'TOMORROW';
-    return DateFormat('EEEE').format(date).toUpperCase();
+    return TimezoneUtils.formatLocal(date, 'EEEE').toUpperCase();
   }
 
   String _formatFullDate(DateTime date) {
-    return DateFormat('MMMM d, yyyy').format(date);
+    return TimezoneUtils.formatLocal(date, 'MMMM d, yyyy');
   }
 }

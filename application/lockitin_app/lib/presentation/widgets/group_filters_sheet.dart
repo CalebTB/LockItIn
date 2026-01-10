@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/time_filter_utils.dart';
+import '../../core/utils/timezone_utils.dart';
 
 /// Consolidated filter sheet for group calendar
 /// Combines date range and time filters in a single modal
@@ -650,11 +650,10 @@ class _GroupFiltersSheetState extends State<GroupFiltersSheet> {
   String _formatDateRange(DateTimeRange range) {
     final start = range.start;
     final end = range.end;
-    final formatter = DateFormat('MMM d');
 
     if (start.year != end.year) {
-      return '${formatter.format(start)}, ${start.year} - ${formatter.format(end)}, ${end.year}';
+      return '${TimezoneUtils.formatLocal(start, 'MMM d')}, ${start.year} - ${TimezoneUtils.formatLocal(end, 'MMM d')}, ${end.year}';
     }
-    return '${formatter.format(start)} - ${formatter.format(end)}';
+    return '${TimezoneUtils.formatLocal(start, 'MMM d')} - ${TimezoneUtils.formatLocal(end, 'MMM d')}';
   }
 }

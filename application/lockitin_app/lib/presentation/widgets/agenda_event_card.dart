@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/timezone_utils.dart';
 import '../../data/models/event_model.dart';
 
 /// Compact event card for agenda list view
@@ -201,7 +201,7 @@ class AgendaEventCard extends StatelessWidget {
   }
 
   String _formatTime(DateTime time) {
-    return DateFormat('h:mm a').format(time).replaceAll(' ', '\n');
+    return TimezoneUtils.formatLocal(time, 'h:mm a').replaceAll(' ', '\n');
   }
 
   /// Check if event spans the entire day (midnight to midnight or 23:59)

@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/logger.dart';
+import '../utils/timezone_utils.dart';
 import '../../data/models/proposal_model.dart';
 import '../../data/models/proposal_time_option.dart';
 import '../../data/models/vote_model.dart';
@@ -40,7 +41,7 @@ class ProposalService {
           'p_title': title,
           'p_description': description,
           'p_location': location,
-          'p_voting_deadline': votingDeadline.toIso8601String(),
+          'p_voting_deadline': TimezoneUtils.toUtcString(votingDeadline),
           'p_time_options': timeOptionsJson,
         },
       );
@@ -125,8 +126,8 @@ class ProposalService {
         'creator_name': creatorName,
         'time_options': timeOptions.map((o) => {
           'id': o.id,
-          'start_time': o.startTime.toIso8601String(),
-          'end_time': o.endTime.toIso8601String(),
+          'start_time': TimezoneUtils.toUtcString(o.startTime),
+          'end_time': TimezoneUtils.toUtcString(o.endTime),
           'yes_count': o.yesCount,
           'maybe_count': o.maybeCount,
           'no_count': o.noCount,
@@ -283,7 +284,7 @@ class ProposalService {
       if (description != null) updates['description'] = description;
       if (location != null) updates['location'] = location;
       if (votingDeadline != null) {
-        updates['voting_deadline'] = votingDeadline.toIso8601String();
+        updates['voting_deadline'] = TimezoneUtils.toUtcString(votingDeadline);
       }
 
       if (updates.isEmpty) return;

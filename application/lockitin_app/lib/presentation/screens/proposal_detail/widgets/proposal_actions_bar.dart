@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../data/models/proposal_model.dart';
 import '../../../../data/models/proposal_time_option.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/timezone_utils.dart';
 
 /// Action bar for proposal creators to confirm or cancel proposals
 ///
@@ -190,9 +190,10 @@ class ProposalActionsBar extends StatelessWidget {
 
   /// Format time option for display
   String _formatTimeOption(ProposalTimeOption option) {
-    final dateFormat = DateFormat('EEE, MMM d');
-    final timeFormat = DateFormat.jm();
-    return '${dateFormat.format(option.startTime)} • ${timeFormat.format(option.startTime)} - ${timeFormat.format(option.endTime)}';
+    final date = TimezoneUtils.formatLocal(option.startTime, 'EEE, MMM d');
+    final startTime = TimezoneUtils.formatLocal(option.startTime, 'h:mm a');
+    final endTime = TimezoneUtils.formatLocal(option.endTime, 'h:mm a');
+    return '$date • $startTime - $endTime';
   }
 
   /// Show cancel confirmation dialog

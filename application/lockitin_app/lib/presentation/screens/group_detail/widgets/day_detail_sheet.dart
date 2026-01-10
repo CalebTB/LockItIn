@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/services/availability_calculator_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -12,6 +11,7 @@ import '../../../providers/group_provider.dart';
 import '../../../widgets/adaptive_icon_button.dart';
 import '../../../widgets/suggested_time_slots_card.dart';
 import '../../group_proposal_wizard.dart';
+import '../../../../core/utils/timezone_utils.dart';
 
 /// Bottom sheet showing detailed availability for a selected day
 /// Uses Minimal theme color system (grayscale + emerald for availability)
@@ -154,7 +154,7 @@ class DayDetailSheet extends StatelessWidget {
   }
 
   Widget _buildHandle(ColorScheme colorScheme, AppColorsExtension appColors) {
-    final formattedDate = DateFormat('EEEE, MMMM d').format(date);
+    final formattedDate = TimezoneUtils.formatLocal(date, 'MMMM d, yyyy');
 
     return Semantics(
       button: true,
@@ -200,8 +200,8 @@ class DayDetailSheet extends StatelessWidget {
     int totalMembers,
     double availabilityRatio,
   ) {
-    final dayOfWeek = DateFormat('EEEE').format(date);
-    final monthDay = DateFormat('MMMM d').format(date);
+    final dayOfWeek = TimezoneUtils.formatLocal(date, 'EEEE');
+    final monthDay = TimezoneUtils.formatLocal(date, 'MMM d');
     final isFullyAvailable = available == totalMembers && totalMembers > 0;
 
     return Padding(
@@ -227,7 +227,7 @@ class DayDetailSheet extends StatelessWidget {
             child: Column(
               children: [
                 Text(
-                  DateFormat('MMM').format(date).toUpperCase(),
+                  TimezoneUtils.formatLocal(date, 'EEE').toUpperCase(),
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -463,7 +463,7 @@ class DayDetailSheet extends StatelessWidget {
           },
           icon: const Icon(Icons.add_circle_outline, size: 20),
           label: Text(
-            'Propose Event for ${DateFormat('MMM d').format(date)}',
+            'Propose Event for ${TimezoneUtils.formatLocal(date, 'MMM d')}',
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,

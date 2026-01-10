@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/timezone_utils.dart';
 
 /// Contextual empty state variants
 enum EmptyStateType {
@@ -195,7 +195,7 @@ class EmptyState extends StatelessWidget {
 
       case EmptyStateType.nothingOnDay:
         final dateStr = selectedDate != null
-            ? DateFormat('MMMM d').format(selectedDate!)
+            ? TimezoneUtils.formatLocal(selectedDate!, 'MMMM d')
             : 'this day';
         return _EmptyStateContent(
           icon: Icons.event_outlined,
