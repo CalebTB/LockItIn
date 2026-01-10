@@ -6,10 +6,12 @@ import '../../core/services/calendar_manager.dart';
 import '../../core/services/event_service.dart';
 import '../../core/services/test_events_service.dart';
 import '../../core/utils/logger.dart';
+import '../../core/utils/timezone_utils.dart';
 
 /// Provider for calendar state management
 /// Manages focused date, current page, precomputed month data, and events
-class CalendarProvider extends ChangeNotifier {
+/// Implements WidgetsBindingObserver to detect timezone changes
+class CalendarProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// All months available in the calendar (cached for performance)
   late List<CalendarMonth> _months;
 
@@ -46,6 +48,10 @@ class CalendarProvider extends ChangeNotifier {
   /// Timestamp of when upcoming events cache was last computed
   DateTime? _upcomingEventsCacheTime;
 
+  /// Timezone offset (in hours) when events were last loaded
+  /// Used to detect timezone changes and refresh events
+  int? _lastTimezoneOffsetHours;
+
   /// Number of months to show backward (10 years back)
   static const int _monthsBackward = 120;
 
@@ -56,15 +62,22 @@ class CalendarProvider extends ChangeNotifier {
   static const int _monthsToShow = _monthsBackward + _monthsForward;
 
   CalendarProvider({DateTime? initialDate})
-      : _focusedDate = initialDate ?? DateTime.now() {
+      : _focusedDate = initialDate ?? TimezoneUtils.nowUtc() {
     _initializeMonths();
     _loadEvents();
+
+    // Register as lifecycle observer to detect timezone changes
+    WidgetsBinding.instance.addObserver(this);
+
+    // Store initial timezone offset
+    _lastTimezoneOffsetHours = DateTime.now().timeZoneOffset.inHours;
+    Logger.info('CalendarProvider', 'Initial timezone offset: $_lastTimezoneOffsetHours hours');
   }
 
   // Getters
   List<CalendarMonth> get months {
     // Check if we've crossed into a new month since cache was created
-    final today = DateTime.now();
+    final today = TimezoneUtils.nowUtc();
     final currentMonth = DateTime(today.year, today.month, 1);
 
     if (!CalendarUtils.isSameMonth(_cacheDate, currentMonth)) {
@@ -84,7 +97,7 @@ class CalendarProvider extends ChangeNotifier {
   /// Get the index of today's month in the months list (dynamically calculated)
   /// This ensures the "Today" button always navigates to the correct month
   int get todayMonthIndex {
-    final today = DateTime.now();
+    final today = TimezoneUtils.nowUtc();
     final currentMonth = DateTime(today.year, today.month, 1);
 
     // Find the index of today's month in the current months list
@@ -97,7 +110,7 @@ class CalendarProvider extends ChangeNotifier {
   /// Initialize all months (precompute for O(1) lookups)
   /// Generates 240 months: 10 years backward + 10 years forward from today
   void _initializeMonths() {
-    final today = DateTime.now();
+    final today = TimezoneUtils.nowUtc();
     final currentMonth = DateTime(today.year, today.month, 1);
 
     // Store the month for which this cache is valid
@@ -122,7 +135,7 @@ class CalendarProvider extends ChangeNotifier {
     _upcomingEventsCacheTime = null;
     _eventLoadError = null;
     _isLoadingEvents = false;
-    _focusedDate = DateTime.now();
+    _focusedDate = TimezoneUtils.nowUtc();
     _initializeMonths();
     notifyListeners();
     Logger.info('CalendarProvider', 'State reset for logout');
@@ -130,7 +143,7 @@ class CalendarProvider extends ChangeNotifier {
 
   /// Navigate to today's month
   void goToToday() {
-    _focusedDate = DateTime.now();
+    _focusedDate = TimezoneUtils.nowUtc();
     _currentPageIndex = todayMonthIndex; // Use dynamic index calculation
     notifyListeners();
   }
@@ -171,7 +184,7 @@ class CalendarProvider extends ChangeNotifier {
       final List<EventModel> allEvents = [];
 
       // Load national holidays first (always available, no permission needed)
-      final now = DateTime.now();
+      final now = TimezoneUtils.nowUtc();
       final startDate = DateTime(now.year, now.month - 1, now.day);
       final endDate = DateTime(now.year, now.month + 2, now.day);
 
@@ -392,7 +405,7 @@ class CalendarProvider extends ChangeNotifier {
   /// Get upcoming events for the next 14 days (cached)
   /// Returns top 5 events sorted by start time
   List<EventModel> getUpcomingEvents() {
-    final now = DateTime.now();
+    final now = TimezoneUtils.nowUtc();
     final today = DateTime(now.year, now.month, now.day);
 
     // Check if cache is still valid (same day)
@@ -432,5 +445,41 @@ class CalendarProvider extends ChangeNotifier {
     _eventIndicatorsCache.clear();
     _upcomingEventsCache = null;
     _upcomingEventsCacheTime = null;
+  }
+
+  /// Lifecycle observer: Detect when app resumes to check for timezone changes
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkAndRefreshOnTimezoneChange();
+    }
+  }
+
+  /// Check if timezone changed and refresh events if needed
+  void _checkAndRefreshOnTimezoneChange() {
+    final currentOffsetHours = DateTime.now().timeZoneOffset.inHours;
+
+    if (_lastTimezoneOffsetHours != null && _lastTimezoneOffsetHours != currentOffsetHours) {
+      Logger.info(
+        'CalendarProvider',
+        'Timezone changed from $_lastTimezoneOffsetHours to $currentOffsetHours hours - refreshing events',
+      );
+
+      // Update stored offset
+      _lastTimezoneOffsetHours = currentOffsetHours;
+
+      // Reload events to refresh with new timezone
+      _loadEvents();
+
+      // Force UI update
+      notifyListeners();
+    }
+  }
+
+  /// Clean up observer when provider is disposed
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 }

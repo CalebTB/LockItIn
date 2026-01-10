@@ -1,4 +1,5 @@
 import 'proposal_time_option.dart';
+import '../../core/utils/timezone_utils.dart';
 
 /// Status of an event proposal
 enum ProposalStatus {
@@ -61,13 +62,13 @@ class ProposalModel {
 
   /// Check if voting is still open
   bool get isVotingOpen =>
-      status == ProposalStatus.voting && DateTime.now().isBefore(votingDeadline);
+      status == ProposalStatus.voting && TimezoneUtils.nowUtc().isBefore(votingDeadline);
 
   /// Check if voting deadline has passed
-  bool get isExpired => DateTime.now().isAfter(votingDeadline);
+  bool get isExpired => TimezoneUtils.nowUtc().isAfter(votingDeadline);
 
   /// Time remaining until voting deadline
-  Duration get timeRemaining => votingDeadline.difference(DateTime.now());
+  Duration get timeRemaining => votingDeadline.difference(TimezoneUtils.nowUtc());
 
   /// Create from JSON (Supabase response)
   factory ProposalModel.fromJson(Map<String, dynamic> json) {
@@ -102,9 +103,9 @@ class ProposalModel {
   /// Helper to parse DateTime from JSON (handles both String and DateTime types)
   static DateTime _parseDateTime(dynamic value) {
     if (value is DateTime) {
-      return value;
+      return value.isUtc ? value : value.toUtc();
     } else if (value is String) {
-      return DateTime.parse(value);
+      return TimezoneUtils.parseUtc(value);
     } else {
       throw ArgumentError('Invalid datetime value: $value');
     }
@@ -118,7 +119,7 @@ class ProposalModel {
       'title': title,
       if (description != null) 'description': description,
       if (location != null) 'location': location,
-      'voting_deadline': votingDeadline.toIso8601String(),
+      'voting_deadline': TimezoneUtils.toUtcString(votingDeadline),
       'min_votes_required': minVotesRequired,
       'auto_confirm': autoConfirm,
       'status': status.name,

@@ -1,3 +1,5 @@
+import '../../core/utils/timezone_utils.dart';
+
 /// Type of notification
 enum NotificationType {
   // Proposal notifications
@@ -147,17 +149,17 @@ class NotificationModel {
       body: json['body'] as String?,
       data: json['data'] as Map<String, dynamic>? ?? {},
       readAt: json['read_at'] != null
-          ? DateTime.parse(json['read_at'] as String)
+          ? TimezoneUtils.parseUtc(json['read_at'] as String)
           : null,
       actionedAt: json['actioned_at'] != null
-          ? DateTime.parse(json['actioned_at'] as String)
+          ? TimezoneUtils.parseUtc(json['actioned_at'] as String)
           : null,
       dismissedAt: json['dismissed_at'] != null
-          ? DateTime.parse(json['dismissed_at'] as String)
+          ? TimezoneUtils.parseUtc(json['dismissed_at'] as String)
           : null,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: TimezoneUtils.parseUtc(json['created_at'] as String),
       expiresAt: json['expires_at'] != null
-          ? DateTime.parse(json['expires_at'] as String)
+          ? TimezoneUtils.parseUtc(json['expires_at'] as String)
           : null,
       isExpired: json['is_expired'] as bool? ?? false,
     );

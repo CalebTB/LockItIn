@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../core/utils/timezone_utils.dart';
 
 /// Represents an availability block from the shadow calendar
 /// Used for group availability queries without exposing full event details
@@ -21,8 +22,8 @@ class ShadowCalendarEntry extends Equatable {
   factory ShadowCalendarEntry.fromJson(Map<String, dynamic> json) {
     return ShadowCalendarEntry(
       userId: json['user_id'] as String,
-      startTime: DateTime.parse(json['start_time'] as String),
-      endTime: DateTime.parse(json['end_time'] as String),
+      startTime: TimezoneUtils.parseUtc(json['start_time'] as String),
+      endTime: TimezoneUtils.parseUtc(json['end_time'] as String),
       visibility: _visibilityFromString(json['visibility'] as String),
       eventTitle: json['event_title'] as String?,
     );

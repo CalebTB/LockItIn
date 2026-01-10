@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import '../../../../data/models/proposal_model.dart';
 import '../../../../data/models/proposal_time_option.dart';
 import '../../../../data/models/vote_model.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/timezone_utils.dart';
 
 /// Card displaying a single time option with voting interface
 ///
@@ -394,14 +394,14 @@ class TimeOptionCard extends StatelessWidget {
     } else if (date == tomorrow) {
       return 'Tomorrow';
     } else {
-      return DateFormat('EEE, MMM d').format(dateTime);
+      return TimezoneUtils.formatLocal(dateTime, 'EEE, MMM d');
     }
   }
 
   /// Format time range (e.g., "2:00 PM - 4:00 PM")
   String _formatTimeRange(DateTime start, DateTime end) {
-    final startTime = DateFormat.jm().format(start);
-    final endTime = DateFormat.jm().format(end);
+    final startTime = TimezoneUtils.formatLocal(start, 'h:mm a');
+    final endTime = TimezoneUtils.formatLocal(end, 'h:mm a');
     return '$startTime - $endTime';
   }
 }

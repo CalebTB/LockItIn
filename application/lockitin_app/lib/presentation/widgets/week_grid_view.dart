@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/timezone_utils.dart';
 import '../../data/models/event_model.dart';
 
 /// Week grid view showing 7 days with hourly time slots
@@ -109,7 +109,7 @@ class WeekGridView extends StatelessWidget {
                   child: Column(
                     children: [
                       Text(
-                        DateFormat('E').format(day).toUpperCase(),
+                        TimezoneUtils.formatLocal(day, 'E').toUpperCase(),
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,

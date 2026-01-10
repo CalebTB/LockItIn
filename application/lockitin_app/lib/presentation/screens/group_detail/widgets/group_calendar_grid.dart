@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../group_detail_screen.dart';
+import '../../../../core/utils/timezone_utils.dart';
 
 /// Helper class to hold cell colors for the heatmap calendar
 class CellColors {
@@ -305,8 +305,7 @@ class _GroupCalendarCell extends StatelessWidget {
     required int available,
     required int totalMembers,
   }) {
-    final dateFormat = DateFormat('EEEE, MMMM d');
-    final dateStr = dateFormat.format(date);
+    final dateStr = TimezoneUtils.formatLocal(date, 'EEEE, MMMM d');
 
     final parts = <String>[dateStr];
 
@@ -535,8 +534,7 @@ class _GroupCalendarGridState extends State<GroupCalendarGrid>
     required int available,
     required int totalMembers,
   }) {
-    final dateFormat = DateFormat('EEEE, MMMM d');
-    final dateStr = dateFormat.format(date);
+    final dateStr = TimezoneUtils.formatLocal(date, 'EEEE, MMMM d');
 
     final parts = <String>[dateStr];
 

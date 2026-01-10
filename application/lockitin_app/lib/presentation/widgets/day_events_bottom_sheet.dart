@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/event_model.dart';
 import '../../utils/calendar_utils.dart';
+import '../../core/utils/timezone_utils.dart';
 
 /// Bottom sheet showing all events for a selected day
 /// Displays event list with times, titles, and optional descriptions
@@ -72,7 +73,7 @@ class DayEventsBottomSheet extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        DateFormat('EEEE, MMMM d').format(selectedDate),
+                        TimezoneUtils.formatLocal(selectedDate, 'EEEE, MMMM d'),
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,

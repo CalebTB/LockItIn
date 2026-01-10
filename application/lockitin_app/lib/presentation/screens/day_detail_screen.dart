@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/calendar_provider.dart';
 import '../widgets/day_timeline_view.dart';
+import '../../core/utils/timezone_utils.dart';
 
 /// Day detail screen showing all events for a selected date
 /// Reads events from CalendarProvider to stay in sync with updates/deletes
@@ -34,7 +34,7 @@ class DayDetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              DateFormat('EEEE').format(selectedDate),
+              TimezoneUtils.formatLocal(selectedDate, 'EEEE, MMMM d'),
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -42,7 +42,7 @@ class DayDetailScreen extends StatelessWidget {
               ),
             ),
             Text(
-              DateFormat('MMMM d, yyyy').format(selectedDate),
+              TimezoneUtils.formatLocal(selectedDate, 'yyyy'),
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w400,

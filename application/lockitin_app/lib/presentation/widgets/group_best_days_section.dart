@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/time_filter_utils.dart';
 import '../../data/models/group_model.dart';
+import '../../core/utils/timezone_utils.dart';
 
 /// Data class for best day information with availability details
 class BestDayInfo {
@@ -214,7 +214,6 @@ class GroupBestDaysSection extends StatelessWidget {
     AppColorsExtension appColors,
   ) {
     final date = DateTime(focusedMonth.year, focusedMonth.month, info.day);
-    final dateFormat = DateFormat('EEE, MMM d'); // "Sat, Dec 20"
 
     // Card styling based on availability
     final isEveryoneFree = info.isFullAvailability;
@@ -249,7 +248,7 @@ class GroupBestDaysSection extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      dateFormat.format(date),
+                      TimezoneUtils.formatLocal(date, 'EEE, MMM d'),
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -469,7 +468,6 @@ class GroupBestDaysSection extends StatelessWidget {
     AppColorsExtension appColors,
   ) {
     final date = DateTime(focusedMonth.year, focusedMonth.month, info.day);
-    final dateFormat = DateFormat('EEE, MMM d');
     final isEveryoneFree = info.isFullAvailability;
 
     final cardBgColor = isFirst
@@ -504,7 +502,7 @@ class GroupBestDaysSection extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      dateFormat.format(date),
+                      TimezoneUtils.formatLocal(date, 'EEE, MMM d'),
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/event_model.dart';
 import '../../core/services/event_service.dart';
 import '../../core/utils/route_transitions.dart';
+import '../../core/utils/timezone_utils.dart';
 import '../../utils/calendar_utils.dart';
 import '../../utils/privacy_colors.dart';
 import '../providers/calendar_provider.dart';
@@ -267,8 +267,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             Expanded(
               child: Text(
                 isAllDay
-                    ? DateFormat('EEEE, MMMM d, yyyy').format(_currentEvent.startTime)
-                    : DateFormat('EEEE, MMMM d, yyyy · h:mm a').format(_currentEvent.startTime),
+                    ? TimezoneUtils.formatLocal(_currentEvent.startTime, 'EEEE, MMMM d, yyyy')
+                    : TimezoneUtils.formatLocal(_currentEvent.startTime, 'EEEE, MMMM d, yyyy · h:mm a'),
                 style: TextStyle(
                   fontSize: 14,
                   color: colorScheme.onSurface,
@@ -298,8 +298,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               Expanded(
                 child: Text(
                   isAllDay
-                      ? DateFormat('EEEE, MMMM d, yyyy').format(_currentEvent.endTime)
-                      : DateFormat('EEEE, MMMM d, yyyy · h:mm a').format(_currentEvent.endTime),
+                      ? TimezoneUtils.formatLocal(_currentEvent.endTime, 'EEEE, MMMM d, yyyy')
+                      : TimezoneUtils.formatLocal(_currentEvent.endTime, 'EEEE, MMMM d, yyyy · h:mm a'),
                   style: TextStyle(
                     fontSize: 14,
                     color: colorScheme.onSurface,
@@ -348,14 +348,14 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           _buildMetadataRow(
             colorScheme,
             'Created',
-            DateFormat('MMM d, yyyy · h:mm a').format(_currentEvent.createdAt),
+            TimezoneUtils.formatLocal(_currentEvent.createdAt, 'MMM d, yyyy · h:mm a'),
           ),
           if (_currentEvent.updatedAt != null) ...[
             const SizedBox(height: 6),
             _buildMetadataRow(
               colorScheme,
               'Last Updated',
-              DateFormat('MMM d, yyyy · h:mm a').format(_currentEvent.updatedAt!),
+              TimezoneUtils.formatLocal(_currentEvent.updatedAt!, 'MMM d, yyyy · h:mm a'),
             ),
           ],
         ],

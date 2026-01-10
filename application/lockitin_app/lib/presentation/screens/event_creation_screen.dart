@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -11,6 +10,8 @@ import '../widgets/adaptive_button.dart';
 import '../widgets/adaptive_date_time_picker.dart';
 import '../widgets/adaptive_text_field.dart';
 import 'group_proposal_wizard.dart';
+import '../../core/utils/timezone_utils.dart';
+import '../../core/utils/logger.dart';
 
 /// Event creation mode enum for dual-context support
 ///
@@ -288,9 +289,9 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
                               _locationController.text.isNotEmpty ||
                               _notesController.text.isNotEmpty;
 
-    return PopScope<bool?>(
+    return PopScope<EventModel?>(
       canPop: !hasUnsavedChanges || widget.isEditMode,
-      onPopInvokedWithResult: (bool didPop, bool? result) {
+      onPopInvokedWithResult: (bool didPop, EventModel? result) {
         if (didPop) return;
         _handleClose(context);
       },
@@ -1135,7 +1136,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
             children: [
               // Date display
               Semantics(
-                label: 'Date: ${DateFormat('EEEE, MMMM d, yyyy').format(_startDate)}',
+                label: 'Date: ${TimezoneUtils.formatLocal(_startDate, 'EEEE, MMMM d, yyyy')}',
                 hint: 'Double tap to change date',
                 button: true,
                 excludeSemantics: true,
@@ -1145,7 +1146,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          DateFormat('EEEE, MMMM d, yyyy').format(_startDate),
+                          TimezoneUtils.formatLocal(_startDate, 'EEEE, MMMM d, yyyy'),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
@@ -1553,7 +1554,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
 
   /// Select start date (platform-adaptive)
   Future<void> _selectStartDate(BuildContext context) async {
-    final now = DateTime.now();
+    final now = TimezoneUtils.nowUtc().toLocal();
     final today = DateTime(now.year, now.month, now.day);
 
     final picked = await showAdaptiveDatePicker(
@@ -1602,11 +1603,19 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
 
   /// Save event
   void _saveEvent() {
+    Logger.info('EventCreationScreen', '=== _saveEvent() called ===');
+    Logger.info('EventCreationScreen', 'Title: ${_titleController.text}');
+    Logger.info('EventCreationScreen', 'Start date: $_startDate');
+    Logger.info('EventCreationScreen', 'Start time: $_startTime');
+    Logger.info('EventCreationScreen', 'End time: $_endTime');
+    Logger.info('EventCreationScreen', 'Is all-day: $_isAllDay');
+
     if (!_formKey.currentState!.validate()) {
+      Logger.warning('EventCreationScreen', 'Form validation failed');
       return;
     }
 
-    // Combine date and time
+    // Combine date and time (in local timezone)
     final startDateTime = _isAllDay
         ? DateTime(_startDate.year, _startDate.month, _startDate.day, 0, 0)
         : DateTime(
@@ -1627,8 +1636,22 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
             _endTime.minute,
           );
 
+    // Validate for DST transitions on timed events
+    if (!_isAllDay && TimezoneUtils.isDSTTransition(startDateTime)) {
+      final safeTime = TimezoneUtils.validateDSTSafe(startDateTime);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Start time ${TimezoneUtils.formatLocal(startDateTime, 'h:mm a')} falls during daylight saving transition. '
+            'It will be adjusted to ${TimezoneUtils.formatLocal(safeTime, 'h:mm a')}.',
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+
     // Validate event is not in the past
-    final now = DateTime.now();
+    final now = TimezoneUtils.nowUtc().toLocal();
     final today = DateTime(now.year, now.month, now.day);
 
     if (_isAllDay) {
@@ -1691,7 +1714,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
         visibility: _visibility,
         category: _category,
         emoji: _emoji,
-        updatedAt: DateTime.now(),
+        updatedAt: TimezoneUtils.nowUtc(),
       );
     } else {
       const uuid = Uuid();
@@ -1713,6 +1736,13 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
 
     // Haptic feedback for successful event creation
     HapticFeedback.mediumImpact();
+
+    Logger.info('EventCreationScreen', 'Event created successfully, popping with event:');
+    Logger.info('EventCreationScreen', '  - ID: ${event.id}');
+    Logger.info('EventCreationScreen', '  - Title: ${event.title}');
+    Logger.info('EventCreationScreen', '  - Start: ${event.startTime}');
+    Logger.info('EventCreationScreen', '  - End: ${event.endTime}');
+
     Navigator.of(context).pop(event);
   }
 

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../../core/utils/timezone_utils.dart';
 
 /// Platform-adaptive date picker
 /// iOS: CupertinoDatePicker (wheel-style)
@@ -246,11 +247,77 @@ Future<DateTime?> showAdaptiveDateTimePicker({
 
   if (time == null) return null;
 
-  return DateTime(
+  // Combine date and time (in local timezone)
+  final combined = DateTime(
     date.year,
     date.month,
     date.day,
     time.hour,
     time.minute,
   );
+
+  // Check for DST transition and warn user if needed
+  if (TimezoneUtils.isDSTTransition(combined)) {
+    final shouldContinue = await _showDSTWarning(context, combined);
+    if (!shouldContinue) return null;
+  }
+
+  // Return local DateTime - caller must convert to UTC before storage
+  return combined;
+}
+
+/// Show warning dialog when user picks a time during DST transition
+Future<bool> _showDSTWarning(BuildContext context, DateTime pickedTime) async {
+  // Get the adjusted time after DST conversion
+  final safeTime = TimezoneUtils.validateDSTSafe(pickedTime);
+
+  // Create warning message
+  final pickedFormatted = TimezoneUtils.formatLocal(pickedTime, 'h:mm a');
+  final safeFormatted = TimezoneUtils.formatLocal(safeTime, 'h:mm a');
+  final warningMessage = 'The time $pickedFormatted falls during a daylight saving time transition. '
+      'It will be adjusted to $safeFormatted when saved. Choose a different time or continue with the adjusted time.';
+
+  if (Platform.isIOS) {
+    // iOS-style alert
+    return await showCupertinoDialog<bool>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Time Change Warning'),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(warningMessage),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Choose Different Time'),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Continue Anyway'),
+          ),
+        ],
+      ),
+    ) ?? false;
+  } else {
+    // Android-style alert
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Time Change Warning'),
+        content: Text(warningMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Choose Different Time'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Continue Anyway'),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
 }

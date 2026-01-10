@@ -1,6 +1,5 @@
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/services/proposal_service.dart';
 import '../../core/services/event_service.dart';
@@ -8,6 +7,7 @@ import '../../core/services/smart_time_suggestion_service.dart';
 import '../../core/utils/platform_dialog.dart';
 import '../../data/models/event_model.dart';
 import '../../data/models/proposal_time_option.dart';
+import '../../core/utils/timezone_utils.dart';
 
 /// Group Proposal Wizard - 3-step flow for creating event proposals
 ///
@@ -63,7 +63,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
 
   // Time options state
   List<ProposalTimeOption> _timeOptions = [];
-  DateTime _votingDeadline = DateTime.now().add(const Duration(hours: 48));
+  DateTime _votingDeadline = TimezoneUtils.nowUtc().toLocal().add(const Duration(hours: 48));
 
   // Loading state
   bool _isSubmitting = false;
@@ -87,7 +87,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
       endTime = widget.initialEndTime!;
     } else {
       // Default to 7pm-9pm on the initial date
-      final initialDate = widget.initialDate ?? DateTime.now().add(const Duration(days: 1));
+      final initialDate = widget.initialDate ?? TimezoneUtils.nowUtc().toLocal().add(const Duration(days: 1));
       startTime = DateTime(initialDate.year, initialDate.month, initialDate.day, 19, 0);
       endTime = DateTime(initialDate.year, initialDate.month, initialDate.day, 21, 0);
     }
@@ -124,7 +124,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
   Future<void> _fetchMemberEvents(List<String> memberIds) async {
     try {
       // Fetch shadow calendar for the next 14 days
-      final now = DateTime.now();
+      final now = TimezoneUtils.nowUtc().toLocal();
       final startDate = DateTime(now.year, now.month, now.day);
       final endDate = startDate.add(const Duration(days: 14));
 
@@ -443,7 +443,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        DateFormat('EEEE, MMM d, yyyy • h:mm a').format(_votingDeadline),
+                        TimezoneUtils.formatLocal(_votingDeadline, 'EEE, MMM d · h:mm a'),
                         style: TextStyle(
                           fontSize: 14,
                           color: colorScheme.onSurface,
@@ -610,7 +610,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      '${DateFormat('EEE, MMM d').format(option.startTime)} • ${DateFormat('h:mm a').format(option.startTime)} - ${DateFormat('h:mm a').format(option.endTime)}',
+                      '${TimezoneUtils.formatLocal(option.startTime, 'MMM d')} • ${TimezoneUtils.formatLocal(option.startTime, 'h:mm a')} - ${TimezoneUtils.formatLocal(option.endTime, 'h:mm a')}',
                       style: TextStyle(
                         fontSize: 14,
                         color: colorScheme.onSurface,
@@ -629,7 +629,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
               Icon(Icons.timer_outlined, size: 18, color: appColors.textMuted),
               const SizedBox(width: 8),
               Text(
-                'Voting ends: ${DateFormat('EEE, MMM d • h:mm a').format(_votingDeadline)}',
+                'Voting ends: ${TimezoneUtils.formatLocal(_votingDeadline, 'MMM d, h:mm a')}',
                 style: TextStyle(
                   fontSize: 13,
                   color: appColors.textMuted,
@@ -677,8 +677,8 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
     ColorScheme colorScheme,
     AppColorsExtension appColors,
   ) {
-    final dateLabel = DateFormat('EEEE, MMMM d').format(option.startTime);
-    final timeLabel = '${DateFormat('h:mm a').format(option.startTime)} to ${DateFormat('h:mm a').format(option.endTime)}';
+    final dateLabel = TimezoneUtils.formatLocal(option.startTime, 'EEEE, MMM d');
+    final timeLabel = '${TimezoneUtils.formatLocal(option.startTime, 'h:mm a')} to ${TimezoneUtils.formatLocal(option.endTime, 'h:mm a')}';
     final deleteHint = _timeOptions.length > _minTimeOptions ? 'Use delete button or swipe left to remove.' : '';
     final semanticLabel = 'Option ${index + 1}: $dateLabel, $timeLabel. $deleteHint';
 
@@ -741,7 +741,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      DateFormat('EEEE, MMM d').format(option.startTime),
+                      TimezoneUtils.formatLocal(option.startTime, 'EEEE, MMM d'),
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
@@ -750,7 +750,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${DateFormat('h:mm a').format(option.startTime)} - ${DateFormat('h:mm a').format(option.endTime)}',
+                      '${TimezoneUtils.formatLocal(option.startTime, 'h:mm a')} - ${TimezoneUtils.formatLocal(option.endTime, 'h:mm a')}',
                       style: TextStyle(
                         fontSize: 13,
                         color: appColors.textSecondary,
@@ -1096,8 +1096,8 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
       final lastOption = _timeOptions.isNotEmpty
           ? _timeOptions.last
           : ProposalTimeOption(
-              startTime: DateTime.now(),
-              endTime: DateTime.now().add(const Duration(hours: 2)),
+              startTime: TimezoneUtils.nowUtc().toLocal(),
+              endTime: TimezoneUtils.nowUtc().toLocal().add(const Duration(hours: 2)),
             );
 
       setState(() {
@@ -1121,8 +1121,8 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
   /// Show confirmation dialog before deleting a time option
   Future<void> _confirmDeleteTimeOption(int index) async {
     final option = _timeOptions[index];
-    final dateLabel = DateFormat('EEE, MMM d').format(option.startTime);
-    final timeLabel = '${DateFormat('h:mm a').format(option.startTime)} - ${DateFormat('h:mm a').format(option.endTime)}';
+    final dateLabel = TimezoneUtils.formatLocal(option.startTime, 'EEEE, MMM d');
+    final timeLabel = '${TimezoneUtils.formatLocal(option.startTime, 'h:mm a')} - ${TimezoneUtils.formatLocal(option.endTime, 'h:mm a')}';
 
     final confirmed = await showPlatformConfirmationDialog(
       context: context,
@@ -1141,11 +1141,12 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
   /// Edit a time option
   Future<void> _editTimeOption(int index, ProposalTimeOption option) async {
     // Show date picker first
+    final now = TimezoneUtils.nowUtc().toLocal();
     final date = await showDatePicker(
       context: context,
       initialDate: option.startTime,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
     );
 
     if (date == null || !mounted) return;
@@ -1178,11 +1179,12 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
 
   /// Select voting deadline
   Future<void> _selectVotingDeadline(BuildContext context) async {
+    final now = TimezoneUtils.nowUtc().toLocal();
     final date = await showDatePicker(
       context: context,
       initialDate: _votingDeadline,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 30)),
     );
 
     if (date == null || !mounted) return;

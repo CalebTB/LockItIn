@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/services/calendar_manager.dart';
 import '../../core/theme/app_colors.dart';
 import '../providers/device_calendar_provider.dart';
+import '../../core/utils/timezone_utils.dart';
 
 /// Screen to display device calendar events
 /// Tests platform channel integration with iOS EventKit / Android CalendarContract
@@ -282,8 +282,6 @@ class _DeviceCalendarScreenState extends State<DeviceCalendarScreen> {
           }
 
           final event = provider.events[index - 1];
-          final dateFormat = DateFormat('MMM dd, yyyy');
-          final timeFormat = DateFormat('h:mm a');
 
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
@@ -312,7 +310,7 @@ class _DeviceCalendarScreenState extends State<DeviceCalendarScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${dateFormat.format(event.startTime)} • ${timeFormat.format(event.startTime)}',
+                        '${TimezoneUtils.formatLocal(event.startTime, 'MMM dd, yyyy')} • ${TimezoneUtils.formatLocal(event.startTime, 'h:mm a')}',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[600],

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/services/availability_calculator_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -9,6 +8,7 @@ import '../../data/models/event_model.dart';
 import '../../data/models/group_model.dart';
 import '../providers/group_provider.dart';
 import '../screens/group_proposal_wizard.dart';
+import '../../core/utils/timezone_utils.dart';
 
 /// Enhanced day timeline view for group availability
 /// Shows hour-by-hour timeline with member events, free slots, and member filtering
@@ -91,7 +91,7 @@ class _GroupDayTimelineViewState extends State<GroupDayTimelineView> {
   }
 
   Widget _buildDateNavigationBar(ColorScheme colorScheme, AppColorsExtension appColors) {
-    final dateStr = DateFormat('EEEE, MMMM d, yyyy').format(widget.selectedDate);
+    final dateStr = TimezoneUtils.formatLocal(widget.selectedDate, 'EEEE, MMMM d');
     final isToday = _isSameDay(widget.selectedDate, DateTime.now());
 
     return Container(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/timezone_utils.dart';
 import '../../data/models/event_model.dart';
 import '../../utils/privacy_colors.dart';
 
@@ -258,9 +258,12 @@ class UpcomingEventCard extends StatelessWidget {
   }
 
   String _formatEventTime(EventModel event) {
-    final dateFormat = DateFormat('MMM d');
-    final timeFormat = DateFormat('h:mm a');
-    return '${dateFormat.format(event.startTime)} · ${timeFormat.format(event.startTime)}';
+    if (event.allDay) {
+      return TimezoneUtils.formatAllDayDate(event.startTime);
+    }
+    final date = TimezoneUtils.formatLocal(event.startTime, 'MMM d');
+    final time = TimezoneUtils.formatLocal(event.startTime, 'h:mm a');
+    return '$date · $time';
   }
 
   String _getCategoryEmoji(EventCategory category) {

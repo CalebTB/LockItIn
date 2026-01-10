@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/timezone_utils.dart';
 
 /// Event privacy visibility settings
 enum EventVisibility {
@@ -29,6 +30,7 @@ class EventModel extends Equatable {
   final EventCategory category;
   final String? emoji; // Custom emoji for the event icon
   final String? nativeCalendarId; // iOS EventKit or Android CalendarContract ID
+  final bool allDay; // True if this is an all-day event (no specific time)
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -44,20 +46,29 @@ class EventModel extends Equatable {
     this.category = EventCategory.other,
     this.emoji,
     this.nativeCalendarId,
+    this.allDay = false,
     required this.createdAt,
     this.updatedAt,
   });
 
   /// Create EventModel from Supabase JSON
-  /// Times are stored and displayed as "wall clock" time (no timezone conversion)
+  /// Times are stored in UTC (timestamptz), all-day events stored as local midnight
   factory EventModel.fromJson(Map<String, dynamic> json) {
+    final allDay = json['all_day'] as bool? ?? false;
+
     return EventModel(
       id: json['id'] as String,
       userId: json['user_id'] as String,
       title: json['title'] as String,
       description: json['description'] as String?,
-      startTime: DateTime.parse(json['start_time'] as String),
-      endTime: DateTime.parse(json['end_time'] as String),
+      // All-day events: Keep as local midnight (no UTC conversion)
+      // Timed events: Parse as UTC
+      startTime: allDay
+          ? DateTime.parse(json['start_time'] as String)
+          : TimezoneUtils.parseUtc(json['start_time'] as String),
+      endTime: allDay
+          ? DateTime.parse(json['end_time'] as String)
+          : TimezoneUtils.parseUtc(json['end_time'] as String),
       location: json['location'] as String?,
       visibility: _visibilityFromString(json['visibility'] as String),
       category: json['category'] != null
@@ -65,9 +76,10 @@ class EventModel extends Equatable {
           : EventCategory.other,
       emoji: json['emoji'] as String?, // Local-only field, will be null from DB
       nativeCalendarId: json['native_calendar_id'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      allDay: allDay,
+      createdAt: TimezoneUtils.parseUtc(json['created_at'] as String),
       updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'] as String)
+          ? TimezoneUtils.parseUtc(json['updated_at'] as String)
           : null,
     );
   }
@@ -80,15 +92,24 @@ class EventModel extends Equatable {
       'user_id': userId,
       'title': title,
       'description': description,
-      'start_time': startTime.toIso8601String(),
-      'end_time': endTime.toIso8601String(),
+      // All-day events: Store as local midnight (no UTC conversion)
+      // Timed events: Convert to UTC
+      'start_time': allDay
+          ? DateTime(startTime.year, startTime.month, startTime.day)
+              .toIso8601String()
+          : TimezoneUtils.toUtcString(startTime),
+      'end_time': allDay
+          ? DateTime(endTime.year, endTime.month, endTime.day)
+              .toIso8601String()
+          : TimezoneUtils.toUtcString(endTime),
       'location': location,
       'visibility': _visibilityToString(visibility),
       'category': _categoryToString(category),
       // 'emoji': emoji, // TODO: Add to Supabase schema when ready
       'native_calendar_id': nativeCalendarId,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt?.toIso8601String(),
+      'all_day': allDay,
+      'created_at': TimezoneUtils.toUtcString(createdAt),
+      'updated_at': updatedAt != null ? TimezoneUtils.toUtcString(updatedAt!) : null,
     };
   }
 
@@ -161,6 +182,7 @@ class EventModel extends Equatable {
     EventCategory? category,
     String? emoji,
     String? nativeCalendarId,
+    bool? allDay,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -176,6 +198,7 @@ class EventModel extends Equatable {
       category: category ?? this.category,
       emoji: emoji ?? this.emoji,
       nativeCalendarId: nativeCalendarId ?? this.nativeCalendarId,
+      allDay: allDay ?? this.allDay,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -194,6 +217,7 @@ class EventModel extends Equatable {
         category,
         emoji,
         nativeCalendarId,
+        allDay,
         createdAt,
         updatedAt,
       ];

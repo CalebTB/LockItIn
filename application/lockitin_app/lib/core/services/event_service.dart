@@ -4,6 +4,7 @@ import '../../data/models/event_model.dart';
 import '../../data/models/shadow_calendar_entry.dart';
 import '../network/supabase_client.dart';
 import '../utils/logger.dart';
+import '../utils/timezone_utils.dart';
 import 'calendar_manager.dart';
 
 /// Exception thrown when event operations fail
@@ -77,11 +78,23 @@ class EventService {
           userId: SupabaseClientManager.currentUserId ?? 'anonymous',
         );
 
+        // Log what we're sending to Supabase
+        final jsonToSend = eventWithNativeId.toJson();
+        Logger.info('EventService', 'Sending to Supabase:');
+        Logger.info('EventService', '  - visibility: ${jsonToSend['visibility']}');
+        Logger.info('EventService', '  - title: ${jsonToSend['title']}');
+
         final response = await SupabaseClientManager.client
             .from('events')
-            .insert(eventWithNativeId.toJson())
+            .insert(jsonToSend)
             .select()
             .single();
+
+        // Log what we got back from Supabase
+        Logger.info('EventService', 'Received from Supabase:');
+        Logger.info('EventService', '  - id: ${response['id']}');
+        Logger.info('EventService', '  - visibility: ${response['visibility']}');
+        Logger.info('EventService', '  - title: ${response['title']}');
 
         supabaseEventId = response['id'] as String?;
         if (supabaseEventId == null) {
@@ -89,8 +102,9 @@ class EventService {
         }
         Logger.info('EventService', 'Created event in Supabase: $supabaseEventId');
 
-        // Return the complete event with both IDs
-        return eventWithNativeId.copyWith(id: supabaseEventId);
+        // Return the event from the database response (not our local copy)
+        // This ensures we get the exact data that was saved
+        return EventModel.fromJson(response);
       } on PostgrestException catch (e) {
         Logger.error('EventService', 'Failed to create event in Supabase', e);
 
@@ -260,15 +274,15 @@ class EventService {
       }
 
       Logger.info('EventService',
-        'Fetching events from Supabase: ${startDate.toIso8601String()} to ${endDate.toIso8601String()}',
+        'Fetching events from Supabase: ${TimezoneUtils.toUtcString(startDate)} to ${TimezoneUtils.toUtcString(endDate)}',
       );
 
       final response = await SupabaseClientManager.client
           .from('events')
           .select()
           .eq('user_id', targetUserId)
-          .gte('start_time', startDate.toIso8601String())
-          .lte('start_time', endDate.toIso8601String());
+          .gte('start_time', TimezoneUtils.toUtcString(startDate))
+          .lte('start_time', TimezoneUtils.toUtcString(endDate));
 
       final events = (response as List)
           .map((json) => EventModel.fromJson(json as Map<String, dynamic>))
@@ -308,8 +322,8 @@ class EventService {
           .select()
           .inFilter('user_id', memberUserIds)
           .neq('visibility', 'private') // Exclude private events
-          .lt('start_time', endDate.toIso8601String()) // Event starts before end of range
-          .gt('end_time', startDate.toIso8601String()); // Event ends after start of range
+          .lt('start_time', TimezoneUtils.toUtcString(endDate)) // Event starts before end of range
+          .gt('end_time', TimezoneUtils.toUtcString(startDate)); // Event ends after start of range
 
       // Group events by user_id
       final Map<String, List<EventModel>> eventsByUser = {};
@@ -360,7 +374,7 @@ class EventService {
     try {
       Logger.info('EventService',
         'Fetching shadow calendar for ${memberUserIds.length} members: '
-        '${startDate.toIso8601String()} to ${endDate.toIso8601String()}',
+        '${TimezoneUtils.toUtcString(startDate)} to ${TimezoneUtils.toUtcString(endDate)}',
       );
 
       // Call the RPC function
@@ -368,8 +382,8 @@ class EventService {
         'get_group_shadow_calendar',
         params: {
           'p_user_ids': memberUserIds,
-          'p_start_date': startDate.toIso8601String(),
-          'p_end_date': endDate.toIso8601String(),
+          'p_start_date': TimezoneUtils.toUtcString(startDate),
+          'p_end_date': TimezoneUtils.toUtcString(endDate),
         },
       );
 
@@ -437,7 +451,7 @@ class EventService {
           visibility: shadow.isBusyOnly
               ? EventVisibility.busyOnly
               : EventVisibility.sharedWithName,
-          createdAt: DateTime.now(),
+          createdAt: TimezoneUtils.nowUtc(),
         );
       }).toList();
     }

@@ -1,4 +1,5 @@
 import 'vote_model.dart';
+import '../../core/utils/timezone_utils.dart';
 
 /// Represents a time option for a group proposal
 /// Users vote on multiple time options to find the best meeting time
@@ -82,8 +83,8 @@ class ProposalTimeOption {
     return {
       if (id != null) 'id': id,
       if (proposalId != null) 'proposal_id': proposalId,
-      'start_time': startTime.toIso8601String(),
-      'end_time': endTime.toIso8601String(),
+      'start_time': TimezoneUtils.toUtcString(startTime),
+      'end_time': TimezoneUtils.toUtcString(endTime),
       'option_order': optionOrder,
     };
   }
@@ -91,8 +92,8 @@ class ProposalTimeOption {
   /// Convert to JSON for creating proposals (minimal data)
   Map<String, dynamic> toCreateJson() {
     return {
-      'start_time': startTime.toIso8601String(),
-      'end_time': endTime.toIso8601String(),
+      'start_time': TimezoneUtils.toUtcString(startTime),
+      'end_time': TimezoneUtils.toUtcString(endTime),
     };
   }
 
@@ -128,9 +129,9 @@ class ProposalTimeOption {
   /// Helper to parse DateTime from JSON (handles both String and DateTime types)
   static DateTime _parseDateTime(dynamic value) {
     if (value is DateTime) {
-      return value;
+      return value.isUtc ? value : value.toUtc();
     } else if (value is String) {
-      return DateTime.parse(value);
+      return TimezoneUtils.parseUtc(value);
     } else {
       throw ArgumentError('Invalid datetime value: $value');
     }

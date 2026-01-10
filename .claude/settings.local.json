@@ -60,7 +60,10 @@
       "Bash(pod install)",
       "Bash(pod install:*)",
       "Bash(git -C /Users/calebbyers/Code/LockItIn commit -m \"$\\(cat <<''EOF''\nfeat\\(ui\\): Migrate event creation screen to adaptive widgets\n\nPhase 2: Screen Migration - Event Creation Screen \\(Issue #136\\)\n\nMigrated event_creation_screen.dart to use platform-adaptive widgets:\n\nText Fields \\(3\\):\n- Title field → AdaptiveTextFormField\n- Location field → AdaptiveTextFormField  \n- Notes field \\(multiline\\) → AdaptiveTextFormField\n\nButtons \\(6\\):\n- Dialog: \"Cancel\" → AdaptiveButton.text\n- Dialog: \"Make Private\" → AdaptiveButton.primary\n- Dialog: \"Cancel\" \\(discard\\) → AdaptiveButton.text\n- Dialog: \"Discard\" → AdaptiveButton.text with isDestructive\n- \"Change\" date/time → AdaptiveButton.text\n- Bottom CTA → AdaptiveButton.primary\n\nPlatform Detection:\n- Removed dart:io Platform import\n- Removed Platform.isIOS check \\(line 1477\\)\n- All platform detection now uses theme-based approach\n\nCode Reduction: Simplified from complex InputDecoration to concise\nAdaptiveTextFormField calls \\(80+ lines removed\\)\n\nPlatform Adaptation:\n- iOS: CupertinoTextField, CupertinoButton with iOS styling\n- Android: TextField, ElevatedButton/TextButton with Material styling\n\nProgress: All high-priority screens migrated \\(login, signup, profile, event creation\\)\nNext: Bulk migration of remaining 30+ files\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(git -C /Users/calebbyers/Code/LockItIn diff --stat main...feature/136-platform-adaptive-widgets)"
+      "Bash(git -C /Users/calebbyers/Code/LockItIn diff --stat main...feature/136-platform-adaptive-widgets)",
+      "mcp__plugin_compound-engineering_context7__resolve-library-id",
+      "mcp__plugin_compound-engineering_context7__query-docs",
+      "Skill(compound-engineering:workflows:review)"
     ],
     "deny": [],
     "ask": []
