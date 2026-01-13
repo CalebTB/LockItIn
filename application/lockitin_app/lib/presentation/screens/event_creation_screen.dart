@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/event_model.dart';
+import '../../data/models/event_template_model.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/adaptive_button.dart';
 import '../widgets/adaptive_date_time_picker.dart';
@@ -88,6 +89,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
   bool _isAllDay = false;
   bool _showMoreOptions = false;
   EventTemplate? _selectedTemplate;
+  EventTemplateModel? _templateData; // Template data (surprise_party, potluck, etc.)
   bool _showPrivacyTooltip = false;
 
   @override
@@ -186,6 +188,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           _startTime = const TimeOfDay(hour: 19, minute: 0);
           _endTime = const TimeOfDay(hour: 23, minute: 0);
           _visibility = EventVisibility.sharedWithName;
+          _templateData = null; // No template data for simple party
           break;
         case EventTemplate.dinner:
           _titleController.text = 'Dinner';
@@ -195,6 +198,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           _endTime = const TimeOfDay(hour: 21, minute: 0);
           _locationController.text = 'Restaurant';
           _visibility = EventVisibility.sharedWithName;
+          _templateData = null; // No template data for simple dinner
           break;
         case EventTemplate.movieNight:
           _titleController.text = 'Movie Night';
@@ -203,6 +207,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           _startTime = const TimeOfDay(hour: 20, minute: 0);
           _endTime = const TimeOfDay(hour: 22, minute: 0);
           _visibility = EventVisibility.sharedWithName;
+          _templateData = null; // No template data for movie night
           break;
         case EventTemplate.surpriseParty:
           _titleController.text = 'Surprise Birthday Party';
@@ -213,6 +218,8 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           _notesController.text = "Secret! Don't tell the birthday person";
           _visibility = EventVisibility.busyOnly; // CRITICAL: Hide from birthday person!
           _showMoreOptions = true;
+          // Create SurprisePartyTemplateModel (user will configure later)
+          _templateData = SurprisePartyTemplateModel();
           break;
         case EventTemplate.friendsgiving:
           _titleController.text = 'Friendsgiving';
@@ -223,6 +230,8 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           _notesController.text = 'Potluck style - sign up for dishes';
           _visibility = EventVisibility.sharedWithName;
           _showMoreOptions = true;
+          // Create PotluckTemplateModel (user will configure later)
+          _templateData = PotluckTemplateModel();
           break;
       }
     });
@@ -1714,6 +1723,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
         visibility: _visibility,
         category: _category,
         emoji: _emoji,
+        templateData: _templateData,
         updatedAt: TimezoneUtils.nowUtc(),
       );
     } else {
@@ -1730,6 +1740,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
         category: _category,
         emoji: _emoji,
         nativeCalendarId: null,
+        templateData: _templateData,
         createdAt: DateTime.now(),
       );
     }
