@@ -343,8 +343,8 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
                     const SizedBox(height: 16),
                   ],
 
-                  // Template chips (quick start) - personal events only
-                  if (!widget.isEditMode && !widget.isProposalMode) ...[
+                  // Template chips (quick start) - group proposals only
+                  if (!widget.isEditMode && widget.isProposalMode) ...[
                     _buildTemplateChips(colorScheme),
                     const SizedBox(height: 20),
                   ],
