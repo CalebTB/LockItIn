@@ -9,6 +9,7 @@ import '../../data/models/event_model.dart';
 import '../../data/models/group_model.dart';
 import '../providers/group_provider.dart';
 import '../screens/group_proposal_wizard.dart';
+import '../screens/event_detail_screen.dart';
 import '../../core/utils/timezone_utils.dart';
 
 /// Enhanced day timeline view for group availability
@@ -482,7 +483,12 @@ class _GroupDayTimelineViewState extends State<GroupDayTimelineView> {
         child: GestureDetector(
           onTap: () {
             HapticFeedback.lightImpact();
-            // Could show event details in future
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EventDetailScreen(event: event.event),
+              ),
+            );
           },
           child: Container(
             decoration: BoxDecoration(
