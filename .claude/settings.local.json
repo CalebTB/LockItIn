@@ -70,7 +70,8 @@
       "Bash(supabase db push:*)",
       "Skill(compound-engineering:deepen-plan)",
       "mcp__ios-simulator__ui_view",
-      "Skill(compound-engineering:compound-docs)"
+      "Skill(compound-engineering:compound-docs)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []
