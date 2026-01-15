@@ -62,6 +62,8 @@ class _PotluckDishListState extends State<PotluckDishList> {
   void _setupRealtimeSubscription() {
     final supabase = Supabase.instance.client;
 
+    Logger.info('PotluckDishList', '🔌 Setting up realtime subscription for event ${widget.event.id}');
+
     _channel = supabase.channel('potluck-event-${widget.event.id}');
 
     _channel!
@@ -75,25 +77,42 @@ class _PotluckDishListState extends State<PotluckDishList> {
             value: widget.event.id,
           ),
           callback: (payload) {
-            if (!mounted) return;
+            Logger.info('PotluckDishList', '📨 Real-time callback triggered! Payload keys: ${payload.newRecord.keys.toList()}');
+
+            if (!mounted) {
+              Logger.warning('PotluckDishList', '⚠️  Widget not mounted, skipping update');
+              return;
+            }
 
             try {
               final updatedEvent = EventModel.fromJson(payload.newRecord);
+              Logger.info('PotluckDishList', '✅ Successfully parsed updated event. Dishes count: ${updatedEvent.potluckTemplate?.dishes.length ?? 0}');
+
               setState(() {
                 _currentEvent = updatedEvent;
               });
 
-              Logger.info('PotluckDishList', 'Real-time update received for event ${widget.event.id}');
-            } catch (e) {
-              Logger.error('PotluckDishList', 'Failed to parse real-time update: $e');
+              Logger.info('PotluckDishList', '🔄 UI state updated with new event data');
+            } catch (e, stack) {
+              Logger.error('PotluckDishList', '❌ Failed to parse real-time update: $e\n$stack');
             }
           },
         )
         .subscribe((status, error) {
+          Logger.info('PotluckDishList', '📡 Subscription status changed: $status');
+
           if (status == RealtimeSubscribeStatus.subscribed) {
-            Logger.info('PotluckDishList', 'Subscribed to real-time updates for event ${widget.event.id}');
-          } else if (error != null) {
-            Logger.error('PotluckDishList', 'Real-time subscription error: $error');
+            Logger.info('PotluckDishList', '✅ Successfully subscribed to real-time updates for event ${widget.event.id}');
+          } else if (status == RealtimeSubscribeStatus.closed) {
+            Logger.warning('PotluckDishList', '⚠️  Subscription closed for event ${widget.event.id}');
+          } else if (status == RealtimeSubscribeStatus.channelError) {
+            Logger.error('PotluckDishList', '❌ Channel error for event ${widget.event.id}');
+          } else if (status == RealtimeSubscribeStatus.timedOut) {
+            Logger.error('PotluckDishList', '⏱️  Subscription timed out for event ${widget.event.id}');
+          }
+
+          if (error != null) {
+            Logger.error('PotluckDishList', '❌ Real-time subscription error: $error');
           }
         });
   }

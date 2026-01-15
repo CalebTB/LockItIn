@@ -50,6 +50,8 @@ class _PotluckSummaryCardState extends State<PotluckSummaryCard> {
   void _setupRealtimeSubscription() {
     final supabase = Supabase.instance.client;
 
+    Logger.info('PotluckSummaryCard', '🔌 Setting up realtime subscription for event ${widget.event.id}');
+
     _channel = supabase.channel('potluck-summary-${widget.event.id}');
 
     _channel!
@@ -63,7 +65,12 @@ class _PotluckSummaryCardState extends State<PotluckSummaryCard> {
             value: widget.event.id,
           ),
           callback: (payload) {
-            if (!mounted) return;
+            Logger.info('PotluckSummaryCard', '📨 Real-time callback triggered!');
+
+            if (!mounted) {
+              Logger.warning('PotluckSummaryCard', '⚠️  Widget not mounted, skipping update');
+              return;
+            }
 
             try {
               final updatedEvent = EventModel.fromJson(payload.newRecord);
@@ -71,17 +78,27 @@ class _PotluckSummaryCardState extends State<PotluckSummaryCard> {
                 _currentEvent = updatedEvent;
               });
 
-              Logger.info('PotluckSummaryCard', 'Real-time update received for event ${widget.event.id}');
-            } catch (e) {
-              Logger.error('PotluckSummaryCard', 'Failed to parse real-time update: $e');
+              Logger.info('PotluckSummaryCard', '✅ Real-time update applied to summary card');
+            } catch (e, stack) {
+              Logger.error('PotluckSummaryCard', '❌ Failed to parse real-time update: $e\n$stack');
             }
           },
         )
         .subscribe((status, error) {
+          Logger.info('PotluckSummaryCard', '📡 Subscription status changed: $status');
+
           if (status == RealtimeSubscribeStatus.subscribed) {
-            Logger.info('PotluckSummaryCard', 'Subscribed to real-time updates for event ${widget.event.id}');
-          } else if (error != null) {
-            Logger.error('PotluckSummaryCard', 'Real-time subscription error: $error');
+            Logger.info('PotluckSummaryCard', '✅ Successfully subscribed to real-time updates for event ${widget.event.id}');
+          } else if (status == RealtimeSubscribeStatus.closed) {
+            Logger.warning('PotluckSummaryCard', '⚠️  Subscription closed for event ${widget.event.id}');
+          } else if (status == RealtimeSubscribeStatus.channelError) {
+            Logger.error('PotluckSummaryCard', '❌ Channel error for event ${widget.event.id}');
+          } else if (status == RealtimeSubscribeStatus.timedOut) {
+            Logger.error('PotluckSummaryCard', '⏱️  Subscription timed out for event ${widget.event.id}');
+          }
+
+          if (error != null) {
+            Logger.error('PotluckSummaryCard', '❌ Real-time subscription error: $error');
           }
         });
   }
