@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/services/availability_calculator_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/member_utils.dart';
 import '../../core/utils/time_filter_utils.dart';
 import '../../data/models/event_model.dart';
 import '../../data/models/group_model.dart';
@@ -54,20 +55,6 @@ class _GroupDayTimelineViewState extends State<GroupDayTimelineView> {
   // Display toggles
   bool _showBusyTimes = true;
   bool _showBestTimes = true;
-
-  // Member colors for consistent visual identification
-  static const List<Color> _memberColors = [
-    AppColors.memberPink,
-    AppColors.memberAmber,
-    AppColors.memberViolet,
-    AppColors.memberCyan,
-    AppColors.memberEmerald,
-    AppColors.memberTeal,
-  ];
-
-  Color _getMemberColor(int index) {
-    return _memberColors[index % _memberColors.length];
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -479,7 +466,7 @@ class _GroupDayTimelineViewState extends State<GroupDayTimelineView> {
     final provider = context.read<GroupProvider>();
     final members = provider.selectedGroupMembers;
     final memberIndex = members.indexWhere((m) => m.userId == event.event.userId);
-    final memberColor = memberIndex >= 0 ? _getMemberColor(memberIndex) : AppColors.memberPink;
+    final memberColor = memberIndex >= 0 ? MemberUtils.getColorByIndex(memberIndex) : AppColors.memberPink;
     final member = memberIndex >= 0 ? members[memberIndex] : null;
 
     // Dynamic padding based on height
@@ -1031,7 +1018,7 @@ class _GroupDayTimelineViewState extends State<GroupDayTimelineView> {
                             width: 24,
                             height: 24,
                             decoration: BoxDecoration(
-                              color: _getMemberColor(index),
+                              color: MemberUtils.getColorByIndex(index),
                               shape: BoxShape.circle,
                               border: Border.all(color: colorScheme.surface, width: 2),
                             ),

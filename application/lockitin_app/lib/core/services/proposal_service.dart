@@ -4,6 +4,7 @@ import '../utils/timezone_utils.dart';
 import '../../data/models/proposal_model.dart';
 import '../../data/models/proposal_time_option.dart';
 import '../../data/models/vote_model.dart';
+import '../../data/models/event_template_model.dart';
 
 /// Service for managing event proposals and voting
 class ProposalService {
@@ -22,6 +23,7 @@ class ProposalService {
     String? location,
     required DateTime votingDeadline,
     required List<ProposalTimeOption> timeOptions,
+    EventTemplateModel? templateData,
   }) async {
     try {
       Logger.info('ProposalService', 'Creating proposal for group: $groupId');
@@ -43,6 +45,7 @@ class ProposalService {
           'p_location': location,
           'p_voting_deadline': TimezoneUtils.toUtcString(votingDeadline),
           'p_time_options': timeOptionsJson,
+          'p_template_data': templateData?.toJson() ?? {},
         },
       );
 

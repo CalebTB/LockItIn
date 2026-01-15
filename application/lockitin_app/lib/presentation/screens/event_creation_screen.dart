@@ -6,10 +6,15 @@ import 'package:uuid/uuid.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/event_model.dart';
 import '../../data/models/event_template_model.dart';
+import '../../core/services/event_service.dart';
+import '../../core/network/supabase_client.dart';
 import '../providers/auth_provider.dart';
+import '../providers/calendar_provider.dart';
+import '../providers/group_provider.dart';
 import '../widgets/adaptive_button.dart';
 import '../widgets/adaptive_date_time_picker.dart';
 import '../widgets/adaptive_text_field.dart';
+import '../widgets/templates/surprise_party_config_sheet.dart';
 import 'group_proposal_wizard.dart';
 import '../../core/utils/timezone_utils.dart';
 import '../../core/utils/logger.dart';
@@ -17,11 +22,14 @@ import '../../core/utils/logger.dart';
 /// Event creation mode enum for dual-context support
 ///
 /// Personal events: Simple form, quick save to personal calendar
+/// Group quick events: Single time, member invitations (no voting)
 /// Group proposals: Wizard flow with time options + voting
 enum EventCreationMode {
   personalEvent,      // Simple form, no group features
+  groupQuickEvent,    // Group event with single time, member invitations
   groupProposal,      // Advanced form with time options + voting
   editPersonalEvent,  // Edit existing personal event
+  editGroupEvent,     // Edit existing group quick event
   editGroupProposal,  // Edit existing group proposal
 }
 
@@ -54,11 +62,19 @@ class EventCreationScreen extends StatefulWidget {
 
   /// Check if this screen is in edit mode
   bool get isEditMode => mode == EventCreationMode.editPersonalEvent ||
+                         mode == EventCreationMode.editGroupEvent ||
                          mode == EventCreationMode.editGroupProposal;
 
-  /// Check if this screen is in group proposal mode
+  /// Check if this screen is in group proposal mode (voting flow)
   bool get isProposalMode => mode == EventCreationMode.groupProposal ||
                              mode == EventCreationMode.editGroupProposal;
+
+  /// Check if this screen is in group quick event mode (no voting)
+  bool get isGroupQuickEvent => mode == EventCreationMode.groupQuickEvent ||
+                                mode == EventCreationMode.editGroupEvent;
+
+  /// Check if this is any group context (proposal or quick event)
+  bool get isGroupContext => isProposalMode || isGroupQuickEvent;
 
   @override
   State<EventCreationScreen> createState() => _EventCreationScreenState();
@@ -220,6 +236,11 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           _showMoreOptions = true;
           // Create SurprisePartyTemplateModel (user will configure later)
           _templateData = SurprisePartyTemplateModel();
+
+          // Show config sheet after this build completes
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showSurprisePartyConfigSheet();
+          });
           break;
         case EventTemplate.friendsgiving:
           _titleController.text = 'Friendsgiving';
@@ -343,8 +364,8 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
                     const SizedBox(height: 16),
                   ],
 
-                  // Template chips (quick start) - group proposals only
-                  if (!widget.isEditMode && widget.isProposalMode) ...[
+                  // Template chips (quick start) - group events only (quick events and proposals)
+                  if (!widget.isEditMode && widget.isGroupContext) ...[
                     _buildTemplateChips(colorScheme),
                     const SizedBox(height: 20),
                   ],
@@ -354,8 +375,11 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
                   const SizedBox(height: 20),
 
                   // Field 2: Privacy (PROMOTED from field 8!)
-                  _buildPrivacyCard(colorScheme, appColors),
-                  const SizedBox(height: 20),
+                  // Hide privacy selector for group quick events (auto-set to sharedWithName)
+                  if (!widget.isGroupQuickEvent) ...[
+                    _buildPrivacyCard(colorScheme, appColors),
+                    const SizedBox(height: 20),
+                  ],
 
                   // Field 3: Date & Time (grouped card)
                   _buildDateTimeCard(colorScheme, appColors),
@@ -364,6 +388,12 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
                   // Field 4: Location (optional but visible)
                   _buildLocationField(colorScheme),
                   const SizedBox(height: 20),
+
+                  // Field 5: Invited Members (group quick events only)
+                  if (widget.isGroupQuickEvent) ...[
+                    _buildInvitedMembersSection(colorScheme, appColors),
+                    const SizedBox(height: 20),
+                  ],
 
                   // More Options (collapsed by default)
                   _buildMoreOptionsSection(colorScheme, appColors),
@@ -735,8 +765,11 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
               _buildTemplateChip('🍽️', 'Dinner', EventTemplate.dinner, colorScheme),
               const SizedBox(width: 8),
               _buildTemplateChip('🎬', 'Movie', EventTemplate.movieNight, colorScheme),
-              const SizedBox(width: 8),
-              _buildTemplateChip('🎁', 'Surprise', EventTemplate.surpriseParty, colorScheme),
+              // Surprise Party template only available for group quick events (fixed time, no voting)
+              if (widget.isGroupQuickEvent) ...[
+                const SizedBox(width: 8),
+                _buildTemplateChip('🎁', 'Surprise', EventTemplate.surpriseParty, colorScheme),
+              ],
               const SizedBox(width: 8),
               _buildTemplateChip('🦃', 'Friendsgiving', EventTemplate.friendsgiving, colorScheme),
             ],
@@ -1323,6 +1356,118 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     );
   }
 
+  /// Build invited members section (group quick events only)
+  Widget _buildInvitedMembersSection(ColorScheme colorScheme, AppColorsExtension appColors) {
+    final memberCount = widget.groupMemberCount ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: appColors.cardBackground,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: appColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.people_outline, size: 18, color: colorScheme.primary),
+              const SizedBox(width: 6),
+              Text(
+                'Invited Members',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Member invitation summary
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.people,
+                  color: colorScheme.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.groupName ?? 'Group',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'All $memberCount members will be invited',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: appColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Info note
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: colorScheme.primary.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Members can RSVP after you create the event',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: appColors.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Build "More Options" expandable section
   Widget _buildMoreOptionsSection(ColorScheme colorScheme, AppColorsExtension appColors) {
     return Column(
@@ -1584,8 +1729,8 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
   }
 
   /// Handle CTA button press
-  /// In personal mode: saves the event
-  /// In proposal mode: navigates to the GroupProposalWizard
+  /// Personal/Group Quick Event: Saves the event directly
+  /// Group Proposal: Navigates to the GroupProposalWizard
   void _handleCTAPress() {
     if (widget.isProposalMode && widget.mode == EventCreationMode.groupProposal) {
       // Validate form first
@@ -1593,7 +1738,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
         return;
       }
 
-      // Navigate to the Group Proposal Wizard
+      // Navigate to the Group Proposal Wizard (voting flow)
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => GroupProposalWizard(
@@ -1605,19 +1750,20 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
         ),
       );
     } else {
-      // Personal event or edit mode - save the event
+      // Personal event, group quick event, or edit mode - save directly
       _saveEvent();
     }
   }
 
   /// Save event
-  void _saveEvent() {
+  Future<void> _saveEvent() async {
     Logger.info('EventCreationScreen', '=== _saveEvent() called ===');
     Logger.info('EventCreationScreen', 'Title: ${_titleController.text}');
     Logger.info('EventCreationScreen', 'Start date: $_startDate');
     Logger.info('EventCreationScreen', 'Start time: $_startTime');
     Logger.info('EventCreationScreen', 'End time: $_endTime');
     Logger.info('EventCreationScreen', 'Is all-day: $_isAllDay');
+    Logger.info('EventCreationScreen', 'Mode: ${widget.mode}');
 
     if (!_formKey.currentState!.validate()) {
       Logger.warning('EventCreationScreen', 'Form validation failed');
@@ -1731,6 +1877,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
       event = EventModel(
         id: uuid.v4(),
         userId: userId,
+        groupId: widget.isGroupQuickEvent ? widget.groupId : null, // Group events get groupId
         title: _titleController.text.trim(),
         description: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
         startTime: startDateTime,
@@ -1748,13 +1895,145 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     // Haptic feedback for successful event creation
     HapticFeedback.mediumImpact();
 
-    Logger.info('EventCreationScreen', 'Event created successfully, popping with event:');
+    Logger.info('EventCreationScreen', 'Event model created:');
     Logger.info('EventCreationScreen', '  - ID: ${event.id}');
     Logger.info('EventCreationScreen', '  - Title: ${event.title}');
+    Logger.info('EventCreationScreen', '  - Group ID: ${event.groupId}');
     Logger.info('EventCreationScreen', '  - Start: ${event.startTime}');
     Logger.info('EventCreationScreen', '  - End: ${event.endTime}');
 
-    Navigator.of(context).pop(event);
+    // For group quick events, save directly to database and create invitations
+    // For personal events, return to caller (calendar screen handles saving)
+    if (widget.isGroupQuickEvent) {
+      await _saveGroupQuickEvent(event);
+    } else {
+      Navigator.of(context).pop(event);
+    }
+  }
+
+  /// Save group quick event to database and create invitations
+  Future<void> _saveGroupQuickEvent(EventModel event) async {
+    // Show loading dialog
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Creating event...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      Logger.info('EventCreationScreen', 'Saving group quick event...');
+
+      // Get group members before async gap
+      final groupProvider = context.read<GroupProvider>();
+      final members = groupProvider.selectedGroupMembers;
+
+      // Step 1: Create event in database
+      final eventService = EventService();
+      final savedEvent = await eventService.createEvent(event);
+      Logger.info('EventCreationScreen', 'Event saved successfully: ${savedEvent.id}');
+
+      // Step 2: Create invitations for all group members
+
+      Logger.info('EventCreationScreen', 'Creating invitations for ${members.length} members');
+
+      for (final member in members) {
+        try {
+          await SupabaseClientManager.client.from('event_invitations').insert({
+            'event_id': savedEvent.id,
+            'user_id': member.userId,
+            'rsvp_status': 'pending',
+          });
+        } catch (e) {
+          Logger.error('EventCreationScreen', 'Failed to create invitation for ${member.userId}', e);
+          // Continue creating other invitations even if one fails
+        }
+      }
+
+      Logger.info('EventCreationScreen', 'Invitations created successfully');
+
+      // Step 3: Add to CalendarProvider for immediate UI update
+      if (mounted) {
+        final calendarProvider = context.read<CalendarProvider>();
+        calendarProvider.addEvent(savedEvent);
+      }
+
+      // Step 4: Trigger group detail screen to reload events
+      // (Group detail screen will reload when it comes back into view)
+      Logger.info('EventCreationScreen', 'Event added to CalendarProvider, group calendar will refresh on return');
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Close event creation screen with result
+      if (mounted) {
+        Navigator.of(context).pop(savedEvent);
+      }
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Event "${savedEvent.title}" created successfully'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } on EventServiceException catch (e) {
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Dismiss',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show generic error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create event: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
   }
 
   /// Get app bar title based on mode
@@ -1762,9 +2041,13 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     switch (widget.mode) {
       case EventCreationMode.personalEvent:
         return 'New Event';
+      case EventCreationMode.groupQuickEvent:
+        return 'Create Group Event';
       case EventCreationMode.groupProposal:
         return 'Propose Event';
       case EventCreationMode.editPersonalEvent:
+        return 'Edit Event';
+      case EventCreationMode.editGroupEvent:
         return 'Edit Event';
       case EventCreationMode.editGroupProposal:
         return 'Edit Proposal';
@@ -1776,9 +2059,13 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     switch (widget.mode) {
       case EventCreationMode.personalEvent:
         return 'Create Event';
+      case EventCreationMode.groupQuickEvent:
+        return 'Create Event';
       case EventCreationMode.groupProposal:
         return 'Continue to Time Options';
       case EventCreationMode.editPersonalEvent:
+        return 'Save Changes';
+      case EventCreationMode.editGroupEvent:
         return 'Save Changes';
       case EventCreationMode.editGroupProposal:
         return 'Save Changes';
@@ -1905,6 +2192,43 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
         return const Color(0xFF8B5CF6);
       case EventCategory.other:
         return const Color(0xFFEC4899);
+    }
+  }
+
+  /// Show surprise party configuration sheet
+  Future<void> _showSurprisePartyConfigSheet() async {
+    if (_templateData is! SurprisePartyTemplateModel) {
+      return;
+    }
+
+    // Surprise party requires a group context
+    if (widget.groupId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Surprise party template is only available for group proposals'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    final result = await showModalBottomSheet<SurprisePartyTemplateModel>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => SurprisePartyConfigSheet(
+        groupId: widget.groupId!,
+        existingTemplate: _templateData as SurprisePartyTemplateModel,
+      ),
+    );
+
+    // Update template data if user confirmed (didn't cancel)
+    if (result != null && mounted) {
+      setState(() {
+        _templateData = result;
+      });
     }
   }
 }

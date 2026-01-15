@@ -23,6 +23,7 @@ enum EventCategory {
 class EventModel extends Equatable {
   final String id;
   final String userId;
+  final String? groupId; // Group context for group events (null for personal events)
   final String title;
   final String? description;
   final DateTime startTime;
@@ -40,6 +41,7 @@ class EventModel extends Equatable {
   const EventModel({
     required this.id,
     required this.userId,
+    this.groupId,
     required this.title,
     this.description,
     required this.startTime,
@@ -60,25 +62,28 @@ class EventModel extends Equatable {
   factory EventModel.fromJson(Map<String, dynamic> json) {
     final allDay = json['all_day'] as bool? ?? false;
 
-    // Parse template data if present
+    // Parse template data if present and not empty
     EventTemplateModel? templateData;
     if (json['template_data'] != null && json['template_data'] is Map) {
-      try {
-        templateData = EventTemplateModel.fromJson(
-          json['template_data'] as Map<String, dynamic>,
-        );
-      } catch (e, stackTrace) {
-        Logger.error(
-          'EventModel',
-          'Failed to parse template_data: $e',
-          stackTrace,
-        );
+      final templateMap = json['template_data'] as Map<String, dynamic>;
+      // Only parse if template_data has keys (not empty object)
+      if (templateMap.isNotEmpty) {
+        try {
+          templateData = EventTemplateModel.fromJson(templateMap);
+        } catch (e, stackTrace) {
+          Logger.error(
+            'EventModel',
+            'Failed to parse template_data: $e',
+            stackTrace,
+          );
+        }
       }
     }
 
     return EventModel(
       id: json['id'] as String,
       userId: json['user_id'] as String,
+      groupId: json['group_id'] as String?,
       title: json['title'] as String,
       description: json['description'] as String?,
       // All-day events: Keep as local midnight (no UTC conversion)
@@ -111,6 +116,7 @@ class EventModel extends Equatable {
     return {
       'id': id,
       'user_id': userId,
+      'group_id': groupId,
       'title': title,
       'description': description,
       // All-day events: Store as local midnight (no UTC conversion)
@@ -195,6 +201,7 @@ class EventModel extends Equatable {
   EventModel copyWith({
     String? id,
     String? userId,
+    String? groupId,
     String? title,
     String? description,
     DateTime? startTime,
@@ -212,6 +219,7 @@ class EventModel extends Equatable {
     return EventModel(
       id: id ?? this.id,
       userId: userId ?? this.userId,
+      groupId: groupId ?? this.groupId,
       title: title ?? this.title,
       description: description ?? this.description,
       startTime: startTime ?? this.startTime,
@@ -232,6 +240,7 @@ class EventModel extends Equatable {
   List<Object?> get props => [
         id,
         userId,
+        groupId,
         title,
         description,
         startTime,

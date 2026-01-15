@@ -9,6 +9,7 @@ class ShadowCalendarEntry extends Equatable {
   final DateTime endTime;
   final ShadowVisibility visibility;
   final String? eventTitle; // Only present for sharedWithName
+  final bool isGroupEvent; // True if this event belongs to the requesting group
 
   const ShadowCalendarEntry({
     required this.userId,
@@ -16,6 +17,7 @@ class ShadowCalendarEntry extends Equatable {
     required this.endTime,
     required this.visibility,
     this.eventTitle,
+    this.isGroupEvent = false,
   });
 
   /// Create from Supabase RPC response
@@ -26,6 +28,7 @@ class ShadowCalendarEntry extends Equatable {
       endTime: TimezoneUtils.parseUtc(json['end_time'] as String),
       visibility: _visibilityFromString(json['visibility'] as String),
       eventTitle: json['event_title'] as String?,
+      isGroupEvent: json['is_group_event'] as bool? ?? false,
     );
   }
 
@@ -48,7 +51,7 @@ class ShadowCalendarEntry extends Equatable {
   String get displayText => isBusyOnly ? 'Busy' : (eventTitle ?? 'Busy');
 
   @override
-  List<Object?> get props => [userId, startTime, endTime, visibility, eventTitle];
+  List<Object?> get props => [userId, startTime, endTime, visibility, eventTitle, isGroupEvent];
 }
 
 /// Shadow calendar visibility levels

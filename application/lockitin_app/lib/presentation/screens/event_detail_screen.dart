@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/event_model.dart';
+import '../../data/models/event_template_model.dart';
+import '../../core/network/supabase_client.dart';
 import '../../core/services/event_service.dart';
 import '../../core/utils/route_transitions.dart';
 import '../../core/utils/timezone_utils.dart';
 import '../../utils/calendar_utils.dart';
 import '../../utils/privacy_colors.dart';
+import '../providers/auth_provider.dart';
 import '../providers/calendar_provider.dart';
+import '../widgets/rsvp_response_sheet.dart';
 import 'event_creation_screen.dart';
+import 'surprise_party_dashboard_screen.dart';
 
 /// Event detail screen showing complete information for a single event
 /// Displays title, date/time, location, notes, privacy settings
@@ -28,16 +33,53 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   final EventService _eventService = EventService();
   late EventModel _currentEvent;
   bool _isLoading = false;
+  String? _userRsvpStatus; // User's RSVP status for this event
+  bool _isLoadingRsvp = false;
 
   @override
   void initState() {
     super.initState();
     _currentEvent = widget.event;
+    _fetchUserRsvpStatus();
+  }
+
+  Future<void> _fetchUserRsvpStatus() async {
+    final currentUserId = Provider.of<AuthProvider>(context, listen: false).currentUser?.id;
+    if (currentUserId == null) return;
+
+    try {
+      setState(() {
+        _isLoadingRsvp = true;
+      });
+
+      final response = await SupabaseClientManager.client
+          .from('event_invitations')
+          .select('rsvp_status')
+          .eq('event_id', _currentEvent.id)
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+      if (!mounted) return;
+
+      setState(() {
+        _userRsvpStatus = response?['rsvp_status'];
+        _isLoadingRsvp = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingRsvp = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUserId = authProvider.currentUser?.id;
+    final userRole = _getUserRole(currentUserId);
+    final displayTitle = _getDisplayTitle(userRole);
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -81,7 +123,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           children: [
             // Event Title
             Text(
-              _currentEvent.title,
+              displayTitle,
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
@@ -91,6 +133,119 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             ),
 
             const SizedBox(height: 24),
+
+            // SECRET badge for coordinators
+            if (_isSurpriseParty && userRole == 'coordinator')
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      colorScheme.primary,
+                      colorScheme.secondary,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.lock,
+                      size: 16,
+                      color: colorScheme.onPrimary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'SECRET EVENT',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                        color: colorScheme.onPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Party Coordinator Hub button for coordinators
+            if (_isSurpriseParty && userRole == 'coordinator')
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 24),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SurprisePartyDashboard(
+                          event: _currentEvent,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.dashboard_outlined, size: 20),
+                  label: const Text(
+                    'Party Coordinator Hub',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+
+            // RSVP button for invited members (non-coordinators, non-guest-of-honor)
+            if (_isSurpriseParty && userRole == 'member' && _userRsvpStatus != null)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 24),
+                child: OutlinedButton.icon(
+                  onPressed: _isLoadingRsvp
+                      ? null
+                      : () async {
+                          final newStatus = await showModalBottomSheet<String>(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (context) => RsvpResponseSheet(
+                              eventId: _currentEvent.id,
+                              userId: currentUserId!,
+                              currentStatus: _userRsvpStatus,
+                            ),
+                          );
+
+                          if (newStatus != null && mounted) {
+                            setState(() {
+                              _userRsvpStatus = newStatus;
+                            });
+                          }
+                        },
+                  icon: Icon(_getRsvpIcon(_userRsvpStatus), size: 20),
+                  label: Text(
+                    _getRsvpButtonLabel(_userRsvpStatus),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _getRsvpColor(_userRsvpStatus, colorScheme),
+                    side: BorderSide(
+                      color: _getRsvpColor(_userRsvpStatus, colorScheme),
+                      width: 2,
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
 
             // Privacy Badge
             _buildPrivacyBadge(context, colorScheme),
@@ -523,6 +678,91 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           ),
         );
       }
+    }
+  }
+
+  /// Check if this event is a surprise party
+  bool get _isSurpriseParty =>
+      _currentEvent.surprisePartyTemplate != null;
+
+  /// Get user role in surprise party
+  /// Returns: 'target' | 'coordinator' | 'neither'
+  String _getUserRole(String? currentUserId) {
+    if (!_isSurpriseParty || currentUserId == null) {
+      return 'neither';
+    }
+
+    final template = _currentEvent.surprisePartyTemplate!;
+
+    // Check if user is the target
+    if (template.guestOfHonorId == currentUserId) {
+      return 'target';
+    }
+
+    // Check if user is a coordinator
+    if (template.isUserInOnIt(currentUserId)) {
+      return 'coordinator';
+    }
+
+    return 'neither';
+  }
+
+  /// Get the title to display based on user role
+  String _getDisplayTitle(String userRole) {
+    if (!_isSurpriseParty) {
+      return _currentEvent.title;
+    }
+
+    final template = _currentEvent.surprisePartyTemplate!;
+
+    // Target sees decoy title if set, otherwise real title
+    if (userRole == 'target' && template.decoyTitle != null) {
+      return template.decoyTitle!;
+    }
+
+    // Coordinators and others see real title
+    return _currentEvent.title;
+  }
+
+  /// Get icon for RSVP button based on status
+  IconData _getRsvpIcon(String? status) {
+    switch (status) {
+      case 'accepted':
+        return Icons.check_circle;
+      case 'maybe':
+        return Icons.help_outline;
+      case 'declined':
+        return Icons.cancel_outlined;
+      default:
+        return Icons.event_available;
+    }
+  }
+
+  /// Get label for RSVP button based on status
+  String _getRsvpButtonLabel(String? status) {
+    switch (status) {
+      case 'accepted':
+        return "You're Going";
+      case 'maybe':
+        return "You're Maybe";
+      case 'declined':
+        return "You Can't Go";
+      default:
+        return 'RSVP to Event';
+    }
+  }
+
+  /// Get color for RSVP button based on status
+  Color _getRsvpColor(String? status, ColorScheme colorScheme) {
+    switch (status) {
+      case 'accepted':
+        return Colors.green;
+      case 'maybe':
+        return Colors.orange;
+      case 'declined':
+        return Colors.red;
+      default:
+        return colorScheme.primary;
     }
   }
 }

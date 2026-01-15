@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import '../../domain/models/calendar_month.dart';
 import '../../utils/calendar_utils.dart';
 import '../../data/models/event_model.dart';
+import '../../data/models/event_template_model.dart';
 import '../../core/services/calendar_manager.dart';
 import '../../core/services/event_service.dart';
 import '../../core/services/test_events_service.dart';
 import '../../core/utils/logger.dart';
 import '../../core/utils/timezone_utils.dart';
+import '../../core/network/supabase_client.dart';
 
 /// Provider for calendar state management
 /// Manages focused date, current page, precomputed month data, and events
@@ -311,15 +313,19 @@ class CalendarProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Add a new event to the calendar
   /// Event times are already in local timezone (converted in EventModel.fromJson)
+  /// Applies decoy titles if the current user is the guest of honor
   void addEvent(EventModel event) {
-    final dateKey = _dateKey(event.startTime);
+    // Apply decoy title if current user is guest of honor
+    final processedEvent = _applyDecoyTitle(event);
+
+    final dateKey = _dateKey(processedEvent.startTime);
 
     if (_eventsByDate.containsKey(dateKey)) {
-      _eventsByDate[dateKey]!.add(event);
+      _eventsByDate[dateKey]!.add(processedEvent);
       // Sort events by start time
       _eventsByDate[dateKey]!.sort((a, b) => a.startTime.compareTo(b.startTime));
     } else {
-      _eventsByDate[dateKey] = [event];
+      _eventsByDate[dateKey] = [processedEvent];
     }
 
     _invalidateEventCaches();
@@ -447,6 +453,156 @@ class CalendarProvider extends ChangeNotifier with WidgetsBindingObserver {
     _upcomingEventsCacheTime = null;
   }
 
+  // ============================================================================
+  // Surprise Party Template Methods
+  // ============================================================================
+
+  /// Toggle the completion status of a surprise party task
+  Future<void> toggleSurprisePartyTask(String eventId, String taskId) async {
+    try {
+      // Find the event
+      final event = _findEventById(eventId);
+      if (event == null) {
+        Logger.error('CalendarProvider', 'Event not found: $eventId');
+        return;
+      }
+
+      // Check if event has surprise party template
+      if (event.surprisePartyTemplate == null) {
+        Logger.error('CalendarProvider', 'Event $eventId has no surprise party template');
+        return;
+      }
+
+      // Toggle the task
+      final updatedTemplate = event.surprisePartyTemplate!.toggleTask(taskId);
+
+      // Create updated event with new template
+      final updatedEvent = event.copyWith(
+        templateData: updatedTemplate,
+      );
+
+      // Update Supabase
+      await _eventService.updateEvent(updatedEvent);
+
+      // Update local state
+      updateEvent(event, updatedEvent);
+
+      Logger.info('CalendarProvider', 'Toggled task $taskId for event $eventId');
+    } catch (e) {
+      Logger.error('CalendarProvider', 'Failed to toggle task: $e');
+      rethrow;
+    }
+  }
+
+  /// Assign a surprise party task to a user
+  Future<void> assignSurprisePartyTask(
+    String eventId,
+    String taskId,
+    String? userId,
+  ) async {
+    try {
+      // Find the event
+      final event = _findEventById(eventId);
+      if (event == null) {
+        Logger.error('CalendarProvider', 'Event not found: $eventId');
+        return;
+      }
+
+      // Check if event has surprise party template
+      if (event.surprisePartyTemplate == null) {
+        Logger.error('CalendarProvider', 'Event $eventId has no surprise party template');
+        return;
+      }
+
+      // Find and update the task
+      final tasks = event.surprisePartyTemplate!.tasks.map((task) {
+        if (task.id == taskId) {
+          return task.copyWith(assignedTo: userId);
+        }
+        return task;
+      }).toList();
+
+      // Create updated template
+      final updatedTemplate = SurprisePartyTemplateModel(
+        guestOfHonorId: event.surprisePartyTemplate!.guestOfHonorId,
+        decoyTitle: event.surprisePartyTemplate!.decoyTitle,
+        revealAt: event.surprisePartyTemplate!.revealAt,
+        tasks: tasks,
+        inOnItUserIds: event.surprisePartyTemplate!.inOnItUserIds,
+      );
+
+      // Create updated event with new template
+      final updatedEvent = event.copyWith(
+        templateData: updatedTemplate,
+      );
+
+      // Update Supabase
+      await _eventService.updateEvent(updatedEvent);
+
+      // Update local state
+      updateEvent(event, updatedEvent);
+
+      Logger.info('CalendarProvider',
+          'Assigned task $taskId to ${userId ?? "no one"} for event $eventId');
+    } catch (e) {
+      Logger.error('CalendarProvider', 'Failed to assign task: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete a surprise party task
+  Future<void> deleteSurprisePartyTask(String eventId, String taskId) async {
+    try {
+      // Find the event
+      final event = _findEventById(eventId);
+      if (event == null) {
+        Logger.error('CalendarProvider', 'Event not found: $eventId');
+        return;
+      }
+
+      // Check if event has surprise party template
+      if (event.surprisePartyTemplate == null) {
+        Logger.error('CalendarProvider', 'Event $eventId has no surprise party template');
+        return;
+      }
+
+      // Remove the task
+      final updatedTemplate = event.surprisePartyTemplate!.removeTask(taskId);
+
+      // Create updated event with new template
+      final updatedEvent = event.copyWith(
+        templateData: updatedTemplate,
+      );
+
+      // Update Supabase
+      await _eventService.updateEvent(updatedEvent);
+
+      // Update local state
+      updateEvent(event, updatedEvent);
+
+      Logger.info('CalendarProvider', 'Deleted task $taskId from event $eventId');
+    } catch (e) {
+      Logger.error('CalendarProvider', 'Failed to delete task: $e');
+      rethrow;
+    }
+  }
+
+  /// Helper method to find an event by ID across all dates
+  EventModel? _findEventById(String eventId) {
+    for (final events in _eventsByDate.values) {
+      for (final event in events) {
+        if (event.id == eventId) {
+          return event;
+        }
+      }
+    }
+    return null;
+  }
+
+  // ============================================================================
+  // Lifecycle Observer
+  // ============================================================================
+
   /// Lifecycle observer: Detect when app resumes to check for timezone changes
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -474,6 +630,24 @@ class CalendarProvider extends ChangeNotifier with WidgetsBindingObserver {
       // Force UI update
       notifyListeners();
     }
+  }
+
+  /// Apply decoy title to surprise party event if current user is guest of honor
+  EventModel _applyDecoyTitle(EventModel event) {
+    // Check if this is a surprise party with the current user as guest of honor
+    if (event.isSurpriseParty) {
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) return event;
+
+      final surpriseTemplate = event.surprisePartyTemplate;
+      if (surpriseTemplate?.guestOfHonorId == currentUserId) {
+        // Replace title with decoy title
+        final decoyTitle = surpriseTemplate!.decoyTitle ?? 'Event';
+        Logger.info('CalendarProvider', 'Applying decoy title "$decoyTitle" for guest of honor (immediate add)');
+        return event.copyWith(title: decoyTitle);
+      }
+    }
+    return event;
   }
 
   /// Clean up observer when provider is disposed
