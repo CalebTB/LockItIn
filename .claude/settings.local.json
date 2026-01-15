@@ -69,7 +69,8 @@
       "Skill(compound-engineering:workflows:work)",
       "Bash(supabase db push:*)",
       "Skill(compound-engineering:deepen-plan)",
-      "mcp__ios-simulator__ui_view"
+      "mcp__ios-simulator__ui_view",
+      "Skill(compound-engineering:compound-docs)"
     ],
     "deny": [],
     "ask": []
