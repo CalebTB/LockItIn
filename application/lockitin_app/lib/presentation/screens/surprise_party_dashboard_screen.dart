@@ -6,10 +6,12 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/utils/member_utils.dart';
 import '../../data/models/event_model.dart';
+import '../providers/auth_provider.dart';
 import '../providers/group_provider.dart';
 import '../widgets/templates/surprise_party_task_list.dart';
 import '../widgets/templates/add_task_sheet.dart';
 import '../widgets/common/status_avatar.dart';
+import '../widgets/rsvp_response_sheet.dart';
 
 /// Coordinator dashboard screen for surprise party events
 ///
@@ -681,14 +683,22 @@ class _SurprisePartyDashboardState extends State<SurprisePartyDashboard> {
             itemBuilder: (context, index) {
               final invitation = invitations[index];
               final user = invitation['users'] as Map<String, dynamic>?;
+              final userId = invitation['user_id'] as String;
+              final currentUserId = Provider.of<AuthProvider>(context, listen: false).currentUser?.id;
+              final isCurrentUser = userId == currentUserId;
 
               return Padding(
                 padding: const EdgeInsets.only(right: AppSpacing.sm),
-                child: StatusAvatar(
-                  userId: invitation['user_id'],
-                  displayName: user?['full_name'] ?? 'Unknown',
-                  avatarUrl: user?['avatar_url'],
-                  statusBadge: invitation['rsvp_status'],
+                child: GestureDetector(
+                  onTap: isCurrentUser
+                      ? () => _showRSVPSheet(context, invitation)
+                      : null,
+                  child: StatusAvatar(
+                    userId: userId,
+                    displayName: user?['full_name'] ?? 'Unknown',
+                    avatarUrl: user?['avatar_url'],
+                    statusBadge: invitation['rsvp_status'],
+                  ),
                 ),
               );
             },
@@ -697,6 +707,26 @@ class _SurprisePartyDashboardState extends State<SurprisePartyDashboard> {
         const SizedBox(height: AppSpacing.lg),
       ],
     );
+  }
+
+  /// Show RSVP response sheet for current user
+  Future<void> _showRSVPSheet(BuildContext context, Map<String, dynamic> invitation) async {
+    final currentUserId = Provider.of<AuthProvider>(context, listen: false).currentUser?.id;
+    if (currentUserId == null) return;
+
+    await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => RsvpResponseSheet(
+        eventId: widget.event.id,
+        userId: currentUserId,
+        currentStatus: invitation['rsvp_status'],
+      ),
+    );
+
+    // The real-time subscription will handle the UI update
+    // No need to manually update state here
   }
 
 }

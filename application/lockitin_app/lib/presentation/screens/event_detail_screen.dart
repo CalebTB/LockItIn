@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/event_model.dart';
-import '../../core/network/supabase_client.dart';
 import '../../core/services/event_service.dart';
 import '../../core/utils/route_transitions.dart';
 import '../../core/utils/timezone_utils.dart';
-import '../../core/utils/rsvp_status_utils.dart';
 import '../../core/utils/surprise_party_utils.dart';
-import '../../core/theme/app_colors.dart';
 import '../../utils/calendar_utils.dart';
 import '../../utils/privacy_colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/calendar_provider.dart';
-import '../widgets/rsvp_response_sheet.dart';
 import 'event_creation_screen.dart';
 import 'surprise_party_dashboard_screen.dart';
 
@@ -35,51 +31,16 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   final EventService _eventService = EventService();
   late EventModel _currentEvent;
   bool _isLoading = false;
-  String? _userRsvpStatus; // User's RSVP status for this event
-  bool _isLoadingRsvp = false;
 
   @override
   void initState() {
     super.initState();
     _currentEvent = widget.event;
-
-    _fetchUserRsvpStatus();
-  }
-
-  Future<void> _fetchUserRsvpStatus() async {
-    final currentUserId = Provider.of<AuthProvider>(context, listen: false).currentUser?.id;
-    if (currentUserId == null) return;
-
-    try {
-      setState(() {
-        _isLoadingRsvp = true;
-      });
-
-      final response = await SupabaseClientManager.client
-          .from('event_invitations')
-          .select('rsvp_status')
-          .eq('event_id', _currentEvent.id)
-          .eq('user_id', currentUserId)
-          .maybeSingle();
-
-      if (!mounted) return;
-
-      setState(() {
-        _userRsvpStatus = response?['rsvp_status'];
-        _isLoadingRsvp = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isLoadingRsvp = false;
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final appColors = context.appColors;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final currentUserId = authProvider.currentUser?.id;
     final userRole = _currentEvent.getUserRole(currentUserId);
@@ -174,8 +135,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 ),
               ),
 
-            // Party Coordinator Hub button for coordinators
-            if (_isSurpriseParty && userRole == 'coordinator')
+            // Party Coordinator Hub - accessible to everyone except guest of honor
+            // Everyone can RSVP, add tasks, and see who's coming
+            if (_isSurpriseParty && userRole != 'target')
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(bottom: 24),
@@ -198,51 +160,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colorScheme.primary,
                     foregroundColor: colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-
-            // RSVP button for invited members (non-coordinators, non-guest-of-honor)
-            if (_isSurpriseParty && userRole == 'member' && _userRsvpStatus != null)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 24),
-                child: OutlinedButton.icon(
-                  onPressed: _isLoadingRsvp
-                      ? null
-                      : () async {
-                          final newStatus = await showModalBottomSheet<String>(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (context) => RsvpResponseSheet(
-                              eventId: _currentEvent.id,
-                              userId: currentUserId!,
-                              currentStatus: _userRsvpStatus,
-                            ),
-                          );
-
-                          if (newStatus != null && mounted) {
-                            setState(() {
-                              _userRsvpStatus = newStatus;
-                            });
-                          }
-                        },
-                  icon: Icon(RSVPStatusUtils.getIcon(_userRsvpStatus ?? 'pending'), size: 20),
-                  label: Text(
-                    RSVPStatusUtils.getButtonLabel(_userRsvpStatus ?? 'pending'),
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: RSVPStatusUtils.getColor(_userRsvpStatus ?? 'pending', colorScheme, appColors),
-                    side: BorderSide(
-                      color: RSVPStatusUtils.getColor(_userRsvpStatus ?? 'pending', colorScheme, appColors),
-                      width: 2,
-                    ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
