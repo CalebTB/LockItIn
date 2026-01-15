@@ -5,7 +5,6 @@ import '../../core/network/supabase_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/utils/member_utils.dart';
-import '../../core/utils/rsvp_status_utils.dart';
 import '../../data/models/event_model.dart';
 import '../providers/group_provider.dart';
 import '../widgets/templates/surprise_party_task_list.dart';

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/event_model.dart';
-import '../../data/models/event_template_model.dart';
 import '../../core/network/supabase_client.dart';
 import '../../core/services/event_service.dart';
 import '../../core/utils/route_transitions.dart';

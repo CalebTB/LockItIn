@@ -10,6 +10,7 @@ import 'presentation/providers/device_calendar_provider.dart';
 import 'presentation/providers/friend_provider.dart';
 import 'presentation/providers/group_provider.dart';
 import 'presentation/providers/proposal_provider.dart';
+import 'presentation/providers/rsvp_provider.dart';
 import 'presentation/providers/settings_provider.dart';
 import 'presentation/screens/splash_screen.dart';
 
@@ -66,6 +67,9 @@ class LockItInApp extends StatelessWidget {
 
         // Proposal Provider (proposal list & voting state management)
         ChangeNotifierProvider(create: (_) => ProposalProvider()),
+
+        // RSVP Provider (RSVP state management)
+        ChangeNotifierProvider(create: (_) => RSVPProvider()),
       ],
       child: MaterialApp(
         title: 'LockItIn',

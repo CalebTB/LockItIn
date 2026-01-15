@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/network/supabase_client.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../providers/rsvp_provider.dart';
 
 /// Modal bottom sheet for responding to event invitation
 ///
@@ -230,13 +231,12 @@ class _RsvpResponseSheetState extends State<RsvpResponseSheet> {
     });
 
     try {
-      await SupabaseClientManager.client.from('event_invitations').update({
-        'rsvp_status': _selectedStatus,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).match({
-        'event_id': widget.eventId,
-        'user_id': widget.userId,
-      });
+      final rsvpProvider = Provider.of<RSVPProvider>(context, listen: false);
+      await rsvpProvider.updateRsvpStatus(
+        widget.eventId,
+        widget.userId,
+        _selectedStatus!,
+      );
 
       if (mounted) {
         Navigator.pop(context, _selectedStatus); // Return new status
