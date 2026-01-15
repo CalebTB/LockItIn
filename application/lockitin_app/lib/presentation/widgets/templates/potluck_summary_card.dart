@@ -294,7 +294,7 @@ class _PotluckSummaryCardState extends State<PotluckSummaryCard> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: onViewFullList,
+                onPressed: widget.onViewFullList,
                 icon: const Icon(Icons.list, size: 18),
                 label: const Text('View Full List'),
                 style: OutlinedButton.styleFrom(
