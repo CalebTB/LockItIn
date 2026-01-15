@@ -43,17 +43,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     super.initState();
     _currentEvent = widget.event;
 
-    // Debug logging
-    print('🔍 EventDetailScreen - Event: ${_currentEvent.title}');
-    print('🔍 EventDetailScreen - Has template: ${_currentEvent.hasTemplate}');
-    print('🔍 EventDetailScreen - Template data: ${_currentEvent.templateData}');
-    print('🔍 EventDetailScreen - Is surprise party: ${_currentEvent.isSurpriseParty}');
-    print('🔍 EventDetailScreen - Surprise template: ${_currentEvent.surprisePartyTemplate}');
-    if (_currentEvent.surprisePartyTemplate != null) {
-      print('🔍 EventDetailScreen - Guest of honor: ${_currentEvent.surprisePartyTemplate!.guestOfHonorId}');
-      print('🔍 EventDetailScreen - Coordinators: ${_currentEvent.surprisePartyTemplate!.inOnItUserIds}');
-    }
-
     _fetchUserRsvpStatus();
   }
 
@@ -95,11 +84,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final currentUserId = authProvider.currentUser?.id;
     final userRole = _currentEvent.getUserRole(currentUserId);
     final displayTitle = _currentEvent.getDisplayTitle(currentUserId);
-
-    // Debug logging
-    print('🔍 EventDetailScreen build - User role: $userRole');
-    print('🔍 EventDetailScreen build - Current user ID: $currentUserId');
-    print('🔍 EventDetailScreen build - Is surprise party: $_isSurpriseParty');
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
