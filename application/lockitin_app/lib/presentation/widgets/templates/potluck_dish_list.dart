@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/member_utils.dart';
+import '../../../core/utils/logger.dart';
 import '../../../data/models/event_model.dart';
 import '../../../data/models/event_template_model.dart';
 import '../../providers/calendar_provider.dart';
@@ -41,11 +42,67 @@ class _PotluckDishListState extends State<PotluckDishList> {
   bool _isLoading = false;
   String? _error;
 
+  // Realtime subscription
+  RealtimeChannel? _channel;
+  late EventModel _currentEvent;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentEvent = widget.event;
+    _setupRealtimeSubscription();
+  }
+
+  @override
+  void dispose() {
+    _channel?.unsubscribe();
+    super.dispose();
+  }
+
+  void _setupRealtimeSubscription() {
+    final supabase = Supabase.instance.client;
+
+    _channel = supabase.channel('potluck-event-${widget.event.id}');
+
+    _channel!
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'events',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: widget.event.id,
+          ),
+          callback: (payload) {
+            if (!mounted) return;
+
+            try {
+              final updatedEvent = EventModel.fromJson(payload.newRecord);
+              setState(() {
+                _currentEvent = updatedEvent;
+              });
+
+              Logger.info('PotluckDishList', 'Real-time update received for event ${widget.event.id}');
+            } catch (e) {
+              Logger.error('PotluckDishList', 'Failed to parse real-time update: $e');
+            }
+          },
+        )
+        .subscribe((status, error) {
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            Logger.info('PotluckDishList', 'Subscribed to real-time updates for event ${widget.event.id}');
+          } else if (error != null) {
+            Logger.error('PotluckDishList', 'Real-time subscription error: $error');
+          }
+        });
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final appColors = context.appColors;
-    final template = widget.event.potluckTemplate;
+    final template = _currentEvent.potluckTemplate;
 
     if (template == null) {
       return const SizedBox.shrink();
@@ -468,7 +525,7 @@ class _PotluckDishListState extends State<PotluckDishList> {
     if (currentUserId == null) return;
 
     final provider = Provider.of<CalendarProvider>(context, listen: false);
-    final template = widget.event.potluckTemplate!;
+    final template = _currentEvent.potluckTemplate!;
 
     // Capture messenger and theme before async gap
     final messenger = ScaffoldMessenger.of(context);
@@ -493,7 +550,7 @@ class _PotluckDishListState extends State<PotluckDishList> {
     });
 
     try {
-      await provider.togglePotluckDishClaim(widget.event.id, dish.id);
+      await provider.togglePotluckDishClaim(_currentEvent.id, dish.id);
 
       // Clear optimistic state on success
       if (!mounted) return;
@@ -609,7 +666,7 @@ class _PotluckDishListState extends State<PotluckDishList> {
     final errorColor = Theme.of(context).colorScheme.error;
 
     try {
-      await provider.deletePotluckDish(widget.event.id, dish.id);
+      await provider.deletePotluckDish(_currentEvent.id, dish.id);
 
       if (!mounted) return;
       messenger.showSnackBar(

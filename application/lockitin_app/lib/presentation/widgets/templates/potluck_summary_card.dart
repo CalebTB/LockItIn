@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/utils/logger.dart';
 import '../../../data/models/event_model.dart';
 import '../../../data/models/event_template_model.dart';
 
@@ -12,9 +13,10 @@ import '../../../data/models/event_template_model.dart';
 /// - Category breakdown with counts
 /// - List of user's claimed dishes
 /// - "View Full List" button to scroll to dish list
+/// - Real-time updates when dishes change
 ///
-/// **Pattern**: Compact summary card with key metrics
-class PotluckSummaryCard extends StatelessWidget {
+/// **Pattern**: Compact summary card with key metrics and realtime subscription
+class PotluckSummaryCard extends StatefulWidget {
   final EventModel event;
   final VoidCallback? onViewFullList;
 
@@ -25,10 +27,70 @@ class PotluckSummaryCard extends StatelessWidget {
   });
 
   @override
+  State<PotluckSummaryCard> createState() => _PotluckSummaryCardState();
+}
+
+class _PotluckSummaryCardState extends State<PotluckSummaryCard> {
+  RealtimeChannel? _channel;
+  late EventModel _currentEvent;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentEvent = widget.event;
+    _setupRealtimeSubscription();
+  }
+
+  @override
+  void dispose() {
+    _channel?.unsubscribe();
+    super.dispose();
+  }
+
+  void _setupRealtimeSubscription() {
+    final supabase = Supabase.instance.client;
+
+    _channel = supabase.channel('potluck-summary-${widget.event.id}');
+
+    _channel!
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'events',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: widget.event.id,
+          ),
+          callback: (payload) {
+            if (!mounted) return;
+
+            try {
+              final updatedEvent = EventModel.fromJson(payload.newRecord);
+              setState(() {
+                _currentEvent = updatedEvent;
+              });
+
+              Logger.info('PotluckSummaryCard', 'Real-time update received for event ${widget.event.id}');
+            } catch (e) {
+              Logger.error('PotluckSummaryCard', 'Failed to parse real-time update: $e');
+            }
+          },
+        )
+        .subscribe((status, error) {
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            Logger.info('PotluckSummaryCard', 'Subscribed to real-time updates for event ${widget.event.id}');
+          } else if (error != null) {
+            Logger.error('PotluckSummaryCard', 'Real-time subscription error: $error');
+          }
+        });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final appColors = context.appColors;
-    final template = event.potluckTemplate;
+    final template = _currentEvent.potluckTemplate;
 
     if (template == null) {
       return const SizedBox.shrink();
