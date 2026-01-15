@@ -484,12 +484,16 @@ class _PotluckDishListState extends State<PotluckDishList> {
       BuildContext context, String userId, AppColorsExtension appColors) {
     return Consumer<GroupProvider>(
       builder: (context, groupProvider, _) {
-        // Find the user in group members
-        final user = groupProvider.selectedGroupMembers.firstWhere(
-          (m) => m.userId == userId,
-          orElse: () => groupProvider.selectedGroupMembers.first,
-        );
+        // Find the user in group members (nullable)
+        final members = groupProvider.selectedGroupMembers;
+        final user = members.isEmpty
+            ? null
+            : members.cast<dynamic>().firstWhere(
+                  (m) => m.userId == userId,
+                  orElse: () => null,
+                );
 
+        final userName = user?.fullName ?? 'Unknown';
         final memberColor = MemberUtils.getColorById(userId);
 
         return Row(
@@ -498,7 +502,7 @@ class _PotluckDishListState extends State<PotluckDishList> {
               radius: 10,
               backgroundColor: memberColor.withValues(alpha: 0.2),
               child: Text(
-                MemberUtils.getInitials(user.fullName ?? 'Unknown'),
+                MemberUtils.getInitials(userName),
                 style: TextStyle(
                   fontSize: 10,
                   color: memberColor,
@@ -508,7 +512,7 @@ class _PotluckDishListState extends State<PotluckDishList> {
             ),
             const SizedBox(width: AppSpacing.xs),
             Text(
-              'Claimed by ${user.fullName ?? 'Unknown'}',
+              'Claimed by $userName',
               style: TextStyle(
                 fontSize: 12,
                 color: appColors.textSecondary,
