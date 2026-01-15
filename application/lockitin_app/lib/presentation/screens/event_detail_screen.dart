@@ -11,6 +11,9 @@ import '../providers/auth_provider.dart';
 import '../providers/calendar_provider.dart';
 import 'event_creation_screen.dart';
 import 'surprise_party_dashboard_screen.dart';
+import '../widgets/templates/potluck_summary_card.dart';
+import '../widgets/templates/potluck_dish_list.dart';
+import '../widgets/templates/add_potluck_dish_sheet.dart';
 
 /// Event detail screen showing complete information for a single event
 /// Displays title, date/time, location, notes, privacy settings
@@ -231,6 +234,25 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
             if (_currentEvent.description != null && _currentEvent.description!.isNotEmpty)
               const SizedBox(height: 20),
+
+            // Potluck Template UI
+            if (_currentEvent.isPotluck) ...[
+              PotluckSummaryCard(
+                event: _currentEvent,
+                onViewFullList: () {
+                  // Scroll to dish list (already visible below)
+                },
+              ),
+
+              const SizedBox(height: 16),
+
+              PotluckDishList(
+                event: _currentEvent,
+                onAddDish: () => _showAddPotluckDishSheet(),
+              ),
+
+              const SizedBox(height: 20),
+            ],
 
             // Metadata Section
             _buildMetadataSection(context, colorScheme),
@@ -600,6 +622,18 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         );
       }
     }
+  }
+
+  /// Show add potluck dish sheet
+  Future<void> _showAddPotluckDishSheet() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddPotluckDishSheet(
+        event: _currentEvent,
+      ),
+    );
   }
 
   /// Check if this event is a surprise party

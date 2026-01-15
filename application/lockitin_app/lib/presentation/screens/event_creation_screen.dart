@@ -15,6 +15,7 @@ import '../widgets/adaptive_button.dart';
 import '../widgets/adaptive_date_time_picker.dart';
 import '../widgets/adaptive_text_field.dart';
 import '../widgets/templates/surprise_party_config_sheet.dart';
+import '../widgets/templates/potluck_config_sheet.dart';
 import 'group_proposal_wizard.dart';
 import '../../core/utils/timezone_utils.dart';
 import '../../core/utils/logger.dart';
@@ -253,6 +254,11 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
           _showMoreOptions = true;
           // Create PotluckTemplateModel (user will configure later)
           _templateData = PotluckTemplateModel();
+
+          // Show config sheet after this build completes
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showPotluckConfigSheet();
+          });
           break;
       }
     });
@@ -2221,6 +2227,29 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
       builder: (context) => SurprisePartyConfigSheet(
         groupId: widget.groupId!,
         existingTemplate: _templateData as SurprisePartyTemplateModel,
+      ),
+    );
+
+    // Update template data if user confirmed (didn't cancel)
+    if (result != null && mounted) {
+      setState(() {
+        _templateData = result;
+      });
+    }
+  }
+
+  /// Show potluck configuration sheet
+  Future<void> _showPotluckConfigSheet() async {
+    if (_templateData is! PotluckTemplateModel) {
+      return;
+    }
+
+    final result = await showModalBottomSheet<PotluckTemplateModel>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => PotluckConfigSheet(
+        existingTemplate: _templateData as PotluckTemplateModel,
       ),
     );
 
