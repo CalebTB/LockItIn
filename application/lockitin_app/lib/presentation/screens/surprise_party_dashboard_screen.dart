@@ -70,6 +70,7 @@ class _SurprisePartyDashboardState extends State<SurprisePartyDashboard> {
   }
 
   Future<void> _fetchInvitations() async {
+    print('🔄 Fetching invitations...');
     final response = await SupabaseClientManager.client
         .from('event_invitations')
         .select('*, users:user_id(id, full_name, avatar_url)')
@@ -79,6 +80,7 @@ class _SurprisePartyDashboardState extends State<SurprisePartyDashboard> {
 
     setState(() {
       _invitations = List<Map<String, dynamic>>.from(response as List);
+      print('🔄 Updated state with ${_invitations.length} invitations');
     });
   }
 
@@ -104,6 +106,8 @@ class _SurprisePartyDashboardState extends State<SurprisePartyDashboard> {
   }
 
   void _handleRSVPUpdate(PostgresChangePayload payload) {
+    print('🔄 RSVP Update received: ${payload.eventType}');
+    print('🔄 New data: ${payload.newRecord}');
     // Refetch invitations on any RSVP update
     _fetchInvitations();
   }

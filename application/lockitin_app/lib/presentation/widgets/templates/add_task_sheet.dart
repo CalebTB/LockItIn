@@ -61,10 +61,11 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
           ),
           child: Form(
             key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 // Header
                 Row(
                   children: [
@@ -179,6 +180,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   ),
                 ),
               ],
+            ),
             ),
           ),
         ),
