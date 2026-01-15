@@ -4,10 +4,16 @@ import '../../data/models/event_model.dart';
 import '../../core/services/event_service.dart';
 import '../../core/utils/route_transitions.dart';
 import '../../core/utils/timezone_utils.dart';
+import '../../core/utils/surprise_party_utils.dart';
 import '../../utils/calendar_utils.dart';
 import '../../utils/privacy_colors.dart';
+import '../providers/auth_provider.dart';
 import '../providers/calendar_provider.dart';
 import 'event_creation_screen.dart';
+import 'surprise_party_dashboard_screen.dart';
+import '../widgets/templates/potluck_summary_card.dart';
+import '../widgets/templates/potluck_dish_list.dart';
+import '../widgets/templates/add_potluck_dish_sheet.dart';
 
 /// Event detail screen showing complete information for a single event
 /// Displays title, date/time, location, notes, privacy settings
@@ -38,6 +44,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUserId = authProvider.currentUser?.id;
+    final userRole = _currentEvent.getUserRole(currentUserId);
+    final displayTitle = _currentEvent.getDisplayTitle(currentUserId);
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -81,7 +91,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           children: [
             // Event Title
             Text(
-              _currentEvent.title,
+              displayTitle,
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
@@ -91,6 +101,75 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             ),
 
             const SizedBox(height: 24),
+
+            // SECRET badge for coordinators
+            if (_isSurpriseParty && userRole == 'coordinator')
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      colorScheme.primary,
+                      colorScheme.secondary,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.lock,
+                      size: 16,
+                      color: colorScheme.onPrimary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'SECRET EVENT',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                        color: colorScheme.onPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Party Coordinator Hub - accessible to everyone except guest of honor
+            // Everyone can RSVP, add tasks, and see who's coming
+            if (_isSurpriseParty && userRole != 'target')
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 24),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SurprisePartyDashboard(
+                          event: _currentEvent,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.dashboard_outlined, size: 20),
+                  label: const Text(
+                    'Party Coordinator Hub',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
 
             // Privacy Badge
             _buildPrivacyBadge(context, colorScheme),
@@ -155,6 +234,25 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
             if (_currentEvent.description != null && _currentEvent.description!.isNotEmpty)
               const SizedBox(height: 20),
+
+            // Potluck Template UI
+            if (_currentEvent.isPotluck) ...[
+              PotluckSummaryCard(
+                event: _currentEvent,
+                onViewFullList: () {
+                  // Scroll to dish list (already visible below)
+                },
+              ),
+
+              const SizedBox(height: 16),
+
+              PotluckDishList(
+                event: _currentEvent,
+                onAddDish: () => _showAddPotluckDishSheet(),
+              ),
+
+              const SizedBox(height: 20),
+            ],
 
             // Metadata Section
             _buildMetadataSection(context, colorScheme),
@@ -525,4 +623,21 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       }
     }
   }
+
+  /// Show add potluck dish sheet
+  Future<void> _showAddPotluckDishSheet() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddPotluckDishSheet(
+        event: _currentEvent,
+      ),
+    );
+  }
+
+  /// Check if this event is a surprise party
+  bool get _isSurpriseParty =>
+      _currentEvent.surprisePartyTemplate != null;
+
 }

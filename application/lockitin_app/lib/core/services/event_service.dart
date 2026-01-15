@@ -259,7 +259,8 @@ class EventService {
 
   /// Fetch events from Supabase for a date range
   ///
-  /// This complements native calendar events with cloud-synced events
+  /// Fetches events created by the user AND events they're invited to
+  /// This ensures guest of honor can see surprise party events
   Future<List<EventModel>> fetchEventsFromSupabase({
     required DateTime startDate,
     required DateTime endDate,
@@ -277,19 +278,25 @@ class EventService {
         'Fetching events from Supabase: ${TimezoneUtils.toUtcString(startDate)} to ${TimezoneUtils.toUtcString(endDate)}',
       );
 
-      final response = await SupabaseClientManager.client
-          .from('events')
-          .select()
-          .eq('user_id', targetUserId)
-          .gte('start_time', TimezoneUtils.toUtcString(startDate))
-          .lte('start_time', TimezoneUtils.toUtcString(endDate));
+      // Use RPC function to get both created and invited events
+      final response = await SupabaseClientManager.client.rpc(
+        'get_user_events',
+        params: {
+          'p_user_id': targetUserId,
+          'p_start_date': TimezoneUtils.toUtcString(startDate),
+          'p_end_date': TimezoneUtils.toUtcString(endDate),
+        },
+      );
 
       final events = (response as List)
           .map((json) => EventModel.fromJson(json as Map<String, dynamic>))
           .toList();
 
-      Logger.info('EventService', 'Fetched ${events.length} events from Supabase');
-      return events;
+      // Apply decoy titles for surprise party guests of honor
+      final processedEvents = _applyDecoyTitles(events, targetUserId);
+
+      Logger.info('EventService', 'Fetched ${processedEvents.length} events from Supabase');
+      return processedEvents;
     } on PostgrestException catch (e) {
       Logger.error('EventService', 'Failed to fetch events from Supabase: ${e.code} - ${e.message}');
       // Don't throw - return empty list to allow app to continue with native events
@@ -362,26 +369,31 @@ class EventService {
 
   /// Fetch shadow calendar entries for group members
   ///
-  /// Uses the optimized get_group_shadow_calendar RPC function
-  /// which enforces privacy at the database level.
+  /// Uses the optimized get_group_shadow_calendar_v2 RPC function
+  /// which enforces group-aware privacy at the database level.
+  ///
+  /// Events belonging to the requesting group show full details,
+  /// while events from other groups show as "busy" blocks.
   ///
   /// Returns a map of userId to list of shadow calendar entries
   Future<Map<String, List<ShadowCalendarEntry>>> fetchGroupShadowCalendar({
+    required String groupId,
     required List<String> memberUserIds,
     required DateTime startDate,
     required DateTime endDate,
   }) async {
     try {
       Logger.info('EventService',
-        'Fetching shadow calendar for ${memberUserIds.length} members: '
+        'Fetching shadow calendar for group $groupId with ${memberUserIds.length} members: '
         '${TimezoneUtils.toUtcString(startDate)} to ${TimezoneUtils.toUtcString(endDate)}',
       );
 
-      // Call the RPC function
+      // Call the RPC function with group context
       final response = await SupabaseClientManager.client.rpc(
-        'get_group_shadow_calendar',
+        'get_group_shadow_calendar_v2',
         params: {
           'p_user_ids': memberUserIds,
+          'p_requesting_group_id': groupId,
           'p_start_date': TimezoneUtils.toUtcString(startDate),
           'p_end_date': TimezoneUtils.toUtcString(endDate),
         },
@@ -443,7 +455,7 @@ class EventService {
       // This ensures availability calculator counts all members
       result[userId] = entries.map((shadow) {
         return EventModel(
-          id: '', // Not needed for availability calculation
+          id: shadow.eventId ?? '', // Use actual event ID for navigation
           userId: shadow.userId,
           title: shadow.displayText,
           startTime: shadow.startTime,
@@ -452,6 +464,7 @@ class EventService {
               ? EventVisibility.busyOnly
               : EventVisibility.sharedWithName,
           createdAt: TimezoneUtils.nowUtc(),
+          templateData: shadow.templateData, // Include template data for surprise parties
         );
       }).toList();
     }
@@ -511,5 +524,37 @@ class EventService {
           supabaseEventId: supabaseEventId,
         );
     }
+  }
+
+  /// Apply decoy titles to surprise party events for guests of honor
+  ///
+  /// If the current user is the guest of honor for a surprise party,
+  /// replace the event title with the decoy title from template_data
+  List<EventModel> _applyDecoyTitles(List<EventModel> events, String currentUserId) {
+    return events.map((event) {
+      Logger.info('EventService', '=== Processing event: ${event.title} ===');
+      Logger.info('EventService', '  Has template: ${event.hasTemplate}');
+      Logger.info('EventService', '  Template data: ${event.templateData}');
+      Logger.info('EventService', '  Is surprise party: ${event.isSurpriseParty}');
+
+      // Check if this is a surprise party with the current user as guest of honor
+      if (event.isSurpriseParty) {
+        final surpriseTemplate = event.surprisePartyTemplate;
+        Logger.info('EventService', '  Surprise template: $surpriseTemplate');
+        Logger.info('EventService', '  Guest of honor ID: ${surpriseTemplate?.guestOfHonorId}');
+        Logger.info('EventService', '  Current user ID: $currentUserId');
+        Logger.info('EventService', '  IDs match: ${surpriseTemplate?.guestOfHonorId == currentUserId}');
+
+        if (surpriseTemplate?.guestOfHonorId == currentUserId) {
+          // Replace title with decoy title
+          final decoyTitle = surpriseTemplate!.decoyTitle ?? 'Event';
+          Logger.info('EventService', '  ✅ Applying decoy title "$decoyTitle" for guest of honor');
+          return event.copyWith(title: decoyTitle);
+        } else {
+          Logger.info('EventService', '  ❌ Not guest of honor, keeping real title');
+        }
+      }
+      return event;
+    }).toList();
   }
 }

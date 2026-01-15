@@ -1,6 +1,8 @@
 import 'package:equatable/equatable.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/timezone_utils.dart';
+import 'event_template_model.dart';
+import '../../core/utils/logger.dart';
 
 /// Event privacy visibility settings
 enum EventVisibility {
@@ -21,6 +23,7 @@ enum EventCategory {
 class EventModel extends Equatable {
   final String id;
   final String userId;
+  final String? groupId; // Group context for group events (null for personal events)
   final String title;
   final String? description;
   final DateTime startTime;
@@ -31,12 +34,14 @@ class EventModel extends Equatable {
   final String? emoji; // Custom emoji for the event icon
   final String? nativeCalendarId; // iOS EventKit or Android CalendarContract ID
   final bool allDay; // True if this is an all-day event (no specific time)
+  final EventTemplateModel? templateData; // Template configuration (surprise_party, potluck, etc.)
   final DateTime createdAt;
   final DateTime? updatedAt;
 
   const EventModel({
     required this.id,
     required this.userId,
+    this.groupId,
     required this.title,
     this.description,
     required this.startTime,
@@ -47,6 +52,7 @@ class EventModel extends Equatable {
     this.emoji,
     this.nativeCalendarId,
     this.allDay = false,
+    this.templateData,
     required this.createdAt,
     this.updatedAt,
   });
@@ -56,9 +62,28 @@ class EventModel extends Equatable {
   factory EventModel.fromJson(Map<String, dynamic> json) {
     final allDay = json['all_day'] as bool? ?? false;
 
+    // Parse template data if present and not empty
+    EventTemplateModel? templateData;
+    if (json['template_data'] != null && json['template_data'] is Map) {
+      final templateMap = json['template_data'] as Map<String, dynamic>;
+      // Only parse if template_data has keys (not empty object)
+      if (templateMap.isNotEmpty) {
+        try {
+          templateData = EventTemplateModel.fromJson(templateMap);
+        } catch (e, stackTrace) {
+          Logger.error(
+            'EventModel',
+            'Failed to parse template_data: $e',
+            stackTrace,
+          );
+        }
+      }
+    }
+
     return EventModel(
       id: json['id'] as String,
       userId: json['user_id'] as String,
+      groupId: json['group_id'] as String?,
       title: json['title'] as String,
       description: json['description'] as String?,
       // All-day events: Keep as local midnight (no UTC conversion)
@@ -77,6 +102,7 @@ class EventModel extends Equatable {
       emoji: json['emoji'] as String?, // Local-only field, will be null from DB
       nativeCalendarId: json['native_calendar_id'] as String?,
       allDay: allDay,
+      templateData: templateData,
       createdAt: TimezoneUtils.parseUtc(json['created_at'] as String),
       updatedAt: json['updated_at'] != null
           ? TimezoneUtils.parseUtc(json['updated_at'] as String)
@@ -90,6 +116,7 @@ class EventModel extends Equatable {
     return {
       'id': id,
       'user_id': userId,
+      'group_id': groupId,
       'title': title,
       'description': description,
       // All-day events: Store as local midnight (no UTC conversion)
@@ -108,6 +135,7 @@ class EventModel extends Equatable {
       // 'emoji': emoji, // TODO: Add to Supabase schema when ready
       'native_calendar_id': nativeCalendarId,
       'all_day': allDay,
+      'template_data': templateData?.toJson() ?? {},
       'created_at': TimezoneUtils.toUtcString(createdAt),
       'updated_at': updatedAt != null ? TimezoneUtils.toUtcString(updatedAt!) : null,
     };
@@ -173,6 +201,7 @@ class EventModel extends Equatable {
   EventModel copyWith({
     String? id,
     String? userId,
+    String? groupId,
     String? title,
     String? description,
     DateTime? startTime,
@@ -183,12 +212,14 @@ class EventModel extends Equatable {
     String? emoji,
     String? nativeCalendarId,
     bool? allDay,
+    EventTemplateModel? templateData,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
     return EventModel(
       id: id ?? this.id,
       userId: userId ?? this.userId,
+      groupId: groupId ?? this.groupId,
       title: title ?? this.title,
       description: description ?? this.description,
       startTime: startTime ?? this.startTime,
@@ -199,6 +230,7 @@ class EventModel extends Equatable {
       emoji: emoji ?? this.emoji,
       nativeCalendarId: nativeCalendarId ?? this.nativeCalendarId,
       allDay: allDay ?? this.allDay,
+      templateData: templateData ?? this.templateData,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -208,6 +240,7 @@ class EventModel extends Equatable {
   List<Object?> get props => [
         id,
         userId,
+        groupId,
         title,
         description,
         startTime,
@@ -218,7 +251,32 @@ class EventModel extends Equatable {
         emoji,
         nativeCalendarId,
         allDay,
+        templateData,
         createdAt,
         updatedAt,
       ];
+
+  // ==================== Template Helper Getters ====================
+
+  /// Check if event has a template
+  bool get hasTemplate => templateData != null;
+
+  /// Check if event is a Surprise Party template
+  bool get isSurpriseParty =>
+      templateData is SurprisePartyTemplateModel;
+
+  /// Check if event is a Potluck template
+  bool get isPotluck => templateData is PotluckTemplateModel;
+
+  /// Get Surprise Party template (null if not a surprise party)
+  SurprisePartyTemplateModel? get surprisePartyTemplate =>
+      templateData is SurprisePartyTemplateModel
+          ? templateData as SurprisePartyTemplateModel
+          : null;
+
+  /// Get Potluck template (null if not a potluck)
+  PotluckTemplateModel? get potluckTemplate =>
+      templateData is PotluckTemplateModel
+          ? templateData as PotluckTemplateModel
+          : null;
 }

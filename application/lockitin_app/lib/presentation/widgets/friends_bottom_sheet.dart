@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/utils/member_utils.dart';
 import '../providers/friend_provider.dart';
 import '../../data/models/friendship_model.dart';
 import 'friend_search_delegate.dart';
@@ -421,7 +422,7 @@ class _FriendsBottomSheetState extends State<FriendsBottomSheet> {
             ),
             child: Center(
               child: Text(
-                _getInitials(request.fullName ?? request.email),
+                MemberUtils.getInitials(request.fullName ?? request.email),
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -573,14 +574,6 @@ class _FriendsBottomSheetState extends State<FriendsBottomSheet> {
         ],
       ),
     );
-  }
-
-  String _getInitials(String name) {
-    final parts = name.split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase();
   }
 
   Future<void> _acceptRequest(

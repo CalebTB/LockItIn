@@ -17,6 +17,7 @@ import '../../widgets/group_settings_sheet.dart';
 import '../../widgets/privacy_settings_sheet.dart';
 import '../../widgets/group_day_timeline_view.dart';
 import '../../widgets/skeleton_loader.dart';
+import '../event_creation_screen.dart';
 import '../group_proposal_wizard.dart';
 import 'widgets/widgets.dart';
 import 'widgets/proposal_list_view.dart';
@@ -105,6 +106,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       final endDate = DateTime(now.year, now.month + 2, 0);
 
       final shadowEntries = await EventService.instance.fetchGroupShadowCalendar(
+        groupId: widget.group.id,
         memberUserIds: memberIds,
         startDate: startDate,
         endDate: endDate,
@@ -372,7 +374,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       floatingActionButton: _viewMode == GroupCalendarViewMode.month
           ? ProposeFAB(
               groupName: widget.group.name,
-              onPressed: () => _showProposeEventFlow(context),
+              onCreateEvent: () => _showCreateEventFlow(context),
+              onProposeTimes: () => _showProposeEventFlow(context),
             )
           : null,
       body: SafeArea(
@@ -463,7 +466,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       floatingActionButton: _selectedDay == null
           ? ProposeFAB(
               groupName: widget.group.name,
-              onPressed: () => _showProposeEventFlow(context),
+              onCreateEvent: () => _showCreateEventFlow(context),
+              onProposeTimes: () => _showProposeEventFlow(context),
             )
           : null,
       body: SafeArea(
@@ -845,6 +849,30 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     }
   }
 
+  /// Show Quick Event creation flow (single time, member invitations)
+  Future<void> _showCreateEventFlow(BuildContext context) async {
+    final groupProvider = context.read<GroupProvider>();
+    final members = groupProvider.selectedGroupMembers;
+    final memberCount = members.length;
+
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => EventCreationScreen(
+          mode: EventCreationMode.groupQuickEvent,
+          groupId: widget.group.id,
+          groupName: widget.group.name,
+          groupMemberCount: memberCount > 0 ? memberCount : 1,
+        ),
+      ),
+    );
+
+    // Reload member events if event was created
+    if (result != null && mounted) {
+      await _loadMemberEvents();
+    }
+  }
+
+  /// Show Proposal flow (voting on multiple times)
   void _showProposeEventFlow(BuildContext context) {
     final groupProvider = context.read<GroupProvider>();
     final members = groupProvider.selectedGroupMembers;

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/timezone_utils.dart';
+import '../../core/utils/surprise_party_utils.dart';
 import '../../data/models/event_model.dart';
+import '../providers/auth_provider.dart';
 
 /// Compact event card for agenda list view
 /// Features colored accent bar, time, title, location, and privacy badge
@@ -21,6 +24,13 @@ class AgendaEventCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final appColors = context.appColors;
     final accentColor = _getCategoryColor(event.category, colorScheme);
+
+    // Get user role for surprise party privacy
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUserId = authProvider.currentUser?.id;
+    final userRole = event.getUserRole(currentUserId);
+    final displayTitle = event.getDisplayTitle(currentUserId);
+    final isSurpriseParty = event.surprisePartyTemplate != null;
 
     return GestureDetector(
       onTap: onTap,
@@ -97,7 +107,7 @@ class AgendaEventCard extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Title with emoji
+                            // Title with emoji and SECRET badge
                             Row(
                               children: [
                                 if (event.emoji != null) ...[
@@ -108,15 +118,60 @@ class AgendaEventCard extends StatelessWidget {
                                   const SizedBox(width: 6),
                                 ],
                                 Expanded(
-                                  child: Text(
-                                    event.title,
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w500,
-                                      color: colorScheme.onSurface,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  child: Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          displayTitle,
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w500,
+                                            color: colorScheme.onSurface,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      // SECRET badge for coordinators
+                                      if (isSurpriseParty && userRole == 'coordinator') ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                colorScheme.primary,
+                                                colorScheme.secondary,
+                                              ],
+                                            ),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.lock,
+                                                size: 10,
+                                                color: colorScheme.onPrimary,
+                                              ),
+                                              const SizedBox(width: 3),
+                                              Text(
+                                                'SECRET',
+                                                style: TextStyle(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.w700,
+                                                  letterSpacing: 0.5,
+                                                  color: colorScheme.onPrimary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
                               ],
@@ -233,4 +288,5 @@ class AgendaEventCard extends StatelessWidget {
         return AppColors.categoryOther;
     }
   }
+
 }

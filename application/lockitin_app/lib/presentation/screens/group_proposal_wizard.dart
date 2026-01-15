@@ -6,8 +6,10 @@ import '../../core/services/event_service.dart';
 import '../../core/services/smart_time_suggestion_service.dart';
 import '../../core/utils/platform_dialog.dart';
 import '../../data/models/event_model.dart';
+import '../../data/models/event_template_model.dart';
 import '../../data/models/proposal_time_option.dart';
 import '../../core/utils/timezone_utils.dart';
+import '../widgets/templates/surprise_party_config_sheet.dart';
 
 /// Group Proposal Wizard - 3-step flow for creating event proposals
 ///
@@ -72,6 +74,9 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
   final SmartTimeSuggestionService _suggestionService = SmartTimeSuggestionService();
   Map<String, List<EventModel>> _memberEvents = {};
 
+  // Template state
+  EventTemplateModel? _templateData;
+
   @override
   void initState() {
     super.initState();
@@ -129,6 +134,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
       final endDate = startDate.add(const Duration(days: 14));
 
       final shadowEntries = await EventService.instance.fetchGroupShadowCalendar(
+        groupId: widget.groupId,
         memberUserIds: memberIds,
         startDate: startDate,
         endDate: endDate,
@@ -291,6 +297,10 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
           children: [
             // Group context header
             _buildGroupContextHeader(colorScheme, appColors),
+            const SizedBox(height: 20),
+
+            // Template chips
+            _buildTemplateChips(colorScheme, appColors),
             const SizedBox(height: 20),
 
             // Title field
@@ -1243,6 +1253,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
             : _locationController.text.trim(),
         votingDeadline: _votingDeadline,
         timeOptions: _timeOptions,
+        templateData: _templateData, // Passes Surprise Party or other template config
       );
 
       if (!mounted) return;
@@ -1268,6 +1279,124 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
+    }
+  }
+
+  /// Build template chips for quick event setup
+  Widget _buildTemplateChips(ColorScheme colorScheme, AppColorsExtension appColors) {
+    final isSurpriseSelected = _templateData is SurprisePartyTemplateModel;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'QUICK TEMPLATES',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+            color: colorScheme.onSurface.withValues(alpha: 0.5),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildTemplateChip(
+                emoji: '🎁',
+                label: 'Surprise',
+                isSelected: isSurpriseSelected,
+                colorScheme: colorScheme,
+                onTap: _handleSurpriseTemplate,
+              ),
+              const SizedBox(width: 8),
+              _buildTemplateChip(
+                emoji: '🦃',
+                label: 'Friendsgiving',
+                isSelected: false, // TODO: Add Potluck template support
+                colorScheme: colorScheme,
+                onTap: () {
+                  // TODO: Show potluck config sheet
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Friendsgiving template coming soon!'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Build a single template chip
+  Widget _buildTemplateChip({
+    required String emoji,
+    required String label,
+    required bool isSelected,
+    required ColorScheme colorScheme,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? colorScheme.primary.withValues(alpha: 0.15)
+              : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? colorScheme.primary
+                : colorScheme.outline.withValues(alpha: 0.2),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 16)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Handle surprise party template selection
+  Future<void> _handleSurpriseTemplate() async {
+    final result = await showModalBottomSheet<SurprisePartyTemplateModel>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => SurprisePartyConfigSheet(
+        groupId: widget.groupId,
+        existingTemplate: _templateData as SurprisePartyTemplateModel?,
+      ),
+    );
+
+    // Update template data if user confirmed (didn't cancel)
+    if (result != null && mounted) {
+      setState(() {
+        _templateData = result;
+        // Pre-fill title with actual party title (not decoy)
+        if (_titleController.text.isEmpty) {
+          _titleController.text = 'Surprise Birthday Party';
+        }
+      });
     }
   }
 }
