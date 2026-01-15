@@ -455,7 +455,7 @@ class EventService {
       // This ensures availability calculator counts all members
       result[userId] = entries.map((shadow) {
         return EventModel(
-          id: '', // Not needed for availability calculation
+          id: shadow.eventId ?? '', // Use actual event ID for navigation
           userId: shadow.userId,
           title: shadow.displayText,
           startTime: shadow.startTime,
@@ -464,6 +464,7 @@ class EventService {
               ? EventVisibility.busyOnly
               : EventVisibility.sharedWithName,
           createdAt: TimezoneUtils.nowUtc(),
+          templateData: shadow.templateData, // Include template data for surprise parties
         );
       }).toList();
     }
