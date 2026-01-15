@@ -64,7 +64,11 @@
       "mcp__plugin_compound-engineering_context7__resolve-library-id",
       "mcp__plugin_compound-engineering_context7__query-docs",
       "Skill(compound-engineering:workflows:review)",
-      "Skill(compound-docs)"
+      "Skill(compound-docs)",
+      "mcp__plugin_supabase_supabase__search_docs",
+      "Skill(compound-engineering:workflows:work)",
+      "Bash(supabase db push:*)",
+      "Skill(compound-engineering:deepen-plan)"
     ],
     "deny": [],
     "ask": []

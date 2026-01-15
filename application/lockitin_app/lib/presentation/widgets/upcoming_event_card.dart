@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/timezone_utils.dart';
+import '../../core/utils/surprise_party_utils.dart';
 import '../../data/models/event_model.dart';
-import '../../data/models/event_template_model.dart';
 import '../../utils/privacy_colors.dart';
 import '../providers/auth_provider.dart';
 
@@ -37,8 +37,8 @@ class UpcomingEventCard extends StatelessWidget {
     // Get user role for surprise party privacy
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final currentUserId = authProvider.currentUser?.id;
-    final userRole = _getUserRole(currentUserId);
-    final displayTitle = _getDisplayTitle(userRole);
+    final userRole = event.getUserRole(currentUserId);
+    final displayTitle = event.getDisplayTitle(currentUserId);
     final isSurpriseParty = event.surprisePartyTemplate != null;
 
     return GestureDetector(
@@ -364,42 +364,6 @@ class UpcomingEventCard extends StatelessWidget {
     }
   }
 
-  /// Get user role in surprise party
-  /// Returns: 'target' | 'coordinator' | 'neither'
-  String _getUserRole(String? currentUserId) {
-    final template = event.surprisePartyTemplate;
-    if (template == null || currentUserId == null) {
-      return 'neither';
-    }
-
-    // Check if user is the target
-    if (template.guestOfHonorId == currentUserId) {
-      return 'target';
-    }
-
-    // Check if user is a coordinator
-    if (template.isUserInOnIt(currentUserId)) {
-      return 'coordinator';
-    }
-
-    return 'neither';
-  }
-
-  /// Get the title to display based on user role
-  String _getDisplayTitle(String userRole) {
-    final template = event.surprisePartyTemplate;
-    if (template == null) {
-      return event.title;
-    }
-
-    // Target sees decoy title if set, otherwise real title
-    if (userRole == 'target' && template.decoyTitle != null) {
-      return template.decoyTitle!;
-    }
-
-    // Coordinators and others see real title
-    return event.title;
-  }
 }
 
 class _CategoryColors {

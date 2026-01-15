@@ -6,6 +6,9 @@ import '../../core/network/supabase_client.dart';
 import '../../core/services/event_service.dart';
 import '../../core/utils/route_transitions.dart';
 import '../../core/utils/timezone_utils.dart';
+import '../../core/utils/rsvp_status_utils.dart';
+import '../../core/utils/surprise_party_utils.dart';
+import '../../core/theme/app_colors.dart';
 import '../../utils/calendar_utils.dart';
 import '../../utils/privacy_colors.dart';
 import '../providers/auth_provider.dart';
@@ -76,10 +79,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final appColors = context.appColors;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final currentUserId = authProvider.currentUser?.id;
-    final userRole = _getUserRole(currentUserId);
-    final displayTitle = _getDisplayTitle(userRole);
+    final userRole = _currentEvent.getUserRole(currentUserId);
+    final displayTitle = _currentEvent.getDisplayTitle(currentUserId);
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -228,15 +232,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                             });
                           }
                         },
-                  icon: Icon(_getRsvpIcon(_userRsvpStatus), size: 20),
+                  icon: Icon(RSVPStatusUtils.getIcon(_userRsvpStatus ?? 'pending'), size: 20),
                   label: Text(
-                    _getRsvpButtonLabel(_userRsvpStatus),
+                    RSVPStatusUtils.getButtonLabel(_userRsvpStatus ?? 'pending'),
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: _getRsvpColor(_userRsvpStatus, colorScheme),
+                    foregroundColor: RSVPStatusUtils.getColor(_userRsvpStatus ?? 'pending', colorScheme, appColors),
                     side: BorderSide(
-                      color: _getRsvpColor(_userRsvpStatus, colorScheme),
+                      color: RSVPStatusUtils.getColor(_userRsvpStatus ?? 'pending', colorScheme, appColors),
                       width: 2,
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -685,84 +689,4 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   bool get _isSurpriseParty =>
       _currentEvent.surprisePartyTemplate != null;
 
-  /// Get user role in surprise party
-  /// Returns: 'target' | 'coordinator' | 'neither'
-  String _getUserRole(String? currentUserId) {
-    if (!_isSurpriseParty || currentUserId == null) {
-      return 'neither';
-    }
-
-    final template = _currentEvent.surprisePartyTemplate!;
-
-    // Check if user is the target
-    if (template.guestOfHonorId == currentUserId) {
-      return 'target';
-    }
-
-    // Check if user is a coordinator
-    if (template.isUserInOnIt(currentUserId)) {
-      return 'coordinator';
-    }
-
-    return 'neither';
-  }
-
-  /// Get the title to display based on user role
-  String _getDisplayTitle(String userRole) {
-    if (!_isSurpriseParty) {
-      return _currentEvent.title;
-    }
-
-    final template = _currentEvent.surprisePartyTemplate!;
-
-    // Target sees decoy title if set, otherwise real title
-    if (userRole == 'target' && template.decoyTitle != null) {
-      return template.decoyTitle!;
-    }
-
-    // Coordinators and others see real title
-    return _currentEvent.title;
-  }
-
-  /// Get icon for RSVP button based on status
-  IconData _getRsvpIcon(String? status) {
-    switch (status) {
-      case 'accepted':
-        return Icons.check_circle;
-      case 'maybe':
-        return Icons.help_outline;
-      case 'declined':
-        return Icons.cancel_outlined;
-      default:
-        return Icons.event_available;
-    }
-  }
-
-  /// Get label for RSVP button based on status
-  String _getRsvpButtonLabel(String? status) {
-    switch (status) {
-      case 'accepted':
-        return "You're Going";
-      case 'maybe':
-        return "You're Maybe";
-      case 'declined':
-        return "You Can't Go";
-      default:
-        return 'RSVP to Event';
-    }
-  }
-
-  /// Get color for RSVP button based on status
-  Color _getRsvpColor(String? status, ColorScheme colorScheme) {
-    switch (status) {
-      case 'accepted':
-        return Colors.green;
-      case 'maybe':
-        return Colors.orange;
-      case 'declined':
-        return Colors.red;
-      default:
-        return colorScheme.primary;
-    }
-  }
 }

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,10 +5,12 @@ import '../../core/network/supabase_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/utils/member_utils.dart';
+import '../../core/utils/rsvp_status_utils.dart';
 import '../../data/models/event_model.dart';
 import '../providers/group_provider.dart';
 import '../widgets/templates/surprise_party_task_list.dart';
 import '../widgets/templates/add_task_sheet.dart';
+import '../widgets/common/status_avatar.dart';
 
 /// Coordinator dashboard screen for surprise party events
 ///
@@ -40,8 +41,6 @@ class _SurprisePartyDashboardState extends State<SurprisePartyDashboard> {
   bool _isLoading = true;
   String? _errorMessage;
   RealtimeChannel? _rsvpChannel;
-  Timer? _updateDebounce;
-  final List<PostgresChangePayload> _batchedUpdates = [];
 
   @override
   void initState() {
@@ -104,33 +103,12 @@ class _SurprisePartyDashboardState extends State<SurprisePartyDashboard> {
   }
 
   void _handleRSVPUpdate(PostgresChangePayload payload) {
-    // Batch updates to prevent UI jank (debounce 100ms)
-    _batchedUpdates.add(payload);
-
-    _updateDebounce?.cancel();
-    _updateDebounce = Timer(const Duration(milliseconds: 100), () {
-      if (!mounted) return;
-      _applyBatchedUpdates();
-    });
-  }
-
-  void _applyBatchedUpdates() {
-    setState(() {
-      for (final payload in _batchedUpdates) {
-        final updatedInvitation = payload.newRecord;
-        final index = _invitations
-            .indexWhere((i) => i['id'] == updatedInvitation['id']);
-        if (index != -1) {
-          _invitations[index] = updatedInvitation;
-        }
-      }
-      _batchedUpdates.clear();
-    });
+    // Refetch invitations on any RSVP update
+    _fetchInvitations();
   }
 
   @override
   void dispose() {
-    _updateDebounce?.cancel();
     _rsvpChannel?.unsubscribe();
     super.dispose();
   }
@@ -567,18 +545,6 @@ class _SurprisePartyDashboardState extends State<SurprisePartyDashboard> {
     AppColorsExtension appColors,
     ColorScheme colorScheme,
   ) {
-    // CRITICAL: Block guest of honor at UI level (defense in depth)
-    final template = widget.event.surprisePartyTemplate;
-    final currentUserId = SupabaseClientManager.currentUserId;
-    if (template?.guestOfHonorId == currentUserId) {
-      return const SizedBox.shrink(); // Hide entire section
-    }
-
-    // CRITICAL: Only event creator can view
-    if (widget.event.userId != currentUserId) {
-      return const SizedBox.shrink();
-    }
-
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -719,12 +685,11 @@ class _SurprisePartyDashboardState extends State<SurprisePartyDashboard> {
 
               return Padding(
                 padding: const EdgeInsets.only(right: AppSpacing.sm),
-                child: _buildMemberAvatar(
-                  context: context,
+                child: StatusAvatar(
                   userId: invitation['user_id'],
                   displayName: user?['full_name'] ?? 'Unknown',
                   avatarUrl: user?['avatar_url'],
-                  status: invitation['rsvp_status'],
+                  statusBadge: invitation['rsvp_status'],
                 ),
               );
             },
@@ -735,81 +700,4 @@ class _SurprisePartyDashboardState extends State<SurprisePartyDashboard> {
     );
   }
 
-  Widget _buildMemberAvatar({
-    required BuildContext context,
-    required String userId,
-    required String displayName,
-    String? avatarUrl,
-    required String status,
-  }) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        CircleAvatar(
-          radius: 24,
-          backgroundColor: MemberUtils.getColorById(userId), // Reuse utility
-          backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-          child: avatarUrl == null
-              ? Text(
-                  MemberUtils.getInitials(displayName), // Reuse utility
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                )
-              : null,
-        ),
-
-        // Status badge overlay
-        Positioned(
-          bottom: -2,
-          right: -2,
-          child: Container(
-            width: 18,
-            height: 18,
-            decoration: BoxDecoration(
-              color: _getStatusColor(context, status),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-            ),
-            child: Icon(
-              _getStatusIcon(status),
-              size: 10,
-              color: Colors.white,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Color _getStatusColor(BuildContext context, String status) {
-    final appColors = context.appColors;
-    final colorScheme = Theme.of(context).colorScheme;
-    switch (status) {
-      case 'accepted':
-        return appColors.success;
-      case 'maybe':
-        return appColors.warning;
-      case 'declined':
-        return colorScheme.error;
-      case 'pending':
-      default:
-        return appColors.textDisabled;
-    }
-  }
-
-  IconData _getStatusIcon(String status) {
-    switch (status) {
-      case 'accepted':
-        return Icons.check;
-      case 'maybe':
-        return Icons.question_mark;
-      case 'declined':
-        return Icons.close;
-      case 'pending':
-      default:
-        return Icons.schedule;
-    }
-  }
 }
