@@ -263,17 +263,20 @@ class PotluckTemplateModel extends EventTemplateModel {
   PotluckTemplateModel addDish({
     required String category,
     required String dishName,
-    required String userId,
-    int? servingSize,
-    String? dietaryNotes,
+    String? userId,
+    String? description,
+    String? servingSize,
+    List<String>? dietaryInfo,
   }) {
     final newDish = PotluckDish(
       id: const Uuid().v4(),
       category: category,
       dishName: dishName,
       userId: userId,
+      description: description,
       servingSize: servingSize,
-      dietaryNotes: dietaryNotes,
+      dietaryInfo: dietaryInfo,
+      claimedAt: userId != null ? DateTime.now() : null,
     );
 
     return PotluckTemplateModel(
@@ -292,13 +295,65 @@ class PotluckTemplateModel extends EventTemplateModel {
     );
   }
 
+  /// Claim a dish for a user
+  PotluckTemplateModel claimDish(String dishId, String userId) {
+    final updatedDishes = dishes.map((dish) {
+      if (dish.id == dishId) {
+        return PotluckDish(
+          id: dish.id,
+          category: dish.category,
+          dishName: dish.dishName,
+          userId: userId,
+          description: dish.description,
+          servingSize: dish.servingSize,
+          dietaryInfo: dish.dietaryInfo,
+          claimedAt: DateTime.now(),
+        );
+      }
+      return dish;
+    }).toList();
+
+    return PotluckTemplateModel(
+      maxDishesPerPerson: maxDishesPerPerson,
+      allowDuplicates: allowDuplicates,
+      dishes: updatedDishes,
+    );
+  }
+
+  /// Unclaim a dish (make it available again)
+  PotluckTemplateModel unclaimDish(String dishId) {
+    final updatedDishes = dishes.map((dish) {
+      if (dish.id == dishId) {
+        return PotluckDish(
+          id: dish.id,
+          category: dish.category,
+          dishName: dish.dishName,
+          userId: null, // Unclaim
+          description: dish.description,
+          servingSize: dish.servingSize,
+          dietaryInfo: dish.dietaryInfo,
+          claimedAt: null, // Clear timestamp
+        );
+      }
+      return dish;
+    }).toList();
+
+    return PotluckTemplateModel(
+      maxDishesPerPerson: maxDishesPerPerson,
+      allowDuplicates: allowDuplicates,
+      dishes: updatedDishes,
+    );
+  }
+
   /// Get count of dishes signed up by a specific user
   int getUserDishCount(String userId) {
     return dishes.where((d) => d.userId == userId).length;
   }
 
   /// Check if user can add more dishes
+  /// Returns true if unlimited (0) or user hasn't reached limit
   bool canUserAddDish(String userId) {
+    if (maxDishesPerPerson == 0) return true; // Unlimited
     return getUserDishCount(userId) < maxDishesPerPerson;
   }
 
@@ -339,31 +394,61 @@ class PotluckTemplateModel extends EventTemplateModel {
 
 /// Dish data class for Potluck template
 /// Stored in JSONB array (not separate table)
+///
+/// BREAKING CHANGES (v0.4.0):
+/// - userId: String to String? (nullable for unclaimed dishes)
+/// - servingSize: int? to String? (flexible user input like "Serves 8-10")
+/// - dietaryNotes: String? to dietaryInfo: List (structured dietary tags)
+/// - Added description field for dish details
+/// - Added claimedAt timestamp for tracking when dish was claimed
 class PotluckDish {
   final String id;
   final String category; // 'mains', 'sides', 'desserts', 'drinks', 'appetizers'
   final String dishName;
-  final String userId;
-  final int? servingSize;
-  final String? dietaryNotes;
+
+  /// User ID of person who claimed this dish (null if unclaimed)
+  final String? userId;
+
+  /// Optional description/notes about the dish
+  final String? description;
+
+  /// Serving size as flexible string (e.g., "Serves 8-10", "Family size")
+  final String? servingSize;
+
+  /// Structured dietary information tags (e.g., ["vegetarian", "gluten-free"])
+  final List<String> dietaryInfo;
+
+  /// Timestamp when dish was claimed (null if unclaimed)
+  final DateTime? claimedAt;
 
   PotluckDish({
     required this.id,
     required this.category,
     required this.dishName,
-    required this.userId,
+    this.userId,
+    this.description,
     this.servingSize,
-    this.dietaryNotes,
-  });
+    List<String>? dietaryInfo,
+    this.claimedAt,
+  }) : dietaryInfo = dietaryInfo ?? [];
+
+  /// Convenience getter to check if dish is claimed
+  bool get isClaimed => userId != null;
 
   factory PotluckDish.fromJson(Map<String, dynamic> json) {
     return PotluckDish(
       id: json['id'] as String,
       category: json['category'] as String,
       dishName: json['dishName'] as String,
-      userId: json['userId'] as String,
-      servingSize: json['servingSize'] as int?,
-      dietaryNotes: json['dietaryNotes'] as String?,
+      userId: json['userId'] as String?,
+      description: json['description'] as String?,
+      servingSize: json['servingSize'] as String?,
+      dietaryInfo: (json['dietaryInfo'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList(),
+      claimedAt: json['claimedAt'] != null
+          ? DateTime.parse(json['claimedAt'] as String)
+          : null,
     );
   }
 
@@ -372,8 +457,10 @@ class PotluckDish {
         'category': category,
         'dishName': dishName,
         'userId': userId,
+        'description': description,
         'servingSize': servingSize,
-        'dietaryNotes': dietaryNotes,
+        'dietaryInfo': dietaryInfo,
+        'claimedAt': claimedAt?.toIso8601String(),
       };
 }
 

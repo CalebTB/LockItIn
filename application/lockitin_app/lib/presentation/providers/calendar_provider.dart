@@ -650,6 +650,150 @@ class CalendarProvider extends ChangeNotifier with WidgetsBindingObserver {
     return event;
   }
 
+  // ==================== Potluck Template Methods ====================
+
+  /// Add a dish to a potluck event
+  Future<void> addPotluckDish({
+    required String eventId,
+    required String category,
+    required String dishName,
+    String? userId,
+    String? description,
+    String? servingSize,
+    List<String>? dietaryInfo,
+  }) async {
+    try {
+      // Find the event
+      final event = _findEventById(eventId);
+      if (event == null) {
+        Logger.error('CalendarProvider', 'Event not found: $eventId');
+        throw Exception('Event not found');
+      }
+
+      // Check if event has potluck template
+      if (event.potluckTemplate == null) {
+        Logger.error('CalendarProvider', 'Event $eventId has no potluck template');
+        throw Exception('Event has no potluck template');
+      }
+
+      // Add the dish
+      final updatedTemplate = event.potluckTemplate!.addDish(
+        category: category,
+        dishName: dishName,
+        userId: userId,
+        description: description,
+        servingSize: servingSize,
+        dietaryInfo: dietaryInfo,
+      );
+
+      // Create updated event with new template
+      final updatedEvent = event.copyWith(
+        templateData: updatedTemplate,
+      );
+
+      // Update Supabase
+      await _eventService.updateEvent(updatedEvent);
+
+      // Update local state
+      updateEvent(event, updatedEvent);
+
+      Logger.info('CalendarProvider', 'Added dish "$dishName" to event $eventId');
+    } catch (e) {
+      Logger.error('CalendarProvider', 'Failed to add dish: $e');
+      rethrow;
+    }
+  }
+
+  /// Claim or unclaim a potluck dish
+  Future<void> togglePotluckDishClaim(String eventId, String dishId) async {
+    try {
+      // Find the event
+      final event = _findEventById(eventId);
+      if (event == null) {
+        Logger.error('CalendarProvider', 'Event not found: $eventId');
+        throw Exception('Event not found');
+      }
+
+      // Check if event has potluck template
+      if (event.potluckTemplate == null) {
+        Logger.error('CalendarProvider', 'Event $eventId has no potluck template');
+        throw Exception('Event has no potluck template');
+      }
+
+      final currentUserId = SupabaseClientManager.currentUserId;
+      if (currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Find the dish
+      final dish = event.potluckTemplate!.dishes.firstWhere(
+        (d) => d.id == dishId,
+        orElse: () => throw Exception('Dish not found'),
+      );
+
+      // Toggle claim
+      final updatedTemplate = dish.isClaimed
+          ? event.potluckTemplate!.unclaimDish(dishId)
+          : event.potluckTemplate!.claimDish(dishId, currentUserId);
+
+      // Create updated event with new template
+      final updatedEvent = event.copyWith(
+        templateData: updatedTemplate,
+      );
+
+      // Update Supabase
+      await _eventService.updateEvent(updatedEvent);
+
+      // Update local state
+      updateEvent(event, updatedEvent);
+
+      Logger.info(
+        'CalendarProvider',
+        '${dish.isClaimed ? "Unclaimed" : "Claimed"} dish $dishId for event $eventId',
+      );
+    } catch (e) {
+      Logger.error('CalendarProvider', 'Failed to toggle dish claim: $e');
+      rethrow;
+    }
+  }
+
+  /// Remove a potluck dish
+  Future<void> deletePotluckDish(String eventId, String dishId) async {
+    try {
+      // Find the event
+      final event = _findEventById(eventId);
+      if (event == null) {
+        Logger.error('CalendarProvider', 'Event not found: $eventId');
+        throw Exception('Event not found');
+      }
+
+      // Check if event has potluck template
+      if (event.potluckTemplate == null) {
+        Logger.error('CalendarProvider', 'Event $eventId has no potluck template');
+        throw Exception('Event has no potluck template');
+      }
+
+      // Remove the dish
+      final updatedTemplate = event.potluckTemplate!.removeDish(dishId);
+
+      // Create updated event with new template
+      final updatedEvent = event.copyWith(
+        templateData: updatedTemplate,
+      );
+
+      // Update Supabase
+      await _eventService.updateEvent(updatedEvent);
+
+      // Update local state
+      updateEvent(event, updatedEvent);
+
+      Logger.info('CalendarProvider', 'Deleted dish $dishId from event $eventId');
+    } catch (e) {
+      Logger.error('CalendarProvider', 'Failed to delete dish: $e');
+      rethrow;
+    }
+  }
+
   /// Clean up observer when provider is disposed
   @override
   void dispose() {
