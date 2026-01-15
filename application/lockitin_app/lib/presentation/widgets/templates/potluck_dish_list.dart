@@ -86,9 +86,9 @@ class _PotluckDishListState extends State<PotluckDishList> {
               ),
             ),
             const Spacer(),
-            if (onAddDish != null)
+            if (widget.onAddDish != null)
               TextButton.icon(
-                onPressed: onAddDish,
+                onPressed: widget.onAddDish,
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Add'),
               ),
