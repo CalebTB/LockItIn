@@ -49,6 +49,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     print('🔍 EventDetailScreen - Template data: ${_currentEvent.templateData}');
     print('🔍 EventDetailScreen - Is surprise party: ${_currentEvent.isSurpriseParty}');
     print('🔍 EventDetailScreen - Surprise template: ${_currentEvent.surprisePartyTemplate}');
+    if (_currentEvent.surprisePartyTemplate != null) {
+      print('🔍 EventDetailScreen - Guest of honor: ${_currentEvent.surprisePartyTemplate!.guestOfHonorId}');
+      print('🔍 EventDetailScreen - Coordinators: ${_currentEvent.surprisePartyTemplate!.inOnItUserIds}');
+    }
 
     _fetchUserRsvpStatus();
   }

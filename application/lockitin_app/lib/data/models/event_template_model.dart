@@ -73,16 +73,16 @@ class SurprisePartyTemplateModel extends EventTemplateModel {
 
   factory SurprisePartyTemplateModel.fromJson(Map<String, dynamic> json) {
     return SurprisePartyTemplateModel(
-      guestOfHonorId: json['guestOfHonorId'] as String?,
-      decoyTitle: json['decoyTitle'] as String?,
-      revealAt: json['revealAt'] != null
-          ? DateTime.parse(json['revealAt'] as String)
+      guestOfHonorId: json['guestOfHonorId'] as String? ?? json['guest_of_honor_id'] as String?,
+      decoyTitle: json['decoyTitle'] as String? ?? json['decoy_title'] as String?,
+      revealAt: (json['revealAt'] ?? json['reveal_at']) != null
+          ? DateTime.parse((json['revealAt'] ?? json['reveal_at']) as String)
           : null,
       tasks: (json['tasks'] as List<dynamic>?)
               ?.map((t) => SurprisePartyTask.fromJson(t as Map<String, dynamic>))
               .toList() ??
           [],
-      inOnItUserIds: (json['inOnItUserIds'] as List<dynamic>?)
+      inOnItUserIds: (json['inOnItUserIds'] as List<dynamic>? ?? json['in_on_it_user_ids'] as List<dynamic>?)
               ?.map((id) => id as String)
               .toList() ??
           [],
