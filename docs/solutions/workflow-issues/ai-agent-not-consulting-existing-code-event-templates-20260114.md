@@ -29,6 +29,14 @@ During Sprint 4 implementation of the Surprise Party Template RSVP system, the A
 - Sprint: Sprint 4 (Templates + Special Features)
 - Date: 2026-01-14
 
+## ⭐ Required Reading
+
+**Critical patterns from this post-mortem have been promoted to Required Reading:**
+
+📖 **[Flutter + Supabase Critical Patterns](../patterns/flutter-supabase-critical-patterns.md)**
+
+All AI agents MUST read this before implementing Flutter + Supabase features. It contains 9 essential patterns with ❌ WRONG vs ✅ CORRECT examples that prevent repeating these mistakes.
+
 ## Symptoms
 
 1. **Wrong Access Model**: Implemented hierarchical coordinator/member roles when the requirement was collaborative access for all non-target users
