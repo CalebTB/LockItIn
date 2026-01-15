@@ -393,6 +393,12 @@ The following GitHub issues need to be created to fix the implemented technical 
 
 ---
 
+## Related Issues
+
+- **Same Pattern Repeated:** [Potluck Real-time Updates Not Working](../integration-issues/realtime-updates-not-working-potluck-events-table-20260115.md) - Same realtime publication issue with `events` table, demonstrates pattern is repeating
+
+---
+
 **Post-Mortem Grade: D+**
 
 The feature works, but with significant technical debt and architectural issues. The biggest lesson: **Clarify requirements and read existing code BEFORE implementing**. Approximately 30% of development time was wasted on rework that could have been prevented by following proper workflow steps.

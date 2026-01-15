@@ -413,6 +413,60 @@ The following issues exist in production and need fixing (see GitHub issues #237
 
 ---
 
+## Pattern 10: Use MCP Tools When Available
+
+### ❌ WRONG: Ask user to manually perform operations
+
+```
+AI: "Please run this SQL in your Supabase SQL Editor:
+
+ALTER PUBLICATION supabase_realtime ADD TABLE events;
+
+Then verify it worked by running:
+
+SELECT * FROM pg_publication_tables WHERE...
+"
+
+User: [manually navigates to dashboard, copies SQL, pastes, runs, copies output back]
+```
+
+**Impact:** Added friction, delays, potential copy-paste errors, breaks flow.
+
+### ✅ CORRECT: Use MCP tool directly
+
+```dart
+// Check current status
+await mcp__supabase__execute_sql(
+  query: """
+    SELECT * FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+    AND tablename = 'events';
+  """
+);
+
+// Apply fix immediately
+await mcp__supabase__execute_sql(
+  query: "ALTER PUBLICATION supabase_realtime ADD TABLE events;"
+);
+
+// Verify
+await mcp__supabase__execute_sql(
+  query: """
+    SELECT tablename FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+    ORDER BY tablename;
+  """
+);
+```
+
+**Rule:** When MCP tools are available (Supabase, GitHub, IDE, etc.), use them instead of asking users to manually perform operations. MCP tools are first-class capabilities that should be preferred.
+
+**Example from real issue:** During Potluck template debugging, the AI initially created helper scripts and asked the user to manually run SQL in the Supabase dashboard. Only after the user said "supabase mcp is connected you do it" did the AI realize it should use the MCP tool. This added unnecessary delay and friction.
+
+**See:** [Potluck Real-time Updates Issue](../integration-issues/realtime-updates-not-working-potluck-events-table-20260115.md) - Lesson learned about using MCP tools
+
+---
+
 **Post-Mortem Grade: D+**
 
 The feature works, but with significant technical debt. The biggest lesson: **Clarify requirements and read existing code BEFORE implementing**. Following these patterns prevents wasting 30% of development time on avoidable rework.
