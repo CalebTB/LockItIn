@@ -80,6 +80,19 @@ class EventModel extends Equatable {
       }
     }
 
+    // Helper to parse timestamps from Supabase (handles both String and DateTime)
+    DateTime parseTimestamp(dynamic value, bool ensureUtc) {
+      if (value is DateTime) {
+        // Supabase returned a DateTime object - ensure it's UTC if needed
+        return ensureUtc ? value.toUtc() : value;
+      } else if (value is String) {
+        // Supabase returned a string - parse it
+        return ensureUtc ? TimezoneUtils.parseUtc(value) : DateTime.parse(value);
+      } else {
+        throw ArgumentError('Invalid timestamp type: ${value.runtimeType}');
+      }
+    }
+
     return EventModel(
       id: json['id'] as String,
       userId: json['user_id'] as String,
@@ -87,13 +100,9 @@ class EventModel extends Equatable {
       title: json['title'] as String,
       description: json['description'] as String?,
       // All-day events: Keep as local midnight (no UTC conversion)
-      // Timed events: Parse as UTC
-      startTime: allDay
-          ? DateTime.parse(json['start_time'] as String)
-          : TimezoneUtils.parseUtc(json['start_time'] as String),
-      endTime: allDay
-          ? DateTime.parse(json['end_time'] as String)
-          : TimezoneUtils.parseUtc(json['end_time'] as String),
+      // Timed events: Ensure UTC timezone
+      startTime: parseTimestamp(json['start_time'], !allDay),
+      endTime: parseTimestamp(json['end_time'], !allDay),
       location: json['location'] as String?,
       visibility: _visibilityFromString(json['visibility'] as String),
       category: json['category'] != null
@@ -103,9 +112,9 @@ class EventModel extends Equatable {
       nativeCalendarId: json['native_calendar_id'] as String?,
       allDay: allDay,
       templateData: templateData,
-      createdAt: TimezoneUtils.parseUtc(json['created_at'] as String),
+      createdAt: parseTimestamp(json['created_at'], true),
       updatedAt: json['updated_at'] != null
-          ? TimezoneUtils.parseUtc(json['updated_at'] as String)
+          ? parseTimestamp(json['updated_at'], true)
           : null,
     );
   }

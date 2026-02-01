@@ -40,10 +40,21 @@ class ShadowCalendarEntry extends Equatable {
       }
     }
 
+    // Helper to parse timestamps from Supabase (handles both String and DateTime)
+    DateTime parseTimestamp(dynamic value) {
+      if (value is DateTime) {
+        return value.toUtc();
+      } else if (value is String) {
+        return TimezoneUtils.parseUtc(value);
+      } else {
+        throw ArgumentError('Invalid timestamp type: ${value.runtimeType}');
+      }
+    }
+
     return ShadowCalendarEntry(
       userId: json['user_id'] as String,
-      startTime: TimezoneUtils.parseUtc(json['start_time'] as String),
-      endTime: TimezoneUtils.parseUtc(json['end_time'] as String),
+      startTime: parseTimestamp(json['start_time']),
+      endTime: parseTimestamp(json['end_time']),
       visibility: _visibilityFromString(json['visibility'] as String),
       eventTitle: json['event_title'] as String?,
       isGroupEvent: json['is_group_event'] as bool? ?? false,
