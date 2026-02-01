@@ -1714,7 +1714,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
 
   /// Select start date (platform-adaptive)
   Future<void> _selectStartDate(BuildContext context) async {
-    final now = TimezoneUtils.nowUtc().toLocal();
+    final now = TimezoneUtils.nowLocal();
     final today = DateTime(now.year, now.month, now.day);
 
     final picked = await showAdaptiveDatePicker(
@@ -1812,7 +1812,7 @@ class _EventCreationScreenState extends State<EventCreationScreen> {
     }
 
     // Validate event is not in the past
-    final now = TimezoneUtils.nowUtc().toLocal();
+    final now = TimezoneUtils.nowLocal();
     final today = DateTime(now.year, now.month, now.day);
 
     if (_isAllDay) {

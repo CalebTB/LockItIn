@@ -65,7 +65,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
 
   // Time options state
   List<ProposalTimeOption> _timeOptions = [];
-  DateTime _votingDeadline = TimezoneUtils.nowUtc().toLocal().add(const Duration(hours: 48));
+  DateTime _votingDeadline = TimezoneUtils.nowLocal().add(const Duration(hours: 48));
 
   // Loading state
   bool _isSubmitting = false;
@@ -92,7 +92,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
       endTime = widget.initialEndTime!;
     } else {
       // Default to 7pm-9pm on the initial date
-      final initialDate = widget.initialDate ?? TimezoneUtils.nowUtc().toLocal().add(const Duration(days: 1));
+      final initialDate = widget.initialDate ?? TimezoneUtils.nowLocal().add(const Duration(days: 1));
       startTime = DateTime(initialDate.year, initialDate.month, initialDate.day, 19, 0);
       endTime = DateTime(initialDate.year, initialDate.month, initialDate.day, 21, 0);
     }
@@ -129,7 +129,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
   Future<void> _fetchMemberEvents(List<String> memberIds) async {
     try {
       // Fetch shadow calendar for the next 14 days
-      final now = TimezoneUtils.nowUtc().toLocal();
+      final now = TimezoneUtils.nowLocal();
       final startDate = DateTime(now.year, now.month, now.day);
       final endDate = startDate.add(const Duration(days: 14));
 
@@ -1106,8 +1106,8 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
       final lastOption = _timeOptions.isNotEmpty
           ? _timeOptions.last
           : ProposalTimeOption(
-              startTime: TimezoneUtils.nowUtc().toLocal(),
-              endTime: TimezoneUtils.nowUtc().toLocal().add(const Duration(hours: 2)),
+              startTime: TimezoneUtils.nowLocal(),
+              endTime: TimezoneUtils.nowLocal().add(const Duration(hours: 2)),
             );
 
       setState(() {
@@ -1151,7 +1151,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
   /// Edit a time option
   Future<void> _editTimeOption(int index, ProposalTimeOption option) async {
     // Show date picker first
-    final now = TimezoneUtils.nowUtc().toLocal();
+    final now = TimezoneUtils.nowLocal();
     final date = await showDatePicker(
       context: context,
       initialDate: option.startTime,
@@ -1189,7 +1189,7 @@ class _GroupProposalWizardState extends State<GroupProposalWizard> {
 
   /// Select voting deadline
   Future<void> _selectVotingDeadline(BuildContext context) async {
-    final now = TimezoneUtils.nowUtc().toLocal();
+    final now = TimezoneUtils.nowLocal();
     final date = await showDatePicker(
       context: context,
       initialDate: _votingDeadline,

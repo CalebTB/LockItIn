@@ -465,6 +465,68 @@ return ListView(...);
 
 **Rule:** Every async data load needs: loading, empty, error, and success states.
 
+### 16. Inconsistent DateTime Handling
+
+**Mistake:** Created DateFormat instances directly, duplicated date key logic, used verbose timezone conversions instead of centralized helpers.
+
+**Impact:**
+- Performance overhead (~0.5ms per DateFormat creation on every widget build)
+- Code duplication across calendar views
+- Risk of inconsistent timezone handling between personal and group calendars
+- Untestable time-dependent code (direct `DateTime.now()` calls)
+
+**Example of Bad Code:**
+
+```dart
+// Creating formatters repeatedly (expensive!)
+final timeFormat = DateFormat('h:mm a');
+final formatted = timeFormat.format(event.startTime);
+
+// Verbose timezone conversion
+DateTime _votingDeadline = TimezoneUtils.nowUtc().toLocal().add(Duration(hours: 48));
+
+// Duplicated date key logic
+String _dateKey(DateTime date) {
+  final localDate = date.toLocal();
+  return '${localDate.year}-${localDate.month.toString().padLeft(2, '0')}-${localDate.day.toString().padLeft(2, '0')}';
+}
+
+// Untestable direct time calls
+final now = DateTime.now();
+```
+
+**How to Avoid:**
+
+Always use TimezoneUtils helpers:
+
+```dart
+// Use cached formatters (reduces overhead to ~0.1ms)
+final formatted = TimezoneUtils.formatLocal(event.startTime, 'h:mm a');
+
+// Concise timezone conversion
+DateTime _votingDeadline = TimezoneUtils.nowLocal().add(Duration(hours: 48));
+
+// Centralized date key generation
+String _dateKey(DateTime date) {
+  return TimezoneUtils.getDateKey(date);
+}
+
+// Testable time via Clock package
+final nowUtc = TimezoneUtils.nowUtc();
+final nowLocal = TimezoneUtils.nowLocal();
+```
+
+**Timezone Policy (from TimezoneUtils):**
+- **Storage**: Always UTC (`DateTime.utc()` or `.toUtc()`)
+- **Display**: Always local (`.toLocal()`)
+- **Testing**: Use Clock package (`clock.now()`)
+
+**Rule:** Never create DateFormat instances directly, never use `DateTime.now()` directly, never duplicate timezone logic. All datetime operations go through TimezoneUtils helpers.
+
+**See Also:**
+- [Timezone Standardization Solution](../../../docs/solutions/best-practices/timezone-date-handling-standardization-calendar-20260201.md)
+- [Pattern 11 in Critical Patterns](../../../docs/solutions/patterns/flutter-supabase-critical-patterns.md#pattern-11-use-timezoneutils-helpers-for-all-datetime-operations)
+
 ## Summary Scorecard
 
 | Category | Common Mistakes | Prevention |

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../data/models/event_model.dart';
 import '../../utils/calendar_utils.dart';
 import '../../core/utils/timezone_utils.dart';
@@ -142,8 +141,7 @@ class DayEventsBottomSheet extends StatelessWidget {
   /// Build event list tile
   Widget _buildEventTile(BuildContext context, EventModel event) {
     final colorScheme = Theme.of(context).colorScheme;
-    final timeFormat = DateFormat('h:mm a');
-    final startTime = timeFormat.format(event.startTime);
+    final startTime = TimezoneUtils.formatLocal(event.startTime, 'h:mm a');
 
     // Calculate duration
     final duration = event.endTime.difference(event.startTime);

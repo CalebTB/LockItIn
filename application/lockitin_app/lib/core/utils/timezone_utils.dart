@@ -76,6 +76,20 @@ class TimezoneUtils {
     return clock.now().toUtc();
   }
 
+  /// Get current time in local timezone (convenience method)
+  ///
+  /// Equivalent to `nowUtc().toLocal()` but more concise.
+  /// Use this for date pickers, default dates, and UI comparisons.
+  ///
+  /// Example:
+  /// ```dart
+  /// final now = TimezoneUtils.nowLocal();
+  /// final tomorrow = now.add(Duration(days: 1));
+  /// ```
+  static DateTime nowLocal() {
+    return clock.now().toLocal();
+  }
+
   /// Format UTC DateTime in local timezone
   ///
   /// Uses cached DateFormat instances for performance.
@@ -90,6 +104,22 @@ class TimezoneUtils {
   static String formatLocal(DateTime utcTime, String pattern) {
     final localTime = utcTime.toLocal();
     return _getFormatter(pattern).format(localTime);
+  }
+
+  /// Generate date key for event grouping (YYYY-MM-DD in local timezone)
+  ///
+  /// Used by CalendarProvider and services to group events by local date.
+  /// Ensures events display on the correct calendar day in user's timezone.
+  ///
+  /// Example:
+  /// ```dart
+  /// final utc = DateTime.utc(2026, 1, 8, 22, 30); // 10:30 PM UTC
+  /// final key = TimezoneUtils.getDateKey(utc);
+  /// print(key); // "2026-01-08" (if PST, UTC-8, shows as 2:30 PM Jan 8)
+  /// ```
+  static String getDateKey(DateTime date) {
+    final localDate = date.toLocal();
+    return '${localDate.year}-${localDate.month.toString().padLeft(2, '0')}-${localDate.day.toString().padLeft(2, '0')}';
   }
 
   // ===== PERFORMANCE: FORMAT CACHING =====

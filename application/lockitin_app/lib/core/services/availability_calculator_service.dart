@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../data/models/event_model.dart';
 import '../utils/time_filter_utils.dart';
+import '../utils/timezone_utils.dart';
 
 /// Represents availability for a specific time slot
 class TimeSlotAvailability {
@@ -315,15 +315,12 @@ class AvailabilityCalculatorService {
       return 'Free';
     }
 
-    // Format time helper
-    final timeFormat = DateFormat('h:mma');
-    final hourFormat = DateFormat('ha');
-
+    // Format time helper using TimezoneUtils (cached formatters)
     String formatTime(DateTime dt) {
       if (dt.minute == 0) {
-        return hourFormat.format(dt).toLowerCase();
+        return TimezoneUtils.formatLocal(dt, 'ha').toLowerCase();
       }
-      return timeFormat.format(dt).toLowerCase();
+      return TimezoneUtils.formatLocal(dt, 'h:mma').toLowerCase();
     }
 
     // Single conflict - show the busy time range

@@ -72,7 +72,8 @@
       "mcp__ios-simulator__ui_view",
       "Skill(compound-engineering:compound-docs)",
       "Bash(python3:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "mcp__supabase__search_docs"
     ],
     "deny": [],
     "ask": []
