@@ -5,10 +5,12 @@ import '../../../core/network/supabase_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/group_model.dart';
 import '../../../data/models/event_model.dart';
+import '../../../data/models/shadow_calendar_entry.dart';
 import '../../../core/services/event_service.dart';
 import '../../../core/services/availability_calculator_service.dart';
 import '../../../core/utils/time_filter_utils.dart';
 import '../../providers/group_provider.dart';
+import '../../providers/group_calendar_provider.dart';
 import '../../widgets/group_calendar_legend.dart';
 import '../../widgets/group_members_sheet.dart';
 import '../../widgets/group_filters_sheet.dart';
@@ -98,21 +100,33 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     });
 
     try {
-      final memberIds = members.map((m) => m.userId).toList();
       final now = DateTime.now();
       // Optimized: Load only 2 months (current + next) instead of 5 months
       // Reduces data fetching by 60% for faster initial load
       final startDate = DateTime(now.year, now.month, 1);
       final endDate = DateTime(now.year, now.month + 2, 0);
 
-      final shadowEntries = await EventService.instance.fetchGroupShadowCalendar(
+      // Use new GroupCalendarProvider to fetch shadow calendar data
+      final groupCalendarProvider = context.read<GroupCalendarProvider>();
+      await groupCalendarProvider.fetchAvailability(
         groupId: widget.group.id,
-        memberUserIds: memberIds,
         startDate: startDate,
         endDate: endDate,
       );
 
-      final events = EventService.instance.shadowToEventModels(shadowEntries);
+      // Convert shadow calendar entries to event models grouped by user
+      final shadowEntries = groupCalendarProvider.getAvailability(widget.group.id);
+
+      // Group shadow entries by user_id for shadowToEventModels conversion
+      final Map<String, List<ShadowCalendarEntry>> groupedEntries = {};
+      for (final entry in shadowEntries) {
+        if (!groupedEntries.containsKey(entry.userId)) {
+          groupedEntries[entry.userId] = [];
+        }
+        groupedEntries[entry.userId]!.add(entry);
+      }
+
+      final events = EventService.instance.shadowToEventModels(groupedEntries);
 
       if (mounted) {
         setState(() {
