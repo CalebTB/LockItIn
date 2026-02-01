@@ -256,7 +256,7 @@ class CalendarProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Index events by date for efficient lookup
   /// Groups events by their start date (YYYY-MM-DD format)
-  /// Event times are already in local timezone (converted in EventModel.fromJson)
+  /// Event times are stored as UTC DateTime objects, converted to local date keys
   void _indexEventsByDate(List<EventModel> events) {
     _eventsByDate.clear();
 
@@ -280,8 +280,11 @@ class CalendarProvider extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   /// Generate date key for event indexing (YYYY-MM-DD)
+  /// Converts to local timezone before extracting date components
+  /// to ensure events are grouped by local date, not UTC date
   String _dateKey(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final localDate = date.toLocal();
+    return '${localDate.year}-${localDate.month.toString().padLeft(2, '0')}-${localDate.day.toString().padLeft(2, '0')}';
   }
 
   /// Get events for a specific day

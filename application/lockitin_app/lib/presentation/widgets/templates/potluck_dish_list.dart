@@ -306,6 +306,25 @@ class _PotluckDishListState extends State<PotluckDishList> {
               ),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: AppSpacing.lg),
+            // Add button for empty state
+            if (widget.onAddDish != null)
+              ElevatedButton.icon(
+                onPressed: widget.onAddDish,
+                icon: const Icon(Icons.add, size: 20),
+                label: const Text('Add Dish'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: colorScheme.onPrimary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.md,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

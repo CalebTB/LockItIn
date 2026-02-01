@@ -71,7 +71,8 @@
       "Skill(compound-engineering:deepen-plan)",
       "mcp__ios-simulator__ui_view",
       "Skill(compound-engineering:compound-docs)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(git fetch:*)"
     ],
     "deny": [],
     "ask": []
