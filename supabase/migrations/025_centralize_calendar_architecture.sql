@@ -45,16 +45,7 @@ Private events are never in shadow_calendar regardless of this setting.';
 -- DATA INTEGRITY: Foreign Key Constraints
 -- ============================================================================
 
--- Fix NULL group_ids before adding NOT NULL constraint
--- Set to "Personal" group (assuming it exists for all users)
-UPDATE shadow_calendar SET group_id = (
-  SELECT id FROM groups WHERE name = 'Personal' LIMIT 1
-) WHERE group_id IS NULL;
-
--- Ensure group_id is NOT NULL (prevents orphaned shadow calendar entries)
-ALTER TABLE shadow_calendar ALTER COLUMN group_id SET NOT NULL;
-
--- Add CASCADE delete foreign key constraint
+-- Add CASCADE delete foreign key constraint (allows NULL for personal events)
 -- When a group is deleted, remove all its shadow calendar entries
 ALTER TABLE shadow_calendar DROP CONSTRAINT IF EXISTS fk_shadow_calendar_group;
 ALTER TABLE shadow_calendar
@@ -63,7 +54,8 @@ ALTER TABLE shadow_calendar
 
 COMMENT ON CONSTRAINT fk_shadow_calendar_group ON shadow_calendar IS
 'Cascade delete: When a group is deleted, all its shadow calendar entries are removed.
-This prevents orphaned entries and ensures data integrity.';
+This prevents orphaned entries and ensures data integrity.
+Note: group_id can be NULL for personal events not associated with any specific group.';
 
 -- ============================================================================
 -- PRIVACY FIX: Updated RPC Function with Self-Exclusion

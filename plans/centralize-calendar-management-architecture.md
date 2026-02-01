@@ -56,19 +56,14 @@ CREATE INDEX IF NOT EXISTS idx_shadow_calendar_group_time
 CREATE INDEX IF NOT EXISTS idx_shadow_calendar_user_time
   ON shadow_calendar (user_id, start_time, end_time);
 
--- Ensure group_id is NOT NULL before adding foreign key
-UPDATE shadow_calendar SET group_id = (
-  SELECT id FROM groups WHERE name = 'Personal' LIMIT 1
-) WHERE group_id IS NULL;
-
-ALTER TABLE shadow_calendar ALTER COLUMN group_id SET NOT NULL;
-
--- Add CASCADE delete on group_id
+-- Add CASCADE delete foreign key (allows NULL for personal events)
 ALTER TABLE shadow_calendar DROP CONSTRAINT IF EXISTS fk_shadow_calendar_group;
 ALTER TABLE shadow_calendar
   ADD CONSTRAINT fk_shadow_calendar_group
   FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE;
 \`\`\`
+
+**Note:** group_id remains nullable to support personal events not associated with any specific group.
 
 **Migration:** \`supabase/migrations/025_centralize_calendar_architecture.sql\`
 
