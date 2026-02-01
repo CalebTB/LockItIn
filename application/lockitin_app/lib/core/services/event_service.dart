@@ -60,15 +60,14 @@ class EventService {
     try {
       Logger.info('EventService', 'Creating event: ${event.title}');
 
-      // Step 1: Create in native calendar first
+      // Step 1: Try to create in native calendar (optional)
       try {
         nativeEventId = await _calendarManager.createEvent(event);
         Logger.info('EventService', 'Created event in native calendar: $nativeEventId');
       } catch (e) {
-        Logger.error('EventService', 'Failed to create event in native calendar', e);
-        throw EventServiceException(
-          'Failed to save event to your device calendar. Please check calendar permissions.',
-        );
+        // Native calendar is optional - log warning but continue
+        Logger.warning('EventService', 'Native calendar unavailable, saving to Supabase only: $e');
+        nativeEventId = null;
       }
 
       // Step 2: Create in Supabase with native calendar ID
@@ -108,24 +107,28 @@ class EventService {
       } on PostgrestException catch (e) {
         Logger.error('EventService', 'Failed to create event in Supabase', e);
 
-        // Rollback: Delete from native calendar
-        try {
-          await _calendarManager.deleteEvent(nativeEventId);
-          Logger.info('EventService', 'Rolled back native calendar event: $nativeEventId');
-        } catch (rollbackError) {
-          Logger.error('EventService', 'Failed to rollback native calendar event', rollbackError);
+        // Rollback: Delete from native calendar (if we created one)
+        if (nativeEventId != null) {
+          try {
+            await _calendarManager.deleteEvent(nativeEventId);
+            Logger.info('EventService', 'Rolled back native calendar event: $nativeEventId');
+          } catch (rollbackError) {
+            Logger.error('EventService', 'Failed to rollback native calendar event', rollbackError);
+          }
         }
 
         throw _handlePostgrestError(e, nativeEventId: nativeEventId);
       } catch (e) {
         Logger.error('EventService', 'Failed to create event in Supabase', e);
 
-        // Rollback: Delete from native calendar
-        try {
-          await _calendarManager.deleteEvent(nativeEventId);
-          Logger.info('EventService', 'Rolled back native calendar event: $nativeEventId');
-        } catch (rollbackError) {
-          Logger.error('EventService', 'Failed to rollback native calendar event', rollbackError);
+        // Rollback: Delete from native calendar (if we created one)
+        if (nativeEventId != null) {
+          try {
+            await _calendarManager.deleteEvent(nativeEventId);
+            Logger.info('EventService', 'Rolled back native calendar event: $nativeEventId');
+          } catch (rollbackError) {
+            Logger.error('EventService', 'Failed to rollback native calendar event', rollbackError);
+          }
         }
 
         throw EventServiceException(
