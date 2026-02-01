@@ -315,7 +315,7 @@ class CalendarProvider extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   /// Add a new event to the calendar
-  /// Event times are stored as UTC DateTime objects, indexed by local date key
+  /// Event times are already in local timezone (converted in EventModel.fromJson)
   /// Applies decoy titles if the current user is the guest of honor
   void addEvent(EventModel event) {
     // Apply decoy title if current user is guest of honor
