@@ -86,7 +86,7 @@ class EventService {
         final response = await SupabaseClientManager.client
             .from('events')
             .insert(jsonToSend)
-            .select()
+            .select('*, group:groups(name, emoji)')
             .single();
 
         // Log what we got back from Supabase
@@ -329,7 +329,7 @@ class EventService {
       // Include all non-private events (shared_with_name or busy_only)
       final response = await SupabaseClientManager.client
           .from('events')
-          .select()
+          .select('*, group:groups(name, emoji)')
           .inFilter('user_id', memberUserIds)
           .neq('visibility', 'private') // Exclude private events
           .lt('start_time', TimezoneUtils.toUtcString(endDate)) // Event starts before end of range

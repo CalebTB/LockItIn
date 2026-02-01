@@ -4,6 +4,7 @@ import '../../data/models/event_model.dart';
 import '../../utils/privacy_colors.dart';
 import '../providers/settings_provider.dart';
 import '../screens/event_detail_screen.dart';
+import 'group_badge.dart';
 
 /// Apple Calendar-style timeline view for a single day
 /// Shows events positioned at their actual times with overlap handling
@@ -448,6 +449,16 @@ class _DayTimelineViewState extends State<DayTimelineView> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+
+                // Group badge (if event has a group)
+                if (event.groupId != null) ...[
+                  const SizedBox(height: 2),
+                  GroupBadge(
+                    groupId: event.groupId,
+                    groupName: event.groupName,
+                    groupEmoji: event.groupEmoji,
+                  ),
+                ],
               ]
               // For longer events (>= 60 min): Show title and location on separate lines
               else ...[
@@ -462,6 +473,16 @@ class _DayTimelineViewState extends State<DayTimelineView> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+
+                // Group badge (if event has a group)
+                if (event.groupId != null) ...[
+                  const SizedBox(height: 4),
+                  GroupBadge(
+                    groupId: event.groupId,
+                    groupName: event.groupName,
+                    groupEmoji: event.groupEmoji,
+                  ),
+                ],
 
                 // Location (if available)
                 if (event.location != null) ...[

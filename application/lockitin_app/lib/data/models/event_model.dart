@@ -24,6 +24,8 @@ class EventModel extends Equatable {
   final String id;
   final String userId;
   final String? groupId; // Group context for group events (null for personal events)
+  final String? groupName; // Group name from JOIN (read-only, for display only)
+  final String? groupEmoji; // Group emoji from JOIN (read-only, for display only)
   final String title;
   final String? description;
   final DateTime startTime;
@@ -42,6 +44,8 @@ class EventModel extends Equatable {
     required this.id,
     required this.userId,
     this.groupId,
+    this.groupName,
+    this.groupEmoji,
     required this.title,
     this.description,
     required this.startTime,
@@ -97,6 +101,11 @@ class EventModel extends Equatable {
       id: json['id'] as String,
       userId: json['user_id'] as String,
       groupId: json['group_id'] as String?,
+      // Handle both nested (from JOIN) and flat (from RPC) structures
+      groupName: json['group_name'] as String? ??
+                 (json['group'] != null ? json['group']['name'] as String? : null),
+      groupEmoji: json['group_emoji'] as String? ??
+                  (json['group'] != null ? json['group']['emoji'] as String? : null),
       title: json['title'] as String,
       description: json['description'] as String?,
       // All-day events: Keep as local midnight (no UTC conversion)
@@ -211,6 +220,8 @@ class EventModel extends Equatable {
     String? id,
     String? userId,
     String? groupId,
+    String? groupName,
+    String? groupEmoji,
     String? title,
     String? description,
     DateTime? startTime,
@@ -229,6 +240,8 @@ class EventModel extends Equatable {
       id: id ?? this.id,
       userId: userId ?? this.userId,
       groupId: groupId ?? this.groupId,
+      groupName: groupName ?? this.groupName,
+      groupEmoji: groupEmoji ?? this.groupEmoji,
       title: title ?? this.title,
       description: description ?? this.description,
       startTime: startTime ?? this.startTime,
@@ -250,6 +263,8 @@ class EventModel extends Equatable {
         id,
         userId,
         groupId,
+        groupName,
+        groupEmoji,
         title,
         description,
         startTime,
