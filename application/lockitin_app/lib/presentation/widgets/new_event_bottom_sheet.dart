@@ -401,7 +401,7 @@ class _NewEventBottomSheetState extends State<NewEventBottomSheet> {
       MaterialPageRoute(
         builder: (context) => EventCreationScreen(
           mode: EventCreationMode.personalEvent,
-          initialDate: widget.initialDate ?? TimezoneUtils.nowUtc().toLocal(),
+          initialDate: widget.initialDate ?? TimezoneUtils.nowLocal(),
         ),
       ),
     );

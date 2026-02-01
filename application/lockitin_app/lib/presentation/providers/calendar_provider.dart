@@ -283,8 +283,7 @@ class CalendarProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// Converts to local timezone before extracting date components
   /// to ensure events are grouped by local date, not UTC date
   String _dateKey(DateTime date) {
-    final localDate = date.toLocal();
-    return '${localDate.year}-${localDate.month.toString().padLeft(2, '0')}-${localDate.day.toString().padLeft(2, '0')}';
+    return TimezoneUtils.getDateKey(date);
   }
 
   /// Get events for a specific day
