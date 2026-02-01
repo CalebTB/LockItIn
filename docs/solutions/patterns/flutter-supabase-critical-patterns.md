@@ -467,6 +467,60 @@ await mcp__supabase__execute_sql(
 
 ---
 
+## Pattern 11: Use TimezoneUtils Helpers for All DateTime Operations
+
+### ❌ WRONG: Direct DateTime operations and non-cached formatters
+
+```dart
+// Creating DateFormat instances on every build (expensive!)
+final timeFormat = DateFormat('h:mm a');
+final formatted = timeFormat.format(event.startTime);
+
+// Verbose timezone conversions
+DateTime _votingDeadline = TimezoneUtils.nowUtc().toLocal().add(Duration(hours: 48));
+
+// Duplicated date key logic
+String _dateKey(DateTime date) {
+  final localDate = date.toLocal();
+  return '${localDate.year}-${localDate.month.toString().padLeft(2, '0')}-${localDate.day.toString().padLeft(2, '0')}';
+}
+
+// Direct DateTime.now() calls (breaks testability)
+final now = DateTime.now();
+```
+
+**Impact:** Performance overhead (~0.5ms per DateFormat creation), code duplication, inconsistent timezone handling across calendar views, untestable time-dependent code.
+
+### ✅ CORRECT: Always use TimezoneUtils helpers
+
+```dart
+// Use cached formatters (reduces overhead to ~0.1ms)
+final formatted = TimezoneUtils.formatLocal(event.startTime, 'h:mm a');
+
+// Concise timezone conversion
+DateTime _votingDeadline = TimezoneUtils.nowLocal().add(Duration(hours: 48));
+
+// Centralized date key generation
+String _dateKey(DateTime date) {
+  return TimezoneUtils.getDateKey(date);
+}
+
+// Testable time via Clock package
+final nowUtc = TimezoneUtils.nowUtc();
+final nowLocal = TimezoneUtils.nowLocal();
+```
+
+**Timezone Policy (from TimezoneUtils):**
+- **Storage**: Always UTC (`DateTime.utc()` or `.toUtc()`)
+- **Display**: Always local (`.toLocal()`)
+- **Testing**: Use Clock package (`clock.now()`)
+
+**Rule:** Never create DateFormat instances directly, never use `DateTime.now()` directly, never duplicate timezone logic. All datetime operations go through TimezoneUtils helpers.
+
+**See:** [Timezone Standardization Solution](../best-practices/timezone-date-handling-standardization-calendar-20260201.md)
+
+---
+
 **Post-Mortem Grade: D+**
 
 The feature works, but with significant technical debt. The biggest lesson: **Clarify requirements and read existing code BEFORE implementing**. Following these patterns prevents wasting 30% of development time on avoidable rework.
