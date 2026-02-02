@@ -108,6 +108,15 @@ class AgendaEventCard extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Group badge (above title)
+                            if (event.groupId != null) ...[
+                              GroupBadge(
+                                groupId: event.groupId,
+                                groupName: event.groupName,
+                                groupEmoji: event.groupEmoji,
+                              ),
+                              const SizedBox(height: 3),
+                            ],
                             // Title with emoji and SECRET badge
                             Row(
                               children: [
@@ -201,16 +210,6 @@ class AgendaEventCard extends StatelessWidget {
                                       ),
                                     ),
                                   ],
-                                ),
-                              ),
-                            // Group badge
-                            if (event.groupId != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: GroupBadge(
-                                  groupId: event.groupId,
-                                  groupName: event.groupName,
-                                  groupEmoji: event.groupEmoji,
                                 ),
                               ),
                           ],

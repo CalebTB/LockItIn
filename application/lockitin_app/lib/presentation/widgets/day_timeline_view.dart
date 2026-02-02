@@ -438,6 +438,16 @@ class _DayTimelineViewState extends State<DayTimelineView> {
 
               // For short events (< 60 min): Show title and location compactly
               if (isShortEvent) ...[
+                // Group badge (if event has a group)
+                if (event.groupId != null) ...[
+                  GroupBadge(
+                    groupId: event.groupId,
+                    groupName: event.groupName,
+                    groupEmoji: event.groupEmoji,
+                  ),
+                  const SizedBox(height: 2),
+                ],
+
                 Text(
                   event.location != null ? '${event.title} • ${event.location}' : event.title,
                   style: TextStyle(
@@ -449,19 +459,19 @@ class _DayTimelineViewState extends State<DayTimelineView> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-
+              ]
+              // For longer events (>= 60 min): Show title and location on separate lines
+              else ...[
                 // Group badge (if event has a group)
                 if (event.groupId != null) ...[
-                  const SizedBox(height: 2),
                   GroupBadge(
                     groupId: event.groupId,
                     groupName: event.groupName,
                     groupEmoji: event.groupEmoji,
                   ),
+                  const SizedBox(height: 4),
                 ],
-              ]
-              // For longer events (>= 60 min): Show title and location on separate lines
-              else ...[
+
                 // Title
                 Text(
                   event.title,
@@ -473,16 +483,6 @@ class _DayTimelineViewState extends State<DayTimelineView> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-
-                // Group badge (if event has a group)
-                if (event.groupId != null) ...[
-                  const SizedBox(height: 4),
-                  GroupBadge(
-                    groupId: event.groupId,
-                    groupName: event.groupName,
-                    groupEmoji: event.groupEmoji,
-                  ),
-                ],
 
                 // Location (if available)
                 if (event.location != null) ...[
