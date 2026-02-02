@@ -5,6 +5,7 @@ import '../../core/utils/timezone_utils.dart';
 import '../../core/utils/surprise_party_utils.dart';
 import '../../data/models/event_model.dart';
 import '../providers/auth_provider.dart';
+import 'group_badge.dart';
 
 /// Compact event card for agenda list view
 /// Features colored accent bar, time, title, location, and privacy badge
@@ -200,6 +201,16 @@ class AgendaEventCard extends StatelessWidget {
                                       ),
                                     ),
                                   ],
+                                ),
+                              ),
+                            // Group badge
+                            if (event.groupId != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: GroupBadge(
+                                  groupId: event.groupId,
+                                  groupName: event.groupName,
+                                  groupEmoji: event.groupEmoji,
                                 ),
                               ),
                           ],
