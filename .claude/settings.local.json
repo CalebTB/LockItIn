@@ -73,7 +73,10 @@
       "Skill(compound-engineering:compound-docs)",
       "Bash(python3:*)",
       "Bash(git fetch:*)",
-      "mcp__supabase__search_docs"
+      "mcp__supabase__search_docs",
+      "WebFetch(domain:supabase.com)",
+      "Bash(open:*)",
+      "mcp__supabase__list_branches"
     ],
     "deny": [],
     "ask": []
